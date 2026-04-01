@@ -5,7 +5,7 @@
 **Status:** Design Complete, Implementation Pending  
 **Version:** 1.0  
 **Date:** 2026-03-30  
-**Authors:** Collaborative design between user and AI assistant
+**Authors:** Collaborative design between Sanjaya and AI assistant
 
 ---
 
@@ -2584,3 +2584,7 @@ def install(copy_agents: bool = True, register_mcp: bool = True) -> dict:
 |------|-------|---------|
 | `.opencode/patterns.md` | ~15 | Empty pattern memory template with format docs |
 | `.opencode/team-config.json` | ~20-50 | User-configurable models, reasoning, pipeline budgets (optional) |
+
+
+
+All rights reserved by the author
