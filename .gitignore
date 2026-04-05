@@ -1,0 +1,73 @@
+# ── Python ────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+sdist/
+
+# ── Virtual environments ─────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Testing & coverage ───────────────────────────────
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+
+# ── Linting & type-checking ──────────────────────────
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# ── IDEs & editors ───────────────────────────────────
+.idea/
+.vscode/
+.nova/
+.fleet/
+.zed/
+*.swp
+*.swo
+*~
+
+# ── OS files ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── Environment & secrets ────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── SQLite databases (runtime data) ──────────────────
+*.db
+*.db-wal
+*.db-shm
+
+# ── ONNX models (downloaded at runtime) ──────────────
+*.onnx
+
+# ── Docker ───────────────────────────────────────────
+.docker/
+
+# ── Docs (Laravel app dependencies) ──────────────────
+docs/
+docs/node_modules/
+docs/vendor/
+docs/.env
+docs/public/build/
+docs/public/hot/
+docs/public/storage/
+docs/storage/*.key
+docs/storage/pail/
