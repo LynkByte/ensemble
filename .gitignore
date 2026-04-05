@@ -61,13 +61,16 @@ Desktop.ini
 # ── Docker ───────────────────────────────────────────
 .docker/
 
-# ── Docs (Laravel app dependencies) ──────────────────
-docs/
-docs/node_modules/
-docs/vendor/
-docs/.env
-docs/public/build/
-docs/public/hot/
-docs/public/storage/
-docs/storage/*.key
-docs/storage/pail/
+# ── Docs Web (Laravel app dependencies) ──────────────────
+docs-web/
+docs-web/node_modules/
+docs-web/vendor/
+docs-web/.env
+docs-web/public/build/
+docs-web/public/hot/
+docs-web/public/storage/
+docs-web/storage/*.key
+docs-web/storage/pail/
+
+# ── Docs ───────────────────────────────────
+docs/reference/
