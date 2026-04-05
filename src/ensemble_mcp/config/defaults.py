@@ -136,6 +136,7 @@ CONFIDENCE_ESTIMATED = "estimated"
 
 # ── Source Labels ─────────────────────────────────────────────────
 SOURCE_SQLITE = "sqlite"
+SOURCE_LIVE_RESPONSE = "live_response_usage"
 SOURCE_PARSER = "session_parser"
 SOURCE_ESTIMATOR = "estimator"
 SOURCE_HYBRID = "hybrid"

@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from typing import Any
 
 from mcp.server import Server
@@ -16,6 +17,7 @@ from mcp.types import TextContent, Tool
 
 from .config.defaults import SERVER_NAME, SERVER_VERSION
 from .memory.store import VectorStore
+from .security.trust import require_confirmation
 from .tools import (
     drift,
     indexer,
@@ -25,7 +27,7 @@ from .tools import (
     session,
     skills,
 )
-from .security.trust import require_confirmation
+from .tools.mcp_tracking import record_mcp_call
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +109,11 @@ TOOL_DEFINITIONS: list[Tool] = [
     ),
     Tool(
         name="metrics_record_step",
-        description="Record per-agent token/cost usage for a pipeline step.",
+        description=(
+            "Record per-agent token/cost usage for a pipeline step. "
+            "Supports 3-tier source precedence: "
+            "direct fields > usage_raw payload > tiktoken estimation."
+        ),
         inputSchema={
             "type": "object",
             "properties": {
@@ -119,9 +125,42 @@ TOOL_DEFINITIONS: list[Tool] = [
                 "cache_write_tokens": {"type": "integer"},
                 "web_search_requests": {"type": "integer"},
                 "cached_tokens": {"type": "integer"},
+                "usage_raw": {
+                    "type": "object",
+                    "description": (
+                        "Raw provider/runtime usage payload (Anthropic or OpenAI format). "
+                        "Auto-detected. Overridden by explicit token fields."
+                    ),
+                },
+                "provider": {
+                    "type": "string",
+                    "description": (
+                        "Provider hint: 'anthropic' or 'openai'. Auto-detected if omitted."
+                    ),
+                },
                 "model": {"type": "string"},
-                "source": {"type": "string"},
-                "confidence": {"type": "string"},
+                "source": {
+                    "type": "string",
+                    "description": (
+                        "Source label: live_response_usage/session_parser/estimator/hybrid"
+                    ),
+                },
+                "confidence": {
+                    "type": "string",
+                    "description": "Confidence: exact/partial/estimated",
+                },
+                "input_text": {
+                    "type": "string",
+                    "description": (
+                        "Input text for tiktoken estimation fallback (when no token counts)."
+                    ),
+                },
+                "output_text": {
+                    "type": "string",
+                    "description": (
+                        "Output text for tiktoken estimation fallback (when no token counts)."
+                    ),
+                },
                 "duration_ms": {"type": "integer"},
                 "idempotency_key": {"type": "string"},
             },
@@ -442,7 +481,7 @@ def _health(store: VectorStore) -> dict[str, Any]:
 
 async def _reset(store: VectorStore, *, confirm: bool = False, **_: Any) -> dict[str, Any]:
     """Reset all data."""
-    from .contracts.envelope import success_envelope, error_envelope
+    from .contracts.envelope import error_envelope, success_envelope
     from .state.idempotency import check_idempotency, store_idempotency
 
     idempotency_key = _.get("idempotency_key")
@@ -497,7 +536,25 @@ def serve() -> None:
 
     @app.call_tool()
     async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-        result = await _dispatch_tool(name, arguments or {})
+        args = arguments or {}
+        start = time.monotonic()
+        result = await _dispatch_tool(name, args)
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+
+        # Record the MCP call in the tracking table
+        try:
+            store = _get_store()
+            record_mcp_call(
+                store.conn,
+                tool_name=name,
+                arguments=args,
+                result=result,
+                duration_ms=elapsed_ms,
+            )
+        except Exception:
+            # Never let tracking failures break tool calls
+            logger.debug("Failed to record MCP call for %s", name, exc_info=True)
+
         return [TextContent(type="text", text=json.dumps(result, default=str))]
 
     async def run() -> None:
