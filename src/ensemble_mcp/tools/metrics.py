@@ -4,7 +4,7 @@ metrics_end_session, metrics_session_report, metrics_trend, metrics_compare.
 Token tracking with per-agent cost breakdown using hybrid source precedence:
 1. Direct response usage (exact)
 2. ``usage_raw`` provider payload parsing (exact)
-3. AI tool session parsers (exact/partial)  — wired in Phase 3
+3. AI tool session parsers (exact/partial) — OpenCode + Claude Code
 4. Tokenizer estimation via tiktoken (estimated)
 """
 
@@ -15,7 +15,7 @@ import sqlite3
 import uuid
 from typing import Any
 
-from ..config.defaults import CONFIDENCE_EXACT, CONFIDENCE_PARTIAL
+from ..config.defaults import CONFIDENCE_EXACT, CONFIDENCE_PARTIAL, SOURCE_PARSER
 from ..config.pricing import PRICING_VERSION, calculate_cost
 from ..contracts.envelope import tool_handler
 from ..contracts.errors import ErrorCode, ToolError
@@ -113,6 +113,45 @@ async def metrics_record_step(
         source=source,
         confidence=confidence,
     )
+
+    # ── Phase 3: Session parser fallback ─────────────────────────
+    # If tokens are still zero and the parent session has an ai_tool,
+    # attempt to extract usage from the AI tool's local session files.
+    if (
+        resolved["input_tokens"] == 0
+        and resolved["output_tokens"] == 0
+        and source is None  # don't override an explicit source label
+    ):
+        # Look up ai_tool from the parent session
+        session_ai_tool = conn.execute(
+            "SELECT ai_tool FROM sessions WHERE id = ?",
+            (session_id,),
+        ).fetchone()
+        ai_tool_name = session_ai_tool[0] if session_ai_tool else None
+
+        if ai_tool_name:
+            try:
+                from ..parsers import parse_latest_session as _parser_dispatch
+
+                parsed = _parser_dispatch(ai_tool=ai_tool_name)
+                if parsed and parsed.total_input_tokens > 0:
+                    resolved["input_tokens"] = parsed.total_input_tokens
+                    resolved["output_tokens"] = parsed.total_output_tokens
+                    resolved["cache_read_tokens"] = parsed.total_cache_read_tokens
+                    resolved["cache_write_tokens"] = parsed.total_cache_write_tokens
+                    resolved["cached_tokens"] = parsed.total_cache_read_tokens
+                    resolved["source"] = SOURCE_PARSER
+                    resolved["confidence"] = parsed.confidence
+            except Exception:
+                # Parser failures are non-fatal — fall through to
+                # whatever resolve_token_fields already produced.
+                import logging as _logging
+
+                _logging.getLogger(__name__).debug(
+                    "Session parser fallback failed for ai_tool=%s",
+                    ai_tool_name,
+                    exc_info=True,
+                )
 
     in_tok: int = resolved["input_tokens"]
     out_tok: int = resolved["output_tokens"]
