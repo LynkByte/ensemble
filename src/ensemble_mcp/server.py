@@ -9,7 +9,7 @@ import asyncio
 import json
 import logging
 import time
-from typing import Any
+from typing import Any, cast
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -394,55 +394,55 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]
     match name:
         # Patterns
         case "patterns_search":
-            return await patterns.patterns_search(store, **arguments)
+            return cast(dict[str, Any], await patterns.patterns_search(store, **arguments))
         case "patterns_store":
-            return await patterns.patterns_store(store, **arguments)
+            return cast(dict[str, Any], await patterns.patterns_store(store, **arguments))
         case "patterns_prune":
-            return await patterns.patterns_prune(store, **arguments)
+            return cast(dict[str, Any], await patterns.patterns_prune(store, **arguments))
 
         # Metrics
         case "metrics_start_session":
-            return await metrics.metrics_start_session(conn, **arguments)
+            return cast(dict[str, Any], await metrics.metrics_start_session(conn, **arguments))
         case "metrics_record_step":
-            return await metrics.metrics_record_step(conn, **arguments)
+            return cast(dict[str, Any], await metrics.metrics_record_step(conn, **arguments))
         case "metrics_end_session":
-            return await metrics.metrics_end_session(conn, **arguments)
+            return cast(dict[str, Any], await metrics.metrics_end_session(conn, **arguments))
         case "metrics_session_report":
-            return await metrics.metrics_session_report(conn, **arguments)
+            return cast(dict[str, Any], await metrics.metrics_session_report(conn, **arguments))
         case "metrics_trend":
-            return await metrics.metrics_trend(conn, **arguments)
+            return cast(dict[str, Any], await metrics.metrics_trend(conn, **arguments))
         case "metrics_compare":
-            return await metrics.metrics_compare(conn, **arguments)
+            return cast(dict[str, Any], await metrics.metrics_compare(conn, **arguments))
 
         # Drift
         case "drift_check":
-            return await drift.drift_check(model, conn, **arguments)
+            return cast(dict[str, Any], await drift.drift_check(model, conn, **arguments))
 
         # Routing
         case "model_recommend":
-            return await routing.model_recommend(conn, **arguments)
+            return cast(dict[str, Any], await routing.model_recommend(conn, **arguments))
 
         # Skills
         case "skills_discover":
-            return await skills.skills_discover(model, conn, **arguments)
+            return cast(dict[str, Any], await skills.skills_discover(model, conn, **arguments))
         case "skills_suggest":
-            return await skills.skills_suggest(model, conn, **arguments)
+            return cast(dict[str, Any], await skills.skills_suggest(model, conn, **arguments))
         case "skills_generate":
-            return await skills.skills_generate(conn, **arguments)
+            return cast(dict[str, Any], await skills.skills_generate(conn, **arguments))
 
         # Session
         case "session_save":
-            return await session.session_save(conn, **arguments)
+            return cast(dict[str, Any], await session.session_save(conn, **arguments))
         case "session_load":
-            return await session.session_load(conn, **arguments)
+            return cast(dict[str, Any], await session.session_load(conn, **arguments))
 
         # Indexer
         case "project_index":
-            return await indexer.project_index(conn, **arguments)
+            return cast(dict[str, Any], await indexer.project_index(conn, **arguments))
         case "project_query":
-            return await indexer.project_query(conn, **arguments)
+            return cast(dict[str, Any], await indexer.project_query(conn, **arguments))
         case "project_dependencies":
-            return await indexer.project_dependencies(conn, **arguments)
+            return cast(dict[str, Any], await indexer.project_dependencies(conn, **arguments))
 
         # Utility
         case "health":
@@ -530,11 +530,11 @@ def serve() -> None:
 
     app = Server(SERVER_NAME)
 
-    @app.list_tools()
+    @app.list_tools()  # type: ignore[no-untyped-call, untyped-decorator]
     async def list_tools() -> list[Tool]:
         return TOOL_DEFINITIONS
 
-    @app.call_tool()
+    @app.call_tool()  # type: ignore[untyped-decorator]
     async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         args = arguments or {}
         start = time.monotonic()

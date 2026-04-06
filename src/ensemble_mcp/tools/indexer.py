@@ -13,6 +13,7 @@ import re
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from ..config.defaults import INDEXER_IGNORED_DIRS, INDEXER_IGNORED_EXTENSIONS
 from ..contracts.envelope import tool_handler
@@ -110,12 +111,12 @@ def _detect_role(file_path: str) -> str | None:
 # ── Export extraction (language-aware) ────────────────────────────
 
 
-def _extract_exports(content: str, language: str | None) -> list[dict]:
+def _extract_exports(content: str, language: str | None) -> list[dict[str, Any]]:
     """Extract exported symbols from file content."""
     if not language or not content:
         return []
 
-    exports: list[dict] = []
+    exports: list[dict[str, Any]] = []
 
     if language in ("typescript", "javascript"):
         _extract_ts_js_exports(content, exports)
@@ -133,7 +134,7 @@ def _extract_exports(content: str, language: str | None) -> list[dict]:
     return exports
 
 
-def _extract_ts_js_exports(content: str, exports: list[dict]) -> None:
+def _extract_ts_js_exports(content: str, exports: list[dict[str, Any]]) -> None:
     """Extract exports from TypeScript/JavaScript."""
     patterns = [
         (r"export\s+(?:default\s+)?class\s+(\w+)", "class"),
@@ -154,7 +155,7 @@ def _extract_ts_js_exports(content: str, exports: list[dict]) -> None:
             )
 
 
-def _extract_python_exports(content: str, exports: list[dict]) -> None:
+def _extract_python_exports(content: str, exports: list[dict[str, Any]]) -> None:
     """Extract exports from Python (top-level class/def, __all__)."""
     # Top-level classes
     for match in re.finditer(r"^class\s+(\w+)", content, re.MULTILINE):
@@ -175,16 +176,16 @@ def _extract_python_exports(content: str, exports: list[dict]) -> None:
             }
         )
     # __all__
-    match = re.search(r"__all__\s*=\s*\[(.*?)\]", content, re.DOTALL)
-    if match:
-        for name_match in re.finditer(r"""["'](\w+)["']""", match.group(1)):
+    all_match = re.search(r"__all__\s*=\s*\[(.*?)\]", content, re.DOTALL)
+    if all_match:
+        for name_match in re.finditer(r"""["'](\w+)["']""", all_match.group(1)):
             # Don't duplicate if already found
             name = name_match.group(1)
             if not any(e["name"] == name for e in exports):
                 exports.append({"name": name, "kind": "constant", "line_number": None})
 
 
-def _extract_php_exports(content: str, exports: list[dict]) -> None:
+def _extract_php_exports(content: str, exports: list[dict[str, Any]]) -> None:
     """Extract exports from PHP."""
     patterns = [
         (r"(?:abstract\s+)?class\s+(\w+)", "class"),
@@ -203,7 +204,7 @@ def _extract_php_exports(content: str, exports: list[dict]) -> None:
             )
 
 
-def _extract_go_exports(content: str, exports: list[dict]) -> None:
+def _extract_go_exports(content: str, exports: list[dict[str, Any]]) -> None:
     """Extract exports from Go (capitalized = exported)."""
     for match in re.finditer(r"^func\s+(\(?[A-Z]\w*)", content, re.MULTILINE):
         name = match.group(1).lstrip("(")
@@ -224,7 +225,7 @@ def _extract_go_exports(content: str, exports: list[dict]) -> None:
         )
 
 
-def _extract_rust_exports(content: str, exports: list[dict]) -> None:
+def _extract_rust_exports(content: str, exports: list[dict[str, Any]]) -> None:
     """Extract exports from Rust (pub items)."""
     patterns = [
         (r"pub\s+fn\s+(\w+)", "function"),
@@ -243,7 +244,7 @@ def _extract_rust_exports(content: str, exports: list[dict]) -> None:
             )
 
 
-def _extract_ruby_exports(content: str, exports: list[dict]) -> None:
+def _extract_ruby_exports(content: str, exports: list[dict[str, Any]]) -> None:
     """Extract exports from Ruby."""
     for match in re.finditer(r"^\s*class\s+(\w+)", content, re.MULTILINE):
         exports.append(
@@ -274,12 +275,12 @@ def _extract_ruby_exports(content: str, exports: list[dict]) -> None:
 # ── Import extraction ─────────────────────────────────────────────
 
 
-def _extract_imports(content: str, language: str | None) -> list[dict]:
+def _extract_imports(content: str, language: str | None) -> list[dict[str, str]]:
     """Extract import statements from file content."""
     if not language or not content:
         return []
 
-    imports: list[dict] = []
+    imports: list[dict[str, str]] = []
 
     if language in ("typescript", "javascript"):
         for match in re.finditer(
@@ -357,7 +358,7 @@ async def project_index(
     project_path: str,
     force: bool = False,
     idempotency_key: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Build or refresh the codebase index for faster exploration.
 
     Scans the file tree, detects language, extracts exports/imports,
@@ -459,7 +460,7 @@ async def project_index(
             "VALUES (?, ?, ?, ?, ?, ?)",
             (project_str, rel, language, role, size, mtime),
         )
-        file_id = cursor.lastrowid
+        file_id = cursor.lastrowid or 0
 
         # Extract and store exports
         exports = _extract_exports(content, language)
@@ -500,7 +501,7 @@ async def project_query(
     query: str | None = None,
     file_types: list[str] | None = None,
     path_pattern: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Query the project index — find files by type, path, or role.
 
     Returns compact file map for agent consumption.
@@ -508,7 +509,7 @@ async def project_query(
     project = str(Path(project_path).resolve())
 
     conditions = ["project_path = ?"]
-    params: list = [project]
+    params: list[Any] = [project]
 
     if file_types:
         placeholders = ",".join("?" * len(file_types))
@@ -532,7 +533,7 @@ async def project_query(
         params,
     ).fetchall()
 
-    files: list[dict] = []
+    files: list[dict[str, Any]] = []
     for r in rows:
         file_id = r[0]
         # Get exports
@@ -562,7 +563,7 @@ async def project_dependencies(
     *,
     project_path: str,
     file_path: str,
-) -> dict:
+) -> dict[str, Any]:
     """Get import/dependency graph for a specific file.
 
     Shows what a file imports and what imports it.

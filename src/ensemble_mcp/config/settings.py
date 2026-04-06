@@ -70,13 +70,8 @@ def _load_toml(path: Path) -> dict[str, Any]:
     """Load a TOML file, returning empty dict on any failure."""
     if not path.is_file():
         return {}
-    try:
-        import tomllib  # Python 3.11+
-    except ModuleNotFoundError:  # pragma: no cover
-        try:
-            import tomli as tomllib  # type: ignore[no-redef]
-        except ImportError:
-            return {}
+    import tomllib
+
     try:
         with open(path, "rb") as f:
             return tomllib.load(f)
@@ -93,7 +88,7 @@ def _apply_overrides(
 
     Scalars override, maps merge shallowly, lists replace.
     """
-    field_names = {f.name for f in settings.__dataclass_fields__.values()}  # type: ignore[attr-defined]
+    field_names = {f.name for f in settings.__dataclass_fields__.values()}
 
     for key, value in data.items():
         if key in field_names and key != "source_map":
@@ -112,7 +107,7 @@ def _apply_overrides(
 def _apply_env_overrides(settings: Settings) -> None:
     """Apply ENSEMBLE_MCP_* environment variables."""
     prefix = "ENSEMBLE_MCP_"
-    field_names = {f.name for f in settings.__dataclass_fields__.values()}  # type: ignore[attr-defined]
+    field_names = {f.name for f in settings.__dataclass_fields__.values()}
 
     for key, value in os.environ.items():
         if not key.startswith(prefix):
@@ -151,7 +146,7 @@ def load_settings(project_dir: Path | None = None) -> Settings:
     settings = Settings()
 
     # Mark all defaults
-    for f in settings.__dataclass_fields__:  # type: ignore[attr-defined]
+    for f in settings.__dataclass_fields__:
         if f != "source_map":
             settings.source_map[f] = "default"
 

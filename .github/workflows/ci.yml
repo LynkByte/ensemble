@@ -37,19 +37,8 @@ jobs:
           pytest tests/
           -m "not slow"
           --cov=ensemble_mcp
-          --cov-report=xml:coverage.xml
           --cov-report=term-missing
           -q
-
-      - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.12' && !cancelled()
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage.xml
-          flags: unittests
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   test-slow:
     name: Slow tests

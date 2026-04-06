@@ -7,6 +7,7 @@ task classification and agent role.
 from __future__ import annotations
 
 import sqlite3
+from typing import Any
 
 from ..contracts.envelope import tool_handler
 from ..state.idempotency import check_idempotency, store_idempotency
@@ -90,7 +91,7 @@ async def model_recommend(
     task_classification: str,
     task_description: str | None = None,  # noqa: ARG001  — reserved for future routing logic
     idempotency_key: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Recommend a model tier for the given agent and task classification.
 
     Returns ``{tier, reason}`` where tier is one of: best, mid, cheapest.

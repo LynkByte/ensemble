@@ -52,7 +52,8 @@ def check_idempotency(
     ).fetchone()
 
     if row is not None:
-        return json.loads(row[0])
+        result: dict[str, Any] = json.loads(row[0])
+        return result
     return None
 
 
