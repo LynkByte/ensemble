@@ -29,6 +29,7 @@ This installs the package in editable mode plus development tools:
 |---|---|---|
 | pytest | >= 8.0 | Test runner |
 | pytest-asyncio | >= 0.24 | Async test support |
+| pytest-cov | >= 5.0 | Coverage reporting |
 | ruff | >= 0.4 | Linting and formatting |
 | mypy | >= 1.10 | Static type checking |
 
@@ -330,6 +331,79 @@ docker run --rm -v ~/.cache/ensemble-mcp:/root/.cache/ensemble-mcp ensemble-mcp
 ```
 
 End users should install with `pip install -e .` and configure their MCP client to launch `ensemble-mcp` directly. See the [Setup Guide](SETUP.md) for details.
+
+## CI/CD
+
+The project uses GitHub Actions for continuous integration, security scanning, and automated publishing. Workflows live in `.github/workflows/`.
+
+### Workflows
+
+| Workflow | File | Trigger | What it does |
+|---|---|---|---|
+| CI | `ci.yml` | PR + push to `main` | Runs tests across Python 3.11/3.12/3.13, uploads coverage to Codecov |
+| Lint | `lint.yml` | PR + push to `main` | `ruff check`, `ruff format --check`, `mypy src/` (3 parallel jobs) |
+| Security | `security.yml` | PR + push to `main` + weekly | CodeQL SAST analysis + `pip-audit` dependency vulnerability scanning |
+| Publish | `publish.yml` | GitHub release published | Builds sdist+wheel, publishes to PyPI via OIDC trusted publishing |
+| Docker | `docker.yml` | GitHub release published | Multi-arch Docker build, pushed to `ghcr.io/lynkbyte/ensemble-mcp` |
+
+Dependabot is configured (`.github/dependabot.yml`) to auto-create PRs for pip and GitHub Actions dependency updates weekly.
+
+### Required Setup
+
+Before the workflows function fully, the following one-time setup steps are required:
+
+#### 1. Codecov (coverage reporting)
+
+The CI workflow uploads test coverage to [Codecov](https://codecov.io).
+
+1. Go to [codecov.io](https://codecov.io) and sign in with GitHub
+2. Add the `LynkByte/ensemble` repository
+3. Copy the upload token from the Codecov repo settings
+4. In your GitHub repo, go to **Settings > Secrets and variables > Actions**
+5. Add a new repository secret: `CODECOV_TOKEN` with the token value
+
+> For public repositories, Codecov supports tokenless upload — the secret is optional but recommended for reliability.
+
+#### 2. PyPI Trusted Publishing (package releases)
+
+The publish workflow uses [OIDC trusted publishing](https://docs.pypi.org/trusted-publishers/) — no API tokens are stored in GitHub.
+
+1. Go to [pypi.org/manage/account/publishing](https://pypi.org/manage/account/publishing/)
+2. Add a new pending publisher (or configure on an existing project):
+   - **PyPI project name**: `ensemble-mcp`
+   - **Owner**: `LynkByte`
+   - **Repository**: `ensemble`
+   - **Workflow name**: `publish.yml`
+   - **Environment name**: `pypi`
+3. In your GitHub repo, go to **Settings > Environments**
+4. Create an environment named `pypi`
+5. Optionally add required reviewers for deployment protection (recommended for production releases)
+
+#### 3. GHCR (Docker image publishing)
+
+Docker images are pushed to GitHub Container Registry (`ghcr.io`) using the built-in `GITHUB_TOKEN`. No additional secrets are needed, but ensure:
+
+1. In your GitHub repo, go to **Settings > Actions > General**
+2. Under "Workflow permissions", ensure **Read and write permissions** is selected
+3. The first push will create the package at `ghcr.io/lynkbyte/ensemble-mcp` — you can then configure its visibility (public/private) under **Packages** in the organization/user settings
+
+### Running Checks Locally
+
+All CI checks can be run locally before pushing:
+
+```bash
+# Tests with coverage
+pytest tests/ --cov=ensemble_mcp --cov-report=term-missing -m "not slow"
+
+# Lint
+ruff check src/ tests/
+
+# Format check
+ruff format --check src/ tests/
+
+# Type check
+mypy src/
+```
 
 ## Known Limitations
 
