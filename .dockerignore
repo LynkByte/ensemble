@@ -1,0 +1,67 @@
+# Version control
+.git
+.gitignore
+
+# Python caches
+__pycache__
+*.py[cod]
+*$py.class
+*.egg-info
+dist/
+build/
+.eggs/
+sdist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing & coverage
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+.hypothesis/
+
+# Linting & type-checking
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+
+# IDEs
+.idea/
+.vscode/
+.nova/
+.fleet/
+.zed/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment & secrets
+.env
+.env.*
+
+# SQLite databases (runtime data)
+*.db
+*.db-wal
+*.db-shm
+
+# ONNX models (downloaded at runtime)
+*.onnx
+
+# Docker
+.docker/
+
+# Documentation website (separate project)
+docs-web/
+
+# Documentation (not needed in container)
+docs/
+
+# Agent configs
+.agents/
+AGENTS.md

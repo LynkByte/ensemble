@@ -88,7 +88,7 @@ async def model_recommend(
     *,
     agent: str,
     task_classification: str,
-    task_description: str | None = None,
+    task_description: str | None = None,  # noqa: ARG001  — reserved for future routing logic
     idempotency_key: str | None = None,
 ) -> dict:
     """Recommend a model tier for the given agent and task classification.

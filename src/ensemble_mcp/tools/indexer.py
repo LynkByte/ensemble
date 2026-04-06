@@ -7,10 +7,11 @@ language, and file role per file.
 
 from __future__ import annotations
 
+import contextlib
 import fnmatch
 import re
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ..config.defaults import INDEXER_IGNORED_DIRS, INDEXER_IGNORED_EXTENSIONS
@@ -389,11 +390,11 @@ async def project_index(
         if file_ids:
             placeholders = ",".join("?" * len(file_ids))
             conn.execute(
-                f"DELETE FROM file_exports WHERE file_id IN ({placeholders})",
+                f"DELETE FROM file_exports WHERE file_id IN ({placeholders})",  # noqa: S608
                 file_ids,
             )
             conn.execute(
-                f"DELETE FROM file_imports WHERE file_id IN ({placeholders})",
+                f"DELETE FROM file_imports WHERE file_id IN ({placeholders})",  # noqa: S608
                 file_ids,
             )
         conn.execute(
@@ -428,7 +429,7 @@ async def project_index(
             continue
 
         stat = fp.stat()
-        mtime = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
+        mtime = datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat()
         size = stat.st_size
 
         # Skip unchanged files (incremental)
@@ -448,10 +449,8 @@ async def project_index(
         # Read file content for export/import extraction
         content = ""
         if language and size < 500_000:  # Skip files > 500KB
-            try:
+            with contextlib.suppress(OSError):
                 content = fp.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                pass
 
         # Insert file record
         cursor = conn.execute(
@@ -527,7 +526,7 @@ async def project_query(
 
     where_clause = " AND ".join(conditions)
     rows = conn.execute(
-        f"SELECT id, file_path, language, role, size_bytes, modified_at "
+        f"SELECT id, file_path, language, role, size_bytes, modified_at "  # noqa: S608
         f"FROM project_files WHERE {where_clause} "
         f"ORDER BY file_path",
         params,

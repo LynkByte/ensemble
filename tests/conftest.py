@@ -10,8 +10,8 @@ Provides:
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -21,7 +21,6 @@ from ensemble_mcp.memory.embeddings import EmbeddingModel
 from ensemble_mcp.memory.store import VectorStore
 from ensemble_mcp.state.idempotency import ensure_idempotency_table
 from ensemble_mcp.state.locks import get_connection
-
 
 # ── Mock Embedding Model ──────────────────────────────────────────
 

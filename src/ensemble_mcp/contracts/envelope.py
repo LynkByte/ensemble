@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import functools
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -93,7 +94,7 @@ def tool_handler(
     *,
     source: str = "local",
     confidence: str = "exact",
-):
+) -> Callable:  # type: ignore[type-arg]
     """Decorator that wraps a tool function with timing and error handling.
 
     The wrapped function should return a ``dict`` (the *data* payload).

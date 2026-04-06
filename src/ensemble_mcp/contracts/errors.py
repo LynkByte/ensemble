@@ -12,11 +12,11 @@ Standard error classes:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(StrEnum):
     """Canonical error codes returned by all MCP tools."""
 
     # VALIDATION — bad input (never retry)
@@ -72,10 +72,7 @@ def is_retryable(code: ErrorCode) -> bool:
     cat = _category(code)
     if cat in _NEVER_RETRY:
         return False
-    if cat in _RETRY_AFTER_REFRESH | _RETRY_WITH_BACKOFF:
-        return True
-    # INTERNAL defaults to not retryable unless explicitly marked
-    return False
+    return cat in _RETRY_AFTER_REFRESH | _RETRY_WITH_BACKOFF
 
 
 @dataclass

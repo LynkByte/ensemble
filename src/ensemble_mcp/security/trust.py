@@ -13,13 +13,13 @@ Policy:
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from ..contracts.errors import ErrorCode, ToolError
 
 
-class SourceClass(str, Enum):
+class SourceClass(StrEnum):
     """Classification for data entering the system."""
 
     LOCAL_STATE = "local_state"

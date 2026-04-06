@@ -23,7 +23,6 @@ from ensemble_mcp.contracts.errors import (
     validation_error,
 )
 
-
 # ── ErrorCode enum ────────────────────────────────────────────────
 
 

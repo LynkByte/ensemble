@@ -2,21 +2,24 @@
 
 ## Overview
 
-Python MCP server (`ensemble-mcp`) providing vector memory, token tracking, drift detection, model routing, skills discovery, session management, and codebase indexing. **Early-stage scaffold** — all modules have docstrings and design contracts but no implementations yet. Work here is greenfield implementation, not refactoring.
+Python MCP server (`ensemble-mcp`) providing vector memory, token tracking, drift detection, model routing, skills discovery, session management, and codebase indexing. **Fully implemented** — 21 MCP tools across 9 subpackages, 451 tests, CLI with serve/install/dashboard commands.
 
 ## Commands
 
 ```bash
 pip install -e .                  # editable install
 ensemble-mcp                      # run server (or: python -m ensemble_mcp)
-python -m pytest tests/           # run tests
+ensemble-mcp install              # auto-detect AI tools and register MCP
+ensemble-mcp dashboard            # terminal metrics dashboard
+python -m pytest tests/           # run tests (451 tests)
 ruff check src/ tests/            # lint
 ruff format src/ tests/           # format
 mypy src/                         # typecheck
+python -m build                   # build sdist + wheel
 docker build -t ensemble-mcp .    # build container
 ```
 
-> **Note:** ruff and mypy are the intended tooling but are not yet configured in `pyproject.toml`. Add `[tool.ruff]` and `[tool.mypy]` sections before first use.
+> ruff and mypy are fully configured in `pyproject.toml` (strict mode, Python 3.11 target).
 
 ## Architecture
 

@@ -67,12 +67,12 @@ Tests are async by default (`asyncio_mode = "auto"` in pyproject.toml).
 
 ### Test Coverage
 
-The project has 224 tests across 15 test files:
+The project has 451 tests across 23 test files:
 
 | Test File | Tests | Coverage |
 |---|---|---|
 | `test_contracts.py` | 30 | Envelope, ToolError, tool_handler decorator |
-| `test_lifecycle.py` | 16 | Session/step state machine transitions |
+| `test_lifecycle.py` | 18 | Session/step state machine transitions |
 | `test_idempotency.py` | 8 | Key storage, expiry, replay |
 | `test_redaction.py` | 15 | All 9 secret patterns + edge cases |
 | `test_trust.py` | 14 | Validators, confirmation enforcement |
@@ -81,12 +81,17 @@ The project has 224 tests across 15 test files:
 | `test_patterns.py` | 11 | Store, search, prune tools |
 | `test_drift.py` | 5 | Drift check, verdicts, flags |
 | `test_routing.py` | 9 | All agent/classification combinations |
-| `test_metrics.py` | 16 | Session lifecycle, steps, reports, trends |
+| `test_metrics.py` | 24 | Session lifecycle, steps, reports, trends, usage_raw |
 | `test_session.py` | 9 | Save, load, optimistic versioning |
-| `test_indexer.py` | 18 | Index, query, dependencies, language parsers |
-| `test_skills.py` | 10 | Discover, suggest, generate, clustering |
+| `test_indexer.py` | 34 | Index, query, dependencies, language parsers |
+| `test_skills.py` | 12 | Discover, suggest, generate, clustering |
 | `test_config.py` | 16 | Settings loading, TOML, env overrides |
-| `test_parsers.py` | 2 | Phase 3 stub smoke tests |
+| `test_parsers.py` | 50 | OpenCode + Claude Code parsers, auto-detection, dispatcher |
+| `test_installer.py` | 50 | Tool detection, registration, config read/write, CLI |
+| `test_dashboard.py` | 50 | Queries, widgets, rendering, CLI integration |
+| `test_report_formatter.py` | 18 | ASCII report tables, formatting helpers |
+| `test_token_utils.py` | 22 | Token estimation, usage_raw parsing, 3-tier resolution |
+| `test_mcp_tracking.py` | 5 | MCP call recording |
 
 ## Linting and Formatting
 
@@ -331,4 +336,3 @@ End users should install with `pip install -e .` and configure their MCP client 
 - **Windows**: `state/locks.py` uses `fcntl` (Unix-only). Advisory locking will not work on Windows.
 - **No ANN index**: Vector search is brute-force. Sufficient for <10K patterns but won't scale beyond that.
 - **Single-process**: The SQLite WAL mode handles concurrent reads, but the server is designed for single-process use.
-- **Phase 3/4 stubs**: Parsers (`parsers/`) and installer (`installer/`) are placeholder files for future phases.
