@@ -125,6 +125,10 @@ INDEXER_IGNORED_EXTENSIONS: set[str] = {
     ".lock",
 }
 
+# ── Parser Paths ──────────────────────────────────────────────────
+OPENCODE_DB_PATH = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
+CLAUDE_PROJECTS_DIR = Path.home() / ".claude" / "projects"
+
 # ── Server Metadata ───────────────────────────────────────────────
 SERVER_NAME = "ensemble-mcp"
 SERVER_VERSION = "0.1.0"

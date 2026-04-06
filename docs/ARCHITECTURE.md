@@ -81,9 +81,10 @@ src/ensemble_mcp/
 │   ├── session.py        # session_save, session_load (optimistic versioning)
 │   └── indexer.py        # project_index, project_query, project_dependencies
 │
-├── parsers/              # Phase 3 (not yet implemented)
-│   ├── opencode.py       # OpenCode session file parser
-│   └── claude_code.py    # Claude Code session file parser
+├── parsers/              # Phase 3 — session file parsers
+│   ├── __init__.py       # ParsedStep/ParsedSession types, detect_ai_tool(), dispatcher
+│   ├── opencode.py       # OpenCode SQLite parser (~/.local/share/opencode/opencode.db)
+│   └── claude_code.py    # Claude Code JSONL parser (~/.claude/projects/) + subagents
 │
 └── installer/            # Phase 4 (not yet implemented)
     └── setup.py          # Auto-detect AI tools, register MCP server
@@ -413,5 +414,5 @@ Every setting tracks which layer it came from via `source_map` for debugging.
 | 1.0 | Contract Foundation (config, errors, envelope, state, security) | Complete |
 | 1 | MCP Core (21 tools, server, tests) | Complete |
 | 2 | Performance optimization, benchmarks | Not started |
-| 3 | Session file parsers (OpenCode, Claude Code) | Not started |
+| 3 | Session file parsers (OpenCode, Claude Code) | Complete |
 | 4 | Auto-installer for AI tools | Not started |
