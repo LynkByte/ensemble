@@ -1,8 +1,9 @@
 """Entry point: python -m ensemble_mcp.
 
-Provides three subcommands:
+Provides four subcommands:
   - ``serve`` (default): Start the MCP server on stdio.
   - ``install``: Detect AI tools and register ensemble-mcp in their configs.
+  - ``uninstall``: Remove ensemble-mcp registration from AI tool configs.
   - ``dashboard``: Display a terminal-based metrics dashboard.
 """
 
@@ -68,6 +69,62 @@ def main() -> None:
         help="Skip confirmation prompt.",
     )
 
+    # ── uninstall ─────────────────────────────────────────────────
+    uninstall_parser = subparsers.add_parser(
+        "uninstall",
+        help="Remove ensemble-mcp registration from AI tool configs.",
+    )
+    uninstall_parser.add_argument(
+        "--local",
+        action="store_true",
+        default=False,
+        help="Remove from project-local configs instead of global user configs.",
+    )
+    uninstall_parser.add_argument(
+        "--project-path",
+        type=Path,
+        default=None,
+        help="Project root directory (defaults to current working directory).",
+    )
+    uninstall_parser.add_argument(
+        "--tools",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated list of tools to deregister "
+            "(e.g. --tools opencode,cursor). "
+            "Defaults to all detected tools."
+        ),
+    )
+    uninstall_parser.add_argument(
+        "--remove-agents",
+        action="store_true",
+        default=False,
+        help="Also remove agent files from the project's .agents/ directory.",
+    )
+    uninstall_parser.add_argument(
+        "--clean-data",
+        action="store_true",
+        default=False,
+        help=(
+            "Also remove cached data (~/.cache/ensemble-mcp/) "
+            "and global config (~/.config/ensemble-mcp/)."
+        ),
+    )
+    uninstall_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Show the uninstall plan without making any changes.",
+    )
+    uninstall_parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        default=False,
+        help="Skip confirmation prompt.",
+    )
+
     # ── dashboard ─────────────────────────────────────────────────
     dashboard_parser = subparsers.add_parser(
         "dashboard",
@@ -105,6 +162,8 @@ def main() -> None:
         _run_serve()
     elif args.command == "install":
         _run_install(args)
+    elif args.command == "uninstall":
+        _run_uninstall(args)
     elif args.command == "dashboard":
         _run_dashboard(args)
     else:
@@ -148,6 +207,35 @@ def _run_install(args: argparse.Namespace) -> None:
     # Exit with error if nothing was registered and there were tools to register
     if not result.registered and not args.dry_run:
         sys.exit(0)
+
+
+def _run_uninstall(args: argparse.Namespace) -> None:
+    """Run the auto-uninstaller."""
+    from ensemble_mcp.installer import TOOL_NAMES, InstallScope
+    from ensemble_mcp.installer.setup import uninstall
+
+    scope = InstallScope.LOCAL if args.local else InstallScope.GLOBAL
+
+    tool_filter: set[str] | None = None
+    if args.tools:
+        tool_filter = {t.strip() for t in args.tools.split(",")}
+        unknown = tool_filter - TOOL_NAMES
+        if unknown:
+            sys.stderr.write(
+                f"Unknown tool(s): {', '.join(sorted(unknown))}\n"
+                f"Available: {', '.join(sorted(TOOL_NAMES))}\n"
+            )
+            sys.exit(1)
+
+    uninstall(
+        project_path=args.project_path,
+        scope=scope,
+        tool_filter=tool_filter,
+        remove_agents=args.remove_agents,
+        clean_data=args.clean_data,
+        dry_run=args.dry_run,
+        auto_confirm=args.yes,
+    )
 
 
 def _run_dashboard(args: argparse.Namespace) -> None:

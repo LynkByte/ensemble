@@ -29,7 +29,13 @@ Before creating a plan, assess whether requirements are clear enough. Ask clarif
 
 ### Phase 1: Codebase Exploration
 
-Before planning, explore the codebase to gather context. You are strictly read-only. **Adjust depth based on expected task complexity:**
+Before planning, explore the codebase to gather context. You are strictly read-only. **Adjust depth based on expected task complexity.**
+
+**Ensemble-mcp tools** (use if available, skip silently if not):
+- Call `patterns_search` with the task description as `query` to find reusable past approaches. Include relevant findings in your plan under "Prior Approaches".
+- Call `skills_discover` with `project_path` and a task-relevant `query` to find project-specific skills. Report discovered skills so downstream agents can load them.
+- Use `project_query` with `file_types` and `query` parameters for file discovery instead of raw glob/grep searches when exploring the codebase.
+- Use `project_dependencies` with `file_path` to map imports and exports for key files identified during exploration.
 
 **For simple tasks** (bug fix, small feature) -- lightweight exploration:
 1. **Map relevant files** -- find files directly related to the task
