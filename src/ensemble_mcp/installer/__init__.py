@@ -156,6 +156,8 @@ class InstallPlan:
 
     tools_to_register: list[DetectedTool] = field(default_factory=list)
     agents_to_copy: list[tuple[Path, Path]] = field(default_factory=list)
+    skills_to_copy: list[tuple[Path, Path]] = field(default_factory=list)
+    """Skill files to copy to .ai/skills/ in the project."""
     skipped: list[tuple[str, str]] = field(default_factory=list)
     """(tool_display_name, reason) for tools that were skipped."""
 
@@ -168,6 +170,41 @@ class InstallResult:
     """Display names of tools where MCP was registered."""
     copied: list[Path] = field(default_factory=list)
     """Agent files that were copied."""
+    skipped: list[tuple[str, str]] = field(default_factory=list)
+    """(tool_display_name, reason) for tools that were skipped."""
+    backups: list[Path] = field(default_factory=list)
+    """Backup files created before modification."""
+
+
+# ── Uninstall types ───────────────────────────────────────────────
+
+
+@dataclass(slots=True)
+class UninstallPlan:
+    """Everything the uninstaller intends to do, before execution."""
+
+    tools_to_deregister: list[DetectedTool] = field(default_factory=list)
+    """Tools where ensemble-mcp is currently registered and will be removed."""
+    agents_to_remove: list[Path] = field(default_factory=list)
+    """Agent files to delete from the project."""
+    skills_to_remove: list[Path] = field(default_factory=list)
+    """Skill files to delete from the project."""
+    clean_data: bool = False
+    """Whether to remove ~/.cache/ensemble-mcp/ and ~/.config/ensemble-mcp/."""
+    skipped: list[tuple[str, str]] = field(default_factory=list)
+    """(tool_display_name, reason) for tools that were skipped."""
+
+
+@dataclass(slots=True)
+class UninstallResult:
+    """Summary of what the uninstaller actually did."""
+
+    deregistered: list[str] = field(default_factory=list)
+    """Display names of tools where MCP was removed."""
+    removed: list[Path] = field(default_factory=list)
+    """Agent/skill files that were deleted."""
+    data_cleaned: bool = False
+    """Whether cached data directories were removed."""
     skipped: list[tuple[str, str]] = field(default_factory=list)
     """(tool_display_name, reason) for tools that were skipped."""
     backups: list[Path] = field(default_factory=list)

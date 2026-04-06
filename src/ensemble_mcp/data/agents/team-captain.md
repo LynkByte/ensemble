@@ -182,6 +182,7 @@ After the pipeline completes (or stops due to failure), provide a concise summar
 - Critical issues found by inspector (if any)
 - Efficiency: `Pipeline: X/Y steps | Z invocations (budget: N) | useful-work: A, validation: B, overhead: C`
 - If the task was classified as standard/complex but only touched 1-2 files with no design needed, note: "Retrospective: task could have been classified as [simpler level]."
+- If ensemble-mcp metrics are available, include: `Cost: $X.XX | Tokens: Xk in / Xk out` (from `metrics_session_report`)
 - Final status: **SUCCESS** / **PARTIAL** / **FAILED**
 
 ## Session Persistence
@@ -240,6 +241,83 @@ updated: "YYYY-MM-DDTHH:MM:SSZ"
 - If `.opencode/` directory does not exist, create it
 - If `.opencode/` is not in the project's `.gitignore`, add it
 - Only one active resume file per project -- new tasks overwrite the previous one
+
+## Ensemble MCP Integration
+
+If ensemble-mcp tools are available (check by calling `health`), use them at these points in the pipeline. **If any tool call fails or the tools are not available, skip silently and continue the pipeline normally.** Ensemble-mcp integration is an enhancement, never a blocker.
+
+### Pre-Pipeline (after classification, before Step 1)
+
+1. **Start tracking**: Call `metrics_start_session` with:
+   - `task`: the user's request (1-2 sentences)
+   - `classification`: your task classification (trivial/simple/standard/complex)
+   - `ai_tool`: "opencode" (or whichever tool is running)
+   - `project`: the project root path
+   - Save the returned `session_id` -- you will need it for all subsequent calls
+
+2. **Search for prior approaches**: Call `patterns_search` with:
+   - `query`: the user's request as natural language
+   - If results are returned, pass relevant findings to the Architect as "Prior approaches that worked for similar tasks"
+
+3. **Index the codebase**: Call `project_index` with:
+   - `project_path`: the project root
+   - Only needed on first run per project or if `force: true` is needed
+
+4. **Discover skills**: Call `skills_discover` with:
+   - `project_path`: the project root
+   - `query`: task-relevant keywords
+   - Pass discovered skills to the Architect and Engineer
+
+### After Each Step
+
+After each subagent completes, call `metrics_record_step` with:
+- `session_id`: from step 1
+- `agent`: the ensemble-mcp agent name for this subagent:
+  - Architect → `"scope"`
+  - Engineer → `"craft"`
+  - Forge → `"forge"`
+  - Inspector → `"lens"`
+  - Shipper → `"signal"`
+
+Optionally include `input_text` and/or `output_text` (the compressed summary) for token estimation.
+
+### After Step 2 (IMPLEMENT)
+
+Call `drift_check` with:
+- `task_description`: the user's original request (verbatim)
+- `changed_files`: list of files the Engineer modified
+- `diff_summary`: 1-3 sentence summary of what changed
+
+**If `verdict` is `"significant_drift"` (score >= 0.6):**
+- Warn the user: "The changes appear to have drifted from the original task."
+- List the flagged files and the drift score
+- Ask: "Proceed, revert, or adjust?"
+
+**If `verdict` is `"aligned"` or `"minor_drift"`:** proceed normally.
+
+### Post-Pipeline
+
+1. **Store the pattern** (only on SUCCESS or PARTIAL): Call `patterns_store` with:
+   - `name`: short descriptive label (e.g., "laravel service class CRUD")
+   - `context`: what problem was solved
+   - `approach`: how it was solved
+   - `outcome`: result summary
+   - `project`: project path (optional, for project-scoped recall)
+
+2. **End the session**: Call `metrics_end_session` with:
+   - `session_id`: from pre-pipeline
+   - `status`: "completed" / "failed" / "killed"
+
+3. **Save checkpoint** (standard/complex only): Call `session_save` with:
+   - `session_id`: from pre-pipeline
+   - `state`: final pipeline state (steps completed, files changed, status)
+
+### On-Demand (user asks)
+
+- "How much did that cost?" → `metrics_session_report(session_id=<id>)`
+- "What's my spend this week?" → `metrics_trend(days=7)`
+- "Compare those two sessions" → `metrics_compare(session_id_a=..., session_id_b=...)`
+- "Any skill suggestions?" → `skills_suggest(project_path=<root>)`
 
 ## Resume Protocol
 

@@ -18,10 +18,13 @@ from . import (
     InstallResult,
     InstallScope,
     ToolDefinition,
+    UninstallPlan,
+    UninstallResult,
 )
-from .agents import discover_agents
+from .agents import discover_agents, discover_skills
 from .registry import (
     create_backup,
+    deregister_mcp,
     is_registered,
     read_config,
     register_mcp,
@@ -144,6 +147,9 @@ def plan_install(
     # Discover agent files for copying
     plan.agents_to_copy = discover_agents(project_path)
 
+    # Discover skill files for copying
+    plan.skills_to_copy = discover_skills(project_path)
+
     return plan
 
 
@@ -177,13 +183,20 @@ def display_plan(plan: InstallPlan) -> str:
             lines.append(f"║      → {dst}")
         lines.append("║                                                          ║")
 
+    if plan.skills_to_copy:
+        lines.append("║  Will copy skill files:                                  ║")
+        for _src, dst in plan.skills_to_copy:
+            lines.append(f"║    ✓ {dst.name}")
+            lines.append(f"║      → {dst}")
+        lines.append("║                                                          ║")
+
     if plan.skipped:
         lines.append("║  Skipped:                                                ║")
         for name, reason in plan.skipped:
             lines.append(f"║    ─ {name}: {reason}")
         lines.append("║                                                          ║")
 
-    if not plan.tools_to_register and not plan.agents_to_copy:
+    if not plan.tools_to_register and not plan.agents_to_copy and not plan.skills_to_copy:
         lines.append("║                                                          ║")
         lines.append("║  Nothing to do — ensemble-mcp is already registered      ║")
         lines.append("║  in all detected AI tools.                               ║")
@@ -199,7 +212,7 @@ def display_plan(plan: InstallPlan) -> str:
 
 
 def execute_plan(plan: InstallPlan) -> InstallResult:
-    """Execute the install plan: register MCP in configs, copy agents.
+    """Execute the install plan: register MCP in configs, copy agents and skills.
 
     Creates backups of each config file before modification.
     """
@@ -215,6 +228,17 @@ def execute_plan(plan: InstallPlan) -> InstallResult:
 
     # Copy agent files
     for src, dst in plan.agents_to_copy:
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            import shutil
+
+            shutil.copy2(src, dst)
+            result.copied.append(dst)
+        except Exception as exc:
+            result.skipped.append((dst.name, f"copy error: {exc}"))
+
+    # Copy skill files
+    for src, dst in plan.skills_to_copy:
         try:
             dst.parent.mkdir(parents=True, exist_ok=True)
             import shutil
@@ -315,7 +339,7 @@ def install(
         return InstallResult(skipped=plan.skipped)
 
     # Nothing to do?
-    if not plan.tools_to_register and not plan.agents_to_copy:
+    if not plan.tools_to_register and not plan.agents_to_copy and not plan.skills_to_copy:
         return InstallResult(skipped=plan.skipped)
 
     # Confirm
@@ -335,6 +359,323 @@ def install(
 
     # Show result
     result_text = display_result(result)
+    sys.stdout.write(result_text)
+
+    return result
+
+
+# ══════════════════════════════════════════════════════════════════
+# UNINSTALL
+# ══════════════════════════════════════════════════════════════════
+
+# Default agent filenames that the installer copies into .agents/
+_AGENT_FILES = [
+    "team-captain.md",
+    "team-architect.md",
+    "team-engineer.md",
+    "team-forge.md",
+    "team-inspector.md",
+    "team-shipper.md",
+    "team-hunter.md",
+]
+
+# Default skill filenames that the installer copies into .ai/skills/
+_SKILL_FILES = [
+    "ensemble-mcp-workflow.md",
+]
+
+_CACHE_DIR = Path.home() / ".cache" / "ensemble-mcp"
+_CONFIG_DIR = Path.home() / ".config" / "ensemble-mcp"
+
+
+# ── Uninstall planning ───────────────────────────────────────────
+
+
+def plan_uninstall(
+    project_path: Path,
+    scope: InstallScope = InstallScope.GLOBAL,
+    tool_filter: set[str] | None = None,
+    remove_agents: bool = False,
+    clean_data: bool = False,
+) -> UninstallPlan:
+    """Build an uninstall plan: what tools to deregister, what to remove.
+
+    Does NOT modify any files.
+    """
+    plan = UninstallPlan()
+    plan.clean_data = clean_data
+    detected = detect_ai_tools(project_path, scope, tool_filter)
+
+    for tool in detected:
+        if tool.already_registered:
+            plan.tools_to_deregister.append(tool)
+        else:
+            plan.skipped.append((tool.definition.display_name, "not registered"))
+
+    # Check for tools in the filter that were not detected at all
+    if tool_filter:
+        detected_names = {t.definition.name for t in detected}
+        for name in tool_filter:
+            if name not in detected_names and name in TOOL_NAMES:
+                for td in TOOL_DEFINITIONS:
+                    if td.name == name:
+                        plan.skipped.append((td.display_name, "not installed"))
+                        break
+
+    # Discover agent files for removal
+    if remove_agents:
+        agents_dir = project_path / ".agents"
+        for filename in _AGENT_FILES:
+            agent_path = agents_dir / filename
+            if agent_path.exists():
+                plan.agents_to_remove.append(agent_path)
+
+        # Also discover skill files for removal
+        skills_dir = project_path / ".ai" / "skills"
+        for filename in _SKILL_FILES:
+            skill_path = skills_dir / filename
+            if skill_path.exists():
+                plan.skills_to_remove.append(skill_path)
+
+    return plan
+
+
+# ── Uninstall display ────────────────────────────────────────────
+
+
+def display_uninstall_plan(plan: UninstallPlan) -> str:
+    """Format the uninstall plan as a human-readable string."""
+    lines: list[str] = []
+
+    lines.append("")
+    lines.append("╔══════════════════════════════════════════════════════════╗")
+    lines.append("║  ENSEMBLE-MCP UNINSTALL PLAN                            ║")
+    lines.append("╠══════════════════════════════════════════════════════════╣")
+
+    if plan.tools_to_deregister:
+        lines.append("║                                                          ║")
+        lines.append("║  Will remove MCP server from:                            ║")
+        for tool in plan.tools_to_deregister:
+            name = tool.definition.display_name
+            scope_label = f"({tool.scope.value})"
+            lines.append(f"║    ✗ {name} {scope_label}")
+            lines.append(f"║      → {tool.config_path}")
+        lines.append("║                                                          ║")
+
+    if plan.agents_to_remove:
+        lines.append("║  Will remove agent files:                                ║")
+        for path in plan.agents_to_remove:
+            lines.append(f"║    ✗ {path.name}")
+            lines.append(f"║      → {path}")
+        lines.append("║                                                          ║")
+
+    if plan.skills_to_remove:
+        lines.append("║  Will remove skill files:                                ║")
+        for path in plan.skills_to_remove:
+            lines.append(f"║    ✗ {path.name}")
+            lines.append(f"║      → {path}")
+        lines.append("║                                                          ║")
+
+    if plan.clean_data:
+        lines.append("║  Will remove cached data:                                ║")
+        if _CACHE_DIR.exists():
+            lines.append(f"║    ✗ {_CACHE_DIR}")
+        if _CONFIG_DIR.exists():
+            lines.append(f"║    ✗ {_CONFIG_DIR}")
+        lines.append("║                                                          ║")
+
+    if plan.skipped:
+        lines.append("║  Skipped:                                                ║")
+        for name, reason in plan.skipped:
+            lines.append(f"║    ─ {name}: {reason}")
+        lines.append("║                                                          ║")
+
+    nothing_to_do = (
+        not plan.tools_to_deregister
+        and not plan.agents_to_remove
+        and not plan.skills_to_remove
+        and not plan.clean_data
+    )
+    if nothing_to_do:
+        lines.append("║                                                          ║")
+        lines.append("║  Nothing to do — ensemble-mcp is not registered          ║")
+        lines.append("║  in any detected AI tools.                               ║")
+        lines.append("║                                                          ║")
+
+    lines.append("╚══════════════════════════════════════════════════════════╝")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+# ── Uninstall execution ──────────────────────────────────────────
+
+
+def execute_uninstall_plan(plan: UninstallPlan) -> UninstallResult:
+    """Execute the uninstall plan: deregister MCP, remove agents/skills, clean data.
+
+    Creates backups of each config file before modification.
+    """
+    import shutil
+
+    result = UninstallResult()
+    result.skipped = list(plan.skipped)
+
+    # Deregister MCP from tool configs
+    for tool in plan.tools_to_deregister:
+        try:
+            _deregister_tool(tool, result)
+        except Exception as exc:
+            result.skipped.append((tool.definition.display_name, f"error: {exc}"))
+
+    # Remove agent files
+    for path in plan.agents_to_remove:
+        try:
+            path.unlink()
+            result.removed.append(path)
+        except Exception as exc:
+            result.skipped.append((path.name, f"remove error: {exc}"))
+
+    # Remove skill files
+    for path in plan.skills_to_remove:
+        try:
+            path.unlink()
+            result.removed.append(path)
+        except Exception as exc:
+            result.skipped.append((path.name, f"remove error: {exc}"))
+
+    # Clean cached data directories
+    if plan.clean_data:
+        for data_dir in (_CACHE_DIR, _CONFIG_DIR):
+            if data_dir.exists():
+                try:
+                    shutil.rmtree(data_dir)
+                    result.removed.append(data_dir)
+                except Exception as exc:
+                    result.skipped.append((str(data_dir), f"clean error: {exc}"))
+        result.data_cleaned = True
+
+    return result
+
+
+def _deregister_tool(tool: DetectedTool, result: UninstallResult) -> None:
+    """Remove ensemble-mcp from a single tool's config file."""
+    # Backup existing config
+    backup = create_backup(tool.config_path)
+    if backup is not None:
+        result.backups.append(backup)
+
+    # Read, modify, write
+    config = read_config(tool.config_path)
+    deregister_mcp(config, tool.definition)
+    write_config(tool.config_path, config, tool.definition.config_format)
+
+    result.deregistered.append(tool.definition.display_name)
+
+
+# ── Uninstall result display ─────────────────────────────────────
+
+
+def display_uninstall_result(result: UninstallResult) -> str:
+    """Format the uninstall result as a human-readable summary."""
+    lines: list[str] = []
+
+    lines.append("")
+    if result.deregistered:
+        lines.append("Removed ensemble-mcp from:")
+        for name in result.deregistered:
+            lines.append(f"  ✗ {name}")
+
+    if result.removed:
+        lines.append("Removed files/directories:")
+        for path in result.removed:
+            lines.append(f"  ✗ {path}")
+
+    if result.backups:
+        lines.append("Backups created:")
+        for path in result.backups:
+            lines.append(f"  ↩ {path}")
+
+    if result.skipped:
+        lines.append("Skipped:")
+        for name, reason in result.skipped:
+            lines.append(f"  ─ {name}: {reason}")
+
+    if not result.deregistered and not result.removed:
+        lines.append("No changes were made.")
+
+    lines.append("")
+    return "\n".join(lines)
+
+
+# ── Uninstall entry point ────────────────────────────────────────
+
+
+def uninstall(
+    project_path: Path | None = None,
+    scope: InstallScope = InstallScope.GLOBAL,
+    tool_filter: set[str] | None = None,
+    remove_agents: bool = False,
+    clean_data: bool = False,
+    dry_run: bool = False,
+    auto_confirm: bool = False,
+) -> UninstallResult:
+    """Run the full uninstall flow: detect → plan → confirm → execute.
+
+    Args:
+        project_path: Project root directory. Defaults to cwd.
+        scope: Global or project-local config deregistration.
+        tool_filter: Restrict to specific tool names (e.g. {"opencode", "cursor"}).
+        remove_agents: Also remove agent files from .agents/ directory.
+        clean_data: Also remove ~/.cache/ensemble-mcp/ and ~/.config/ensemble-mcp/.
+        dry_run: If True, display the plan but do not execute.
+        auto_confirm: If True, skip interactive confirmation.
+
+    Returns:
+        UninstallResult with what was done.
+    """
+    if project_path is None:
+        project_path = Path.cwd()
+
+    project_path = project_path.resolve()
+
+    plan = plan_uninstall(project_path, scope, tool_filter, remove_agents, clean_data)
+
+    # Display the plan
+    plan_text = display_uninstall_plan(plan)
+    sys.stdout.write(plan_text)
+
+    if dry_run:
+        sys.stdout.write("Dry run — no changes made.\n")
+        return UninstallResult(skipped=plan.skipped)
+
+    # Nothing to do?
+    nothing_to_do = (
+        not plan.tools_to_deregister
+        and not plan.agents_to_remove
+        and not plan.skills_to_remove
+        and not plan.clean_data
+    )
+    if nothing_to_do:
+        return UninstallResult(skipped=plan.skipped)
+
+    # Confirm
+    if not auto_confirm:
+        try:
+            answer = input("Proceed with uninstall? [y/N] ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            sys.stdout.write("\nAborted.\n")
+            return UninstallResult(skipped=plan.skipped)
+
+        if answer not in ("y", "yes"):
+            sys.stdout.write("Aborted.\n")
+            return UninstallResult(skipped=plan.skipped)
+
+    # Execute
+    result = execute_uninstall_plan(plan)
+
+    # Show result
+    result_text = display_uninstall_result(result)
     sys.stdout.write(result_text)
 
     return result

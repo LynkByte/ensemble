@@ -22,13 +22,16 @@ from ensemble_mcp.installer import (
     InstallPlan,
     InstallScope,
     ToolDefinition,
+    UninstallPlan,
+    UninstallResult,
     get_tool_definition,
 )
-from ensemble_mcp.installer.agents import discover_agents
+from ensemble_mcp.installer.agents import discover_agents, discover_skills
 from ensemble_mcp.installer.registry import (
     _serialize_toml,
     _toml_value,
     create_backup,
+    deregister_mcp,
     is_registered,
     read_config,
     register_mcp,
@@ -39,8 +42,12 @@ from ensemble_mcp.installer.setup import (
     detect_ai_tools,
     display_plan,
     display_result,
+    display_uninstall_plan,
+    display_uninstall_result,
     execute_plan,
+    execute_uninstall_plan,
     plan_install,
+    plan_uninstall,
 )
 
 # ── Helpers ───────────────────────────────────────────────────────
@@ -794,18 +801,563 @@ class TestCli:
             main()
         assert exc_info.value.code == 0
 
-    def test_install_help(self):
+
+# ── Skill Discovery ──────────────────────────────────────────────
+
+
+class TestSkillDiscovery:
+    def test_no_bundled_skills_dir(self, tmp_path: Path):
+        """When no data/skills/ directory exists, return empty list."""
+        result = discover_skills(tmp_path)
+        assert isinstance(result, list)
+
+    def test_discover_bundled_skills(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """When bundled skills exist, return copy pairs."""
+        bundled = tmp_path / "bundled_skills"
+        bundled.mkdir()
+        (bundled / "ensemble-mcp-workflow.md").write_text("# Workflow")
+        (bundled / "another-skill.md").write_text("# Another")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled,
+        )
+        project = tmp_path / "project"
+        project.mkdir()
+
+        pairs = discover_skills(project)
+        assert len(pairs) == 2
+        sources = {p[0].name for p in pairs}
+        assert sources == {"ensemble-mcp-workflow.md", "another-skill.md"}
+        # Destinations should be under project/.ai/skills/
+        for _, dst in pairs:
+            assert str(dst).startswith(str(project / ".ai" / "skills"))
+
+    def test_discover_skills_skips_existing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """Already-copied skills are not included in the copy plan."""
+        bundled = tmp_path / "bundled_skills"
+        bundled.mkdir()
+        (bundled / "ensemble-mcp-workflow.md").write_text("# Workflow")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled,
+        )
+        project = tmp_path / "project"
+        (project / ".ai" / "skills").mkdir(parents=True)
+        (project / ".ai" / "skills" / "ensemble-mcp-workflow.md").write_text("# Already there")
+
+        pairs = discover_skills(project)
+        assert len(pairs) == 0
+
+
+class TestSkillInstallIntegration:
+    def test_plan_includes_skills(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """Install plan should include skill files to copy."""
+        bundled_skills = tmp_path / "bundled_skills"
+        bundled_skills.mkdir()
+        (bundled_skills / "ensemble-mcp-workflow.md").write_text("# Workflow")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled_skills,
+        )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        plan = plan_install(project, InstallScope.GLOBAL)
+        assert len(plan.skills_to_copy) == 1
+        assert plan.skills_to_copy[0][0].name == "ensemble-mcp-workflow.md"
+
+    def test_execute_copies_skills(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """Execute plan should copy skill files to project."""
+        bundled_skills = tmp_path / "bundled_skills"
+        bundled_skills.mkdir()
+        (bundled_skills / "ensemble-mcp-workflow.md").write_text("# Workflow")
+
+        # Monkeypatch both skills and agents dirs to isolate the test
+        empty_agents = tmp_path / "empty_agents"
+        empty_agents.mkdir()
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled_skills,
+        )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            empty_agents,
+        )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        plan = plan_install(project, InstallScope.GLOBAL)
+        result = execute_plan(plan)
+        assert len(result.copied) == 1
+        assert result.copied[0].name == "ensemble-mcp-workflow.md"
+        assert (project / ".ai" / "skills" / "ensemble-mcp-workflow.md").exists()
+
+    def test_display_plan_shows_skills(self, tmp_path: Path):
+        """Display plan should mention skill files."""
+        src = tmp_path / "src" / "ensemble-mcp-workflow.md"
+        src.parent.mkdir(parents=True)
+        src.write_text("# Workflow")
+        dst = tmp_path / "project" / ".ai" / "skills" / "ensemble-mcp-workflow.md"
+
+        plan = InstallPlan(skills_to_copy=[(src, dst)])
+        text = display_plan(plan)
+        assert "skill files" in text.lower()
+        assert "ensemble-mcp-workflow.md" in text
+
+
+class TestSkillUninstallIntegration:
+    def test_plan_discovers_skill_files_to_remove(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Uninstall plan should discover skill files for removal."""
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [],
+        )
+        # Create skill files
+        skills_dir = tmp_path / ".ai" / "skills"
+        skills_dir.mkdir(parents=True)
+        (skills_dir / "ensemble-mcp-workflow.md").write_text("# Workflow")
+        (skills_dir / "custom-skill.md").write_text("# Custom")  # not removed
+
+        plan = plan_uninstall(tmp_path, InstallScope.GLOBAL, remove_agents=True)
+        assert len(plan.skills_to_remove) == 1
+        assert plan.skills_to_remove[0].name == "ensemble-mcp-workflow.md"
+        # custom-skill.md should NOT be in the removal list
+        names = {p.name for p in plan.skills_to_remove}
+        assert "custom-skill.md" not in names
+
+    def test_execute_removes_skill_files(self, tmp_path: Path):
+        """Execute uninstall plan should remove skill files."""
+        skills_dir = tmp_path / ".ai" / "skills"
+        skills_dir.mkdir(parents=True)
+        skill_path = skills_dir / "ensemble-mcp-workflow.md"
+        skill_path.write_text("# Workflow")
+
+        plan = UninstallPlan(skills_to_remove=[skill_path])
+        result = execute_uninstall_plan(plan)
+        assert skill_path in result.removed
+        assert not skill_path.exists()
+
+    def test_display_uninstall_plan_shows_skills(self, tmp_path: Path):
+        """Uninstall plan display should mention skill files."""
+        skill_path = tmp_path / ".ai" / "skills" / "ensemble-mcp-workflow.md"
+        plan = UninstallPlan(skills_to_remove=[skill_path])
+        text = display_uninstall_plan(plan)
+        assert "skill files" in text.lower()
+        assert "ensemble-mcp-workflow.md" in text
+
+
+# ══════════════════════════════════════════════════════════════════
+# UNINSTALL TESTS
+# ══════════════════════════════════════════════════════════════════
+
+
+class TestDeregisterMcp:
+    def test_deregister_removes_ensemble_key(self, tmp_path: Path):
+        defn = _claude_def(tmp_path)
+        config: dict[str, Any] = {
+            "mcpServers": {
+                "ensemble": {"command": "uvx", "args": ["ensemble-mcp"]},
+                "other": {"command": "other-tool"},
+            }
+        }
+        deregister_mcp(config, defn)
+        assert "ensemble" not in config["mcpServers"]
+        assert "other" in config["mcpServers"]
+
+    def test_deregister_noop_when_not_registered(self, tmp_path: Path):
+        defn = _claude_def(tmp_path)
+        config: dict[str, Any] = {"mcpServers": {"other": {"command": "other-tool"}}}
+        deregister_mcp(config, defn)
+        assert config == {"mcpServers": {"other": {"command": "other-tool"}}}
+
+    def test_deregister_noop_when_section_missing(self, tmp_path: Path):
+        defn = _claude_def(tmp_path)
+        config: dict[str, Any] = {"unrelated": "data"}
+        deregister_mcp(config, defn)
+        assert config == {"unrelated": "data"}
+
+    def test_deregister_opencode_toml(self, tmp_path: Path):
+        defn = _opencode_def(tmp_path)
+        config: dict[str, Any] = {
+            "mcp": {
+                "ensemble": {"type": "stdio", "command": "uvx"},
+                "other": {"command": "other"},
+            }
+        }
+        deregister_mcp(config, defn)
+        assert "ensemble" not in config["mcp"]
+        assert "other" in config["mcp"]
+
+
+class TestUninstallPlan:
+    def test_plan_deregisters_registered_tools(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        defn = _claude_def(tmp_path)
+        defn.detection_paths[0].mkdir(parents=True)
+        defn.global_config_path.parent.mkdir(parents=True, exist_ok=True)
+        defn.global_config_path.write_text(
+            json.dumps({"mcpServers": {"ensemble": {"command": "uvx"}}})
+        )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+        plan = plan_uninstall(tmp_path, InstallScope.GLOBAL)
+        assert len(plan.tools_to_deregister) == 1
+        assert plan.tools_to_deregister[0].definition.name == "claude_code"
+
+    def test_plan_skips_unregistered_tools(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        defn = _claude_def(tmp_path)
+        defn.detection_paths[0].mkdir(parents=True)
+        defn.global_config_path.parent.mkdir(parents=True, exist_ok=True)
+        defn.global_config_path.write_text(json.dumps({"mcpServers": {}}))
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+        plan = plan_uninstall(tmp_path, InstallScope.GLOBAL)
+        assert len(plan.tools_to_deregister) == 0
+        assert len(plan.skipped) == 1
+        assert plan.skipped[0] == ("Claude Code", "not registered")
+
+    def test_plan_with_tool_filter(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        oc_def = _opencode_def(tmp_path)
+        cl_def = _claude_def(tmp_path)
+        oc_def.detection_paths[0].mkdir(parents=True)
+        cl_def.detection_paths[0].mkdir(parents=True)
+
+        # Register both
+        oc_def.global_config_path.parent.mkdir(parents=True, exist_ok=True)
+        oc_def.global_config_path.write_text('[mcp.ensemble]\ntype = "stdio"\ncommand = "uvx"\n')
+        cl_def.global_config_path.parent.mkdir(parents=True, exist_ok=True)
+        cl_def.global_config_path.write_text(
+            json.dumps({"mcpServers": {"ensemble": {"command": "uvx"}}})
+        )
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [oc_def, cl_def],
+        )
+        # Only uninstall opencode
+        plan = plan_uninstall(tmp_path, InstallScope.GLOBAL, tool_filter={"opencode"})
+        assert len(plan.tools_to_deregister) == 1
+        assert plan.tools_to_deregister[0].definition.name == "opencode"
+
+    def test_plan_discovers_agent_files_to_remove(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [],
+        )
+        # Create agent files
+        agents_dir = tmp_path / ".agents"
+        agents_dir.mkdir()
+        (agents_dir / "team-captain.md").write_text("# Captain")
+        (agents_dir / "team-engineer.md").write_text("# Engineer")
+        (agents_dir / "custom-agent.md").write_text("# Custom")  # not removed
+
+        plan = plan_uninstall(tmp_path, InstallScope.GLOBAL, remove_agents=True)
+        assert len(plan.agents_to_remove) == 2
+        names = {p.name for p in plan.agents_to_remove}
+        assert names == {"team-captain.md", "team-engineer.md"}
+        # custom-agent.md should NOT be in the removal list
+        assert "custom-agent.md" not in names
+
+    def test_plan_clean_data_flag(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [],
+        )
+        plan = plan_uninstall(tmp_path, InstallScope.GLOBAL, clean_data=True)
+        assert plan.clean_data is True
+
+    def test_plan_reports_not_installed_tools(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        defn = _cursor_def(tmp_path)
+        # Don't create detection paths
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_NAMES",
+            {"cursor"},
+        )
+        plan = plan_uninstall(tmp_path, InstallScope.GLOBAL, tool_filter={"cursor"})
+        assert any(reason == "not installed" for _, reason in plan.skipped)
+
+
+class TestUninstallDisplay:
+    def test_display_plan_with_tools(self, tmp_path: Path):
+        defn = _cursor_def(tmp_path)
+        plan = UninstallPlan(
+            tools_to_deregister=[
+                DetectedTool(
+                    definition=defn,
+                    config_path=defn.global_config_path,
+                    scope=InstallScope.GLOBAL,
+                    already_registered=True,
+                )
+            ],
+        )
+        text = display_uninstall_plan(plan)
+        assert "UNINSTALL PLAN" in text
+        assert "Cursor" in text
+        assert "Will remove" in text
+
+    def test_display_plan_nothing_to_do(self):
+        plan = UninstallPlan(
+            skipped=[("Cursor", "not registered")],
+        )
+        text = display_uninstall_plan(plan)
+        assert "Nothing to do" in text
+        assert "Cursor" in text
+
+    def test_display_result_deregistered(self):
+        result = UninstallResult(
+            deregistered=["Cursor", "OpenCode"],
+            backups=[Path("/tmp/config.json.bak")],
+        )
+        text = display_uninstall_result(result)
+        assert "Cursor" in text
+        assert "OpenCode" in text
+        assert "Backups" in text
+
+    def test_display_result_no_changes(self):
+        result = UninstallResult()
+        text = display_uninstall_result(result)
+        assert "No changes" in text
+
+
+class TestUninstallExecute:
+    def test_execute_deregisters_json_tool(self, tmp_path: Path):
+        defn = _claude_def(tmp_path)
+        defn.global_config_path.parent.mkdir(parents=True, exist_ok=True)
+        defn.global_config_path.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "ensemble": {"command": "uvx", "args": ["ensemble-mcp"]},
+                        "other": {"command": "other-tool"},
+                    }
+                }
+            )
+        )
+
+        plan = UninstallPlan(
+            tools_to_deregister=[
+                DetectedTool(
+                    definition=defn,
+                    config_path=defn.global_config_path,
+                    scope=InstallScope.GLOBAL,
+                    already_registered=True,
+                )
+            ],
+        )
+        result = execute_uninstall_plan(plan)
+        assert "Claude Code" in result.deregistered
+        assert len(result.backups) == 1
+
+        # Verify ensemble was removed but other remains
+        config = json.loads(defn.global_config_path.read_text())
+        assert "ensemble" not in config["mcpServers"]
+        assert "other" in config["mcpServers"]
+
+    def test_execute_deregisters_toml_tool(self, tmp_path: Path):
+        defn = _opencode_def(tmp_path)
+        defn.global_config_path.parent.mkdir(parents=True, exist_ok=True)
+        defn.global_config_path.write_text(
+            '[mcp.ensemble]\ntype = "stdio"\ncommand = "uvx"\n'
+            'args = ["ensemble-mcp"]\n\n'
+            '[mcp.other]\ncommand = "other"\n'
+        )
+
+        plan = UninstallPlan(
+            tools_to_deregister=[
+                DetectedTool(
+                    definition=defn,
+                    config_path=defn.global_config_path,
+                    scope=InstallScope.GLOBAL,
+                    already_registered=True,
+                )
+            ],
+        )
+        result = execute_uninstall_plan(plan)
+        assert "OpenCode" in result.deregistered
+
+        # Verify ensemble is removed from TOML
+        text = defn.global_config_path.read_text()
+        assert "ensemble" not in text
+
+    def test_execute_removes_agent_files(self, tmp_path: Path):
+        agents_dir = tmp_path / ".agents"
+        agents_dir.mkdir()
+        captain = agents_dir / "team-captain.md"
+        captain.write_text("# Captain")
+        engineer = agents_dir / "team-engineer.md"
+        engineer.write_text("# Engineer")
+
+        plan = UninstallPlan(
+            agents_to_remove=[captain, engineer],
+        )
+        result = execute_uninstall_plan(plan)
+        assert len(result.removed) == 2
+        assert not captain.exists()
+        assert not engineer.exists()
+
+    def test_execute_cleans_data_dirs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        # Create fake cache and config dirs
+        fake_cache = tmp_path / "cache" / "ensemble-mcp"
+        fake_config = tmp_path / "config" / "ensemble-mcp"
+        fake_cache.mkdir(parents=True)
+        fake_config.mkdir(parents=True)
+        (fake_cache / "data.db").write_text("fake db")
+        (fake_config / "config.toml").write_text("fake config")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup._CACHE_DIR",
+            fake_cache,
+        )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup._CONFIG_DIR",
+            fake_config,
+        )
+
+        plan = UninstallPlan(clean_data=True)
+        result = execute_uninstall_plan(plan)
+        assert result.data_cleaned is True
+        assert not fake_cache.exists()
+        assert not fake_config.exists()
+
+    def test_execute_multiple_tools(self, tmp_path: Path):
+        oc_def = _opencode_def(tmp_path)
+        cl_def = _claude_def(tmp_path)
+
+        oc_def.global_config_path.parent.mkdir(parents=True, exist_ok=True)
+        cl_def.global_config_path.parent.mkdir(parents=True, exist_ok=True)
+
+        oc_def.global_config_path.write_text('[mcp.ensemble]\ntype = "stdio"\ncommand = "uvx"\n')
+        cl_def.global_config_path.write_text(
+            json.dumps({"mcpServers": {"ensemble": {"command": "uvx"}}})
+        )
+
+        plan = UninstallPlan(
+            tools_to_deregister=[
+                DetectedTool(
+                    definition=oc_def,
+                    config_path=oc_def.global_config_path,
+                    scope=InstallScope.GLOBAL,
+                    already_registered=True,
+                ),
+                DetectedTool(
+                    definition=cl_def,
+                    config_path=cl_def.global_config_path,
+                    scope=InstallScope.GLOBAL,
+                    already_registered=True,
+                ),
+            ],
+        )
+        result = execute_uninstall_plan(plan)
+        assert len(result.deregistered) == 2
+        assert "OpenCode" in result.deregistered
+        assert "Claude Code" in result.deregistered
+
+
+class TestFullUninstallFlow:
+    def test_install_then_uninstall(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """End-to-end: install → verify registered → uninstall → verify removed."""
+        defn = _claude_def(tmp_path)
+        defn.detection_paths[0].mkdir(parents=True)
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        # Install
+        install_plan = plan_install(tmp_path, InstallScope.GLOBAL)
+        assert len(install_plan.tools_to_register) == 1
+        install_result = execute_plan(install_plan)
+        assert len(install_result.registered) == 1
+
+        # Verify registered
+        config = json.loads(defn.global_config_path.read_text())
+        assert "ensemble" in config["mcpServers"]
+
+        # Uninstall
+        uninstall_plan = plan_uninstall(tmp_path, InstallScope.GLOBAL)
+        assert len(uninstall_plan.tools_to_deregister) == 1
+        uninstall_result = execute_uninstall_plan(uninstall_plan)
+        assert len(uninstall_result.deregistered) == 1
+
+        # Verify removed
+        config = json.loads(defn.global_config_path.read_text())
+        assert "ensemble" not in config["mcpServers"]
+
+    def test_uninstall_preserves_other_servers(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Uninstall removes only ensemble, not other MCP servers."""
+        defn = _claude_def(tmp_path)
+        defn.detection_paths[0].mkdir(parents=True)
+        defn.global_config_path.parent.mkdir(parents=True, exist_ok=True)
+        defn.global_config_path.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "ensemble": {"command": "uvx", "args": ["ensemble-mcp"]},
+                        "my-other-mcp": {"command": "other-server"},
+                    },
+                    "someOtherKey": "preserved",
+                }
+            )
+        )
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        plan = plan_uninstall(tmp_path, InstallScope.GLOBAL)
+        execute_uninstall_plan(plan)
+
+        config = json.loads(defn.global_config_path.read_text())
+        assert "ensemble" not in config["mcpServers"]
+        assert "my-other-mcp" in config["mcpServers"]
+        assert config["someOtherKey"] == "preserved"
+
+
+class TestUninstallCli:
+    def test_uninstall_help(self):
         import sys
 
         from ensemble_mcp.__main__ import main
 
-        sys.argv = ["ensemble-mcp", "install", "--help"]
+        sys.argv = ["ensemble-mcp", "uninstall", "--help"]
         with pytest.raises(SystemExit) as exc_info:
             main()
         assert exc_info.value.code == 0
 
-    def test_unknown_tool_name_exits(self, monkeypatch: pytest.MonkeyPatch):
-        """--tools with an unknown name should exit with error."""
+    def test_uninstall_unknown_tool_exits(self, monkeypatch: pytest.MonkeyPatch):
         import sys
 
         from ensemble_mcp.__main__ import main
@@ -813,7 +1365,7 @@ class TestCli:
         monkeypatch.setattr(
             sys,
             "argv",
-            ["ensemble-mcp", "install", "--tools", "badtool", "--yes"],
+            ["ensemble-mcp", "uninstall", "--tools", "badtool", "--yes"],
         )
         with pytest.raises(SystemExit) as exc_info:
             main()

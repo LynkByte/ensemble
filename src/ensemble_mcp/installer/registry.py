@@ -104,6 +104,23 @@ def register_mcp(
     return config
 
 
+def deregister_mcp(
+    config: dict[str, Any],
+    definition: ToolDefinition,
+) -> dict[str, Any]:
+    """Remove the ensemble MCP server entry from *config*.
+
+    Returns the updated config dict. Does **not** write to disk — call
+    :func:`write_config` separately.
+
+    If ensemble is not registered, returns the config unchanged.
+    """
+    section = _traverse(config, definition.mcp_section_path)
+    if isinstance(section, dict) and MCP_SERVER_NAME in section:
+        del section[MCP_SERVER_NAME]
+    return config
+
+
 # ── TOML serialization ────────────────────────────────────────────
 # tomllib is read-only; we generate minimal TOML output ourselves.
 # This handles the subset of TOML we need: top-level keys, nested
