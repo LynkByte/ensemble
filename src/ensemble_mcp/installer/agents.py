@@ -4,9 +4,9 @@ Looks for bundled agent files in the package's ``data/agents/`` directory
 and prepares a copy plan to the project's ``.agents/`` directory (or
 tool-native locations).
 
-Currently a stub — agent files will be provided later. The infrastructure
-is in place so when agent files are added to ``data/agents/``, they are
-automatically discovered and offered for copying during ``ensemble-mcp install``.
+Bundled agents include the 7-agent orchestration pipeline:
+team-captain, team-architect, team-engineer, team-forge,
+team-hunter, team-inspector, and team-shipper.
 """
 
 from __future__ import annotations

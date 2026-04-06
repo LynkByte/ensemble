@@ -413,6 +413,6 @@ Every setting tracks which layer it came from via `source_map` for debugging.
 |---|---|---|
 | 1.0 | Contract Foundation (config, errors, envelope, state, security) | Complete |
 | 1 | MCP Core (21 tools, server, tests) | Complete |
-| 2 | Performance optimization, benchmarks | Not started |
+| 2 | Metrics system (6 tools, pricing, reports) | Complete |
 | 3 | Session file parsers (OpenCode, Claude Code) | Complete |
-| 4 | Auto-installer for AI tools | Not started |
+| 4 | Auto-installer for AI tools | Complete |
