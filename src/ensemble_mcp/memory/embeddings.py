@@ -8,11 +8,21 @@ Loads MiniLM-L6-v2 (~22MB) via ONNX Runtime for local CPU inference.
 from __future__ import annotations
 
 import logging
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
+from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    Progress,
+    TextColumn,
+    TimeRemainingColumn,
+    TransferSpeedColumn,
+)
 
 from ..config.defaults import (
     EMBEDDING_DIMENSIONS,
@@ -20,12 +30,69 @@ from ..config.defaults import (
     MODEL_URL,
     TOKENIZER_URL,
 )
+from ..contracts.errors import ErrorCode, ToolError
 
 if TYPE_CHECKING:
     import onnxruntime as ort
     from tokenizers import Tokenizer
 
 logger = logging.getLogger(__name__)
+
+# All user-facing output goes to stderr — stdout is reserved for MCP.
+_stderr = Console(stderr=True, highlight=False)
+
+
+def _download_with_progress(url: str, dest: Path, label: str) -> None:
+    """Download *url* to *dest* with a rich progress bar on stderr.
+
+    Falls back to a plain ``urlretrieve`` when the server does not
+    provide a ``Content-Length`` header (e.g. chunked transfer).
+
+    Raises ``ToolError(IO_MODEL_DOWNLOAD)`` on any network failure.
+    """
+    try:
+        response = urllib.request.urlopen(url)  # noqa: S310
+    except (urllib.error.URLError, OSError) as exc:
+        raise ToolError(
+            code=ErrorCode.IO_MODEL_DOWNLOAD,
+            message=f"Failed to connect to {url}: {exc}",
+            details={"url": url, "dest": str(dest)},
+        ) from exc
+
+    total = int(response.headers.get("Content-Length", 0))
+
+    try:
+        with Progress(
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            DownloadColumn(),
+            TransferSpeedColumn(),
+            TimeRemainingColumn(),
+            console=_stderr,
+            transient=True,
+        ) as progress:
+            task_id = progress.add_task(label, total=total or None)
+
+            with dest.open("wb") as fp:
+                while True:
+                    chunk = response.read(64 * 1024)  # 64 KB chunks
+                    if not chunk:
+                        break
+                    fp.write(chunk)
+                    progress.advance(task_id, len(chunk))
+
+    except (urllib.error.URLError, OSError) as exc:
+        # Clean up partial file on failure
+        dest.unlink(missing_ok=True)
+        raise ToolError(
+            code=ErrorCode.IO_MODEL_DOWNLOAD,
+            message=f"Download interrupted for {label}: {exc}",
+            details={"url": url, "dest": str(dest)},
+        ) from exc
+    finally:
+        response.close()
+
+    _stderr.print(f"  [green]{label} complete.[/green]")
 
 
 class EmbeddingModel:
@@ -56,14 +123,10 @@ class EmbeddingModel:
         self._model_dir.mkdir(parents=True, exist_ok=True)
 
         if not self.model_path.exists():
-            logger.info("Downloading ONNX model to %s ...", self.model_path)
-            urllib.request.urlretrieve(MODEL_URL, self.model_path)  # noqa: S310
-            logger.info("Model download complete.")
+            _download_with_progress(MODEL_URL, self.model_path, "ONNX model")
 
         if not self.tokenizer_path.exists():
-            logger.info("Downloading tokenizer to %s ...", self.tokenizer_path)
-            urllib.request.urlretrieve(TOKENIZER_URL, self.tokenizer_path)  # noqa: S310
-            logger.info("Tokenizer download complete.")
+            _download_with_progress(TOKENIZER_URL, self.tokenizer_path, "Tokenizer")
 
     def _load(self) -> None:
         """Lazy-load ONNX session and tokenizer."""

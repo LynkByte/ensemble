@@ -528,6 +528,11 @@ def serve() -> None:
         format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     )
 
+    # Show startup banner on stderr (stdout is reserved for MCP protocol)
+    from .cli.banner import print_banner
+
+    print_banner()
+
     app = Server(SERVER_NAME)
 
     @app.list_tools()  # type: ignore[no-untyped-call, untyped-decorator]
