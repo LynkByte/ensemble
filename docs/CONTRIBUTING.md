@@ -340,7 +340,7 @@ The project uses GitHub Actions for continuous integration, security scanning, a
 
 | Workflow | File | Trigger | What it does |
 |---|---|---|---|
-| CI | `ci.yml` | PR + push to `main` | Runs tests across Python 3.11/3.12/3.13, uploads coverage to Codecov |
+| CI | `ci.yml` | PR + push to `main` | Runs tests across Python 3.11/3.12/3.13 with coverage reporting (fail_under=80%) |
 | Lint | `lint.yml` | PR + push to `main` | `ruff check`, `ruff format --check`, `mypy src/` (3 parallel jobs) |
 | Security | `security.yml` | PR + push to `main` + weekly | CodeQL SAST analysis + `pip-audit` dependency vulnerability scanning |
 | Publish | `publish.yml` | GitHub release published | Builds sdist+wheel, publishes to PyPI via OIDC trusted publishing |
@@ -352,19 +352,7 @@ Dependabot is configured (`.github/dependabot.yml`) to auto-create PRs for pip a
 
 Before the workflows function fully, the following one-time setup steps are required:
 
-#### 1. Codecov (coverage reporting)
-
-The CI workflow uploads test coverage to [Codecov](https://codecov.io).
-
-1. Go to [codecov.io](https://codecov.io) and sign in with GitHub
-2. Add the `LynkByte/ensemble` repository
-3. Copy the upload token from the Codecov repo settings
-4. In your GitHub repo, go to **Settings > Secrets and variables > Actions**
-5. Add a new repository secret: `CODECOV_TOKEN` with the token value
-
-> For public repositories, Codecov supports tokenless upload — the secret is optional but recommended for reliability.
-
-#### 2. PyPI Trusted Publishing (package releases)
+#### 1. PyPI Trusted Publishing (package releases)
 
 The publish workflow uses [OIDC trusted publishing](https://docs.pypi.org/trusted-publishers/) — no API tokens are stored in GitHub.
 
@@ -379,7 +367,7 @@ The publish workflow uses [OIDC trusted publishing](https://docs.pypi.org/truste
 4. Create an environment named `pypi`
 5. Optionally add required reviewers for deployment protection (recommended for production releases)
 
-#### 3. GHCR (Docker image publishing)
+#### 2. GHCR (Docker image publishing)
 
 Docker images are pushed to GitHub Container Registry (`ghcr.io`) using the built-in `GITHUB_TOKEN`. No additional secrets are needed, but ensure:
 
