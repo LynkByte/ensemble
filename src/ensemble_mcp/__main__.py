@@ -1,8 +1,9 @@
 """Entry point: python -m ensemble_mcp.
 
-Provides two subcommands:
+Provides three subcommands:
   - ``serve`` (default): Start the MCP server on stdio.
   - ``install``: Detect AI tools and register ensemble-mcp in their configs.
+  - ``dashboard``: Display a terminal-based metrics dashboard.
 """
 
 from __future__ import annotations
@@ -67,6 +68,36 @@ def main() -> None:
         help="Skip confirmation prompt.",
     )
 
+    # ── dashboard ─────────────────────────────────────────────────
+    dashboard_parser = subparsers.add_parser(
+        "dashboard",
+        help="Display a terminal-based metrics dashboard.",
+    )
+    dashboard_parser.add_argument(
+        "--days",
+        type=int,
+        default=1,
+        help="Time range in days for the agent cost breakdown (default: 1 = today).",
+    )
+    dashboard_parser.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Maximum number of recent sessions to display (default: 10).",
+    )
+    dashboard_parser.add_argument(
+        "--trend-days",
+        type=int,
+        default=7,
+        help="Number of days for the daily trend chart (default: 7).",
+    )
+    dashboard_parser.add_argument(
+        "--db-path",
+        type=Path,
+        default=None,
+        help="Override the database file path.",
+    )
+
     args = parser.parse_args()
 
     # Default to serve when no subcommand is given
@@ -74,6 +105,8 @@ def main() -> None:
         _run_serve()
     elif args.command == "install":
         _run_install(args)
+    elif args.command == "dashboard":
+        _run_dashboard(args)
     else:
         parser.print_help()
         sys.exit(1)
@@ -115,6 +148,18 @@ def _run_install(args: argparse.Namespace) -> None:
     # Exit with error if nothing was registered and there were tools to register
     if not result.registered and not args.dry_run:
         sys.exit(0)
+
+
+def _run_dashboard(args: argparse.Namespace) -> None:
+    """Render and display the metrics dashboard."""
+    from ensemble_mcp.cli.dashboard import run_dashboard
+
+    run_dashboard(
+        db_path=args.db_path,
+        days=args.days,
+        limit=args.limit,
+        trend_days=args.trend_days,
+    )
 
 
 if __name__ == "__main__":
