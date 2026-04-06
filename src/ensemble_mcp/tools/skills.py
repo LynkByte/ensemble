@@ -14,6 +14,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -33,10 +34,10 @@ from ..state.idempotency import check_idempotency, store_idempotency
 # ── Internal helpers ──────────────────────────────────────────────
 
 
-def _scan_skill_files(project_path: str) -> list[dict]:
+def _scan_skill_files(project_path: str) -> list[dict[str, str]]:
     """Walk known skill directories and collect skill file metadata."""
     project = Path(project_path)
-    found: list[dict] = []
+    found: list[dict[str, str]] = []
 
     for skill_dir in SKILL_SCAN_DIRECTORIES:
         full_dir = project / skill_dir
@@ -88,7 +89,7 @@ def _track_skill_usage(
 
 
 def _cluster_patterns(
-    patterns: list[dict],
+    patterns: list[dict[str, Any]],
     threshold: float = CLUSTER_SIMILARITY_THRESHOLD,
 ) -> list[list[int]]:
     """Single-linkage agglomerative clustering by embedding cosine similarity.
@@ -126,7 +127,7 @@ def _cluster_patterns(
     return clusters
 
 
-def _derive_name(patterns: list[dict]) -> str:
+def _derive_name(patterns: list[dict[str, Any]]) -> str:
     """Derive a slug name from the most common words in pattern names."""
     words: dict[str, int] = {}
     for p in patterns:
@@ -137,7 +138,7 @@ def _derive_name(patterns: list[dict]) -> str:
     return "-".join(top_words) if top_words else "unnamed-skill"
 
 
-def _generate_skill_content(patterns: list[dict], proposed_name: str) -> str:
+def _generate_skill_content(patterns: list[dict[str, Any]], proposed_name: str) -> str:
     """Generate Markdown skill content from clustered patterns (zero-LLM)."""
     contexts: set[str] = set()
     approaches: set[str] = set()
@@ -181,8 +182,8 @@ async def skills_discover(
     project_path: str,
     query: str | None = None,
     idempotency_key: str | None = None,
-) -> dict:
-    """Scan tool-native skill locations and return relevant skills.
+) -> dict[str, Any]:
+    """Discover skill files across known AI-tool skill directories.
 
     Optionally filters by semantic ``query`` against skill content.
     Updates usage tracking for returned skills.
@@ -193,13 +194,13 @@ async def skills_discover(
 
     skill_files = _scan_skill_files(project_path)
 
-    detected: list[dict] = []
-    snippets: list[dict] = []
+    detected: list[dict[str, Any]] = []
+    snippets: list[dict[str, Any]] = []
 
     if query and skill_files:
         # Semantic search mode
         query_emb = model.embed(query)
-        scored: list[tuple[dict, float]] = []
+        scored: list[tuple[dict[str, str], float]] = []
         for sf in skill_files:
             content_emb = model.embed(sf["content"][:500])  # 128-token window
             score = cosine_similarity(query_emb, content_emb)
@@ -239,7 +240,7 @@ async def skills_discover(
     for skill in detected:
         _track_skill_usage(conn, skill["path"], project_path)
 
-    result: dict = {"detected": detected}
+    result: dict[str, Any] = {"detected": detected}
     if snippets:
         result["snippets"] = snippets
 
@@ -256,7 +257,7 @@ async def skills_suggest(
     min_cluster_size: int = DEFAULT_MIN_CLUSTER_SIZE,
     stale_threshold_days: int = DEFAULT_STALE_THRESHOLD_DAYS,
     idempotency_key: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Detect recurring patterns and suggest them as reusable skills.
 
     Clusters patterns by embedding similarity (>= 0.75). Clusters with
@@ -302,7 +303,7 @@ async def skills_suggest(
     ).fetchall():
         existing_pids.add(row[0])
 
-    suggestions: list[dict] = []
+    suggestions: list[dict[str, Any]] = []
     for cluster_ids in viable:
         if all(pid in existing_pids for pid in cluster_ids):
             continue
@@ -361,7 +362,7 @@ async def skills_suggest(
         (project_path, stale_cutoff),
     ).fetchall()
 
-    stale_skills: list[dict] = []
+    stale_skills: list[dict[str, Any]] = []
     for r in stale_rows:
         last_matched = r[1]
         if last_matched:
@@ -389,7 +390,7 @@ async def skills_generate(
     action: str = "accept",
     output_dir: str = DEFAULT_SKILL_OUTPUT_DIR,
     idempotency_key: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Accept, dismiss, or defer a skill suggestion.
 
     On accept: writes a Markdown skill file to ``output_dir``.

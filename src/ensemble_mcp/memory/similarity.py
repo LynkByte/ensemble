@@ -6,6 +6,8 @@ with <1ms search time.
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 
 
@@ -70,4 +72,4 @@ def pairwise_similarity_matrix(
     norms = np.linalg.norm(matrix, axis=1, keepdims=True)
     norms = np.clip(norms, a_min=1e-9, a_max=None)
     normalized = matrix / norms
-    return normalized @ normalized.T
+    return cast(np.ndarray, normalized @ normalized.T)

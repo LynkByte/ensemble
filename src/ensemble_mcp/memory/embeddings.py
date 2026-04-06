@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import urllib.request
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
@@ -120,7 +120,7 @@ class EmbeddingModel:
         if norm > 0:
             embedding = embedding / norm
 
-        return embedding.flatten().astype(np.float32)  # (384,)
+        return cast(np.ndarray, embedding.flatten().astype(np.float32))  # (384,)
 
     def embed_batch(self, texts: list[str]) -> list[np.ndarray]:
         """Embed multiple texts. Returns a list of 384-dim vectors.

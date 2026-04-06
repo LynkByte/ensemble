@@ -7,6 +7,7 @@ embedding to detect scope drift. Returns a 0-1 score with flags and verdict.
 from __future__ import annotations
 
 import sqlite3
+from typing import Any
 
 from ..config.defaults import (
     DRIFT_THRESHOLD_ALIGNED,
@@ -29,7 +30,7 @@ async def drift_check(
     changed_files: list[str],
     diff_summary: str,
     idempotency_key: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Check if code changes drift from the original task.
 
     Returns a 0-1 score (0 = no drift, 1 = complete drift) plus

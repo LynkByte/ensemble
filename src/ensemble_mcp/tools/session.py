@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from typing import Any
 
 from ..contracts.envelope import tool_handler
 from ..contracts.errors import ErrorCode, ToolError
@@ -18,10 +19,10 @@ async def session_save(
     conn: sqlite3.Connection,
     *,
     session_id: str,
-    state: dict,
+    state: dict[str, Any],
     version: int | None = None,
     idempotency_key: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Save pipeline checkpoint state with optimistic versioning.
 
     If ``version`` is provided, it must match the current version in the
@@ -78,7 +79,7 @@ async def session_load(
     conn: sqlite3.Connection,
     *,
     session_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Load latest checkpoint, or a specific session's checkpoint.
 
     If ``session_id`` is ``None``, returns the most recent checkpoint.

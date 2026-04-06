@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -299,7 +300,7 @@ class VectorStore:
         top_k: int = 3,
         project: str | None = None,
         min_score: float = 0.3,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Semantic search over stored patterns.
 
         Updates ``match_count`` and ``last_matched_at`` for returned results.
@@ -317,7 +318,7 @@ class VectorStore:
         stored = [(row[0], np.frombuffer(row[1], dtype=np.float32)) for row in rows]
         matches = search_similar(query_embedding, stored, top_k, min_score)
 
-        results: list[dict] = []
+        results: list[dict[str, Any]] = []
         for id_, score in matches:
             row = self.conn.execute(
                 "SELECT name, context, approach, outcome FROM patterns WHERE id = ?",
@@ -357,13 +358,13 @@ class VectorStore:
             (f"-{max_age_days}",),
         )
         pruned = cursor.rowcount
-        remaining = self.conn.execute("SELECT COUNT(*) FROM patterns").fetchone()[0]
+        remaining = int(self.conn.execute("SELECT COUNT(*) FROM patterns").fetchone()[0])
         self.conn.commit()
         return pruned, remaining
 
     def get_pattern_count(self) -> int:
         """Return the total number of stored patterns."""
-        return self.conn.execute("SELECT COUNT(*) FROM patterns").fetchone()[0]
+        return int(self.conn.execute("SELECT COUNT(*) FROM patterns").fetchone()[0])
 
     def get_db_size_bytes(self) -> int:
         """Return the database file size in bytes."""

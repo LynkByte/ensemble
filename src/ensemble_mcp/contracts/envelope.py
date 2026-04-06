@@ -104,7 +104,7 @@ def tool_handler(
     to an error envelope.  Unexpected exceptions become INTERNAL_ERROR.
     """
 
-    def decorator(fn):  # noqa: ANN001, ANN202
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> dict[str, Any]:
             start = time.monotonic()

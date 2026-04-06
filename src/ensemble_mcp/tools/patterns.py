@@ -5,6 +5,8 @@ Semantic search over stored patterns using vector embeddings.
 
 from __future__ import annotations
 
+from typing import Any
+
 from ..contracts.envelope import tool_handler
 from ..memory.store import VectorStore
 from ..state.idempotency import check_idempotency, store_idempotency
@@ -18,7 +20,7 @@ async def patterns_search(
     top_k: int = 3,
     project: str | None = None,
     idempotency_key: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Search stored patterns by semantic similarity.
 
     Returns top-K matches above the minimum score threshold.
@@ -44,7 +46,7 @@ async def patterns_store(
     outcome: str,
     project: str | None = None,
     idempotency_key: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Store a new pattern with embedding for future semantic search."""
     cached = check_idempotency(store.conn, idempotency_key)
     if cached is not None:
@@ -70,7 +72,7 @@ async def patterns_prune(
     max_age_days: int = 90,
     min_score: float = 0.3,
     idempotency_key: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Remove old/unused patterns (zero match_count, older than max_age_days)."""
     cached = check_idempotency(store.conn, idempotency_key)
     if cached is not None:

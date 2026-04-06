@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from ..config.defaults import (
     CLAUDE_PROJECTS_DIR,
@@ -80,7 +81,7 @@ class ParsedSession:
         self.total_cache_read_tokens = sum(s.cache_read_tokens for s in self.steps)
         self.total_cache_write_tokens = sum(s.cache_write_tokens for s in self.steps)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to a plain dict for envelope consumption."""
         return {
             "session_id": self.session_id,
