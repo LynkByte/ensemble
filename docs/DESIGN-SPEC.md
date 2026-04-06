@@ -233,6 +233,6 @@ Ordered by impact-to-effort ratio:
 To keep this file concise, the detailed design sections were split into dedicated files:
 
 - [MCP Server Design and Implementation Details](DESIGN-SPEC-PHASE-01.md)
-- [Prompt-Level Improvements (Archival Reference)](referances/DESIGN-SPEC-PHASE-01.md)
+- [Prompt-Level Improvements (Archival Reference)](references/DESIGN-SPEC-PHASE-01.md)
 
 Both files are canonical and should be used for implementation planning and execution.

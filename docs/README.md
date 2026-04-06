@@ -6,9 +6,9 @@ title: Home
 
 > Multi-agent orchestration system with a companion Python MCP server for vector memory, cost tracking, drift detection, and codebase indexing.
 
-**Status:** Design Complete, Implementation In Progress
+**Status:** Implementation Complete (Phases 1.0 through 5)
 **Version:** 1.0
-**Implementation Focus:** Phase 1 -- MCP Server (`ensemble-mcp`)
+**Package:** `ensemble-mcp` -- 21 MCP tools across 9 subpackages
 
 ---
 
@@ -286,6 +286,6 @@ Mutating tool calls support `idempotency_key`. Replayed keys within a session re
 ## Further Reading
 
 - [Design Specification](DESIGN-SPEC.md) -- Executive summary, current system analysis, improvement priorities
-- [Phase 1: Prompt-Level Improvements](referances/DESIGN-SPEC-PHASE-01.md) -- Archival reference for prompt-only enhancements (pattern memory protocol, parallel execution, drift detection, hooks, user config)
+- [Phase 1: Prompt-Level Improvements](references/DESIGN-SPEC-PHASE-01.md) -- Archival reference for prompt-only enhancements (pattern memory protocol, parallel execution, drift detection, hooks, user config)
 - [Phase 1: MCP Server Design](DESIGN-SPEC-PHASE-01.md) -- Full implementation spec (tool APIs, schemas, code examples, architecture decisions, risk assessment)
 - [Future Plans](FUTURE-PLANS.md) -- Web dashboard, real-time live view, team analytics, report export, CI/CD integration, plugin system, and advanced indexing

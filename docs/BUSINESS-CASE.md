@@ -588,7 +588,7 @@ graph TB
 | [Design Specification](DESIGN-SPEC.md) | Executive summary, system analysis, improvement priorities |
 | [Phase 1: MCP Server Design](DESIGN-SPEC-PHASE-01.md) | Full implementation spec with tool APIs, schemas, cost analysis, break-even calculations |
 | [Future Plans](FUTURE-PLANS.md) | Web dashboard, team analytics, CI/CD integration, plugin system, scaling roadmap |
-| [Agent Reference](referances/README.md) | Pipeline overview and per-agent documentation |
+| [Agent Reference](references/README.md) | Pipeline overview and per-agent documentation |
 
 ### D. Glossary
 
