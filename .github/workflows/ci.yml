@@ -43,13 +43,12 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.12' && !cancelled()
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: coverage.xml
           flags: unittests
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
 
   test-slow:
     name: Slow tests
