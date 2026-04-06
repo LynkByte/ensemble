@@ -1,8 +1,40 @@
 [project]
 name = "ensemble-mcp"
 version = "0.1.0"
-description = "MCP server providing vector memory, token tracking, drift detection, model routing, skills discovery, session management, and codebase indexing."
+description = "MCP server providing vector memory, token tracking, drift detection, model routing, skills discovery, session management, and codebase indexing for AI-assisted development pipelines."
 requires-python = ">=3.11"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Sanjaya De Silva", email = "sanjaya@example.com"},
+]
+keywords = [
+    "mcp",
+    "ai",
+    "agent",
+    "orchestration",
+    "vector-memory",
+    "token-tracking",
+    "drift-detection",
+    "model-routing",
+    "codebase-indexing",
+    "embeddings",
+    "onnx",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
 dependencies = [
     "mcp>=1.0",
     "onnxruntime>=1.17",
@@ -17,7 +49,15 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.4",
     "mypy>=1.10",
+    "build>=1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/LynkByte/ensemble"
+Repository = "https://github.com/LynkByte/ensemble"
+Documentation = "https://github.com/LynkByte/ensemble/tree/main/docs"
+Issues = "https://github.com/LynkByte/ensemble/issues"
+Changelog = "https://github.com/LynkByte/ensemble/blob/main/CHANGELOG.md"
 
 [project.scripts]
 ensemble-mcp = "ensemble_mcp.__main__:main"
@@ -28,6 +68,16 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ensemble_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/",
+    "tests/",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md",
+    "pyproject.toml",
+]
 
 # ── Pytest ────────────────────────────────────────────────────────
 [tool.pytest.ini_options]

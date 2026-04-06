@@ -601,9 +601,7 @@ class TestOpenCodeParseLatest:
     def test_parse_latest_by_project(self, opencode_db: Path) -> None:
         from ensemble_mcp.parsers.opencode import parse_latest_session
 
-        result = parse_latest_session(
-            db_path=opencode_db, project_path="/home/user/myproject"
-        )
+        result = parse_latest_session(db_path=opencode_db, project_path="/home/user/myproject")
         assert result is not None
 
     def test_parse_latest_missing_db(self, tmp_path: Path) -> None:
@@ -654,17 +652,13 @@ class TestClaudeCodeFindSessionFiles:
     def test_find_sessions_by_project(self, claude_projects_dir: Path) -> None:
         from ensemble_mcp.parsers.claude_code import find_session_files
 
-        files = find_session_files(
-            claude_projects_dir, project_path="/home/user/myproject"
-        )
+        files = find_session_files(claude_projects_dir, project_path="/home/user/myproject")
         assert len(files) == 2
 
     def test_find_sessions_unknown_project(self, claude_projects_dir: Path) -> None:
         from ensemble_mcp.parsers.claude_code import find_session_files
 
-        files = find_session_files(
-            claude_projects_dir, project_path="/home/user/nonexistent"
-        )
+        files = find_session_files(claude_projects_dir, project_path="/home/user/nonexistent")
         assert len(files) == 0
 
 
@@ -865,9 +859,7 @@ class TestAutoDetection:
         )
         assert result == "claude-code"
 
-    def test_detect_opencode_preferred(
-        self, opencode_db: Path, claude_projects_dir: Path
-    ) -> None:
+    def test_detect_opencode_preferred(self, opencode_db: Path, claude_projects_dir: Path) -> None:
         """When both are available, OpenCode is preferred."""
         from ensemble_mcp.parsers import detect_ai_tool
 
@@ -891,9 +883,7 @@ class TestDispatcher:
     def test_dispatch_opencode(self, opencode_db: Path) -> None:
         from ensemble_mcp.parsers import parse_latest_session
 
-        result = parse_latest_session(
-            ai_tool="opencode", opencode_db_path=opencode_db
-        )
+        result = parse_latest_session(ai_tool="opencode", opencode_db_path=opencode_db)
         assert result is not None
         assert result.ai_tool == "opencode"
 
@@ -1021,6 +1011,7 @@ class TestMetricsParserHook:
         self, metrics_conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """If the parser raises, metrics_record_step still succeeds."""
+
         # Patch the parser dispatch to raise
         def _bad_parser(**kwargs: Any) -> None:
             raise RuntimeError("Parser exploded")

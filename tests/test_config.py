@@ -14,7 +14,6 @@ from ensemble_mcp.config.pricing import (
 )
 from ensemble_mcp.config.settings import Settings, load_settings
 
-
 # ── Pricing ───────────────────────────────────────────────────────
 
 

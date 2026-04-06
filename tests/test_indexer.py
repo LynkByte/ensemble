@@ -18,7 +18,6 @@ from ensemble_mcp.tools.indexer import (
     project_query,
 )
 
-
 # ── Internal helpers ──────────────────────────────────────────────
 
 

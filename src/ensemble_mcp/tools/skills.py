@@ -30,7 +30,6 @@ from ..memory.embeddings import EmbeddingModel
 from ..memory.similarity import cosine_similarity
 from ..state.idempotency import check_idempotency, store_idempotency
 
-
 # ── Internal helpers ──────────────────────────────────────────────
 
 
@@ -250,7 +249,7 @@ async def skills_discover(
 
 @tool_handler(source="sqlite", confidence="exact")
 async def skills_suggest(
-    model: EmbeddingModel,
+    model: EmbeddingModel,  # noqa: ARG001  — reserved for future clustering improvements
     conn: sqlite3.Connection,
     *,
     project_path: str,

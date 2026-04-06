@@ -14,7 +14,6 @@ from ensemble_mcp.state.lifecycle import (
     transition_step,
 )
 
-
 # ── SessionState ──────────────────────────────────────────────────
 
 

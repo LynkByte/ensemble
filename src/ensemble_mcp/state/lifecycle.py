@@ -8,12 +8,12 @@ Invalid transitions are rejected with CONFLICT_INVALID_STATE_TRANSITION.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from ..contracts.errors import ErrorCode, ToolError
 
 
-class SessionState(str, Enum):
+class SessionState(StrEnum):
     """Valid session states."""
 
     PENDING = "pending"
@@ -23,7 +23,7 @@ class SessionState(str, Enum):
     KILLED = "killed"
 
 
-class StepState(str, Enum):
+class StepState(StrEnum):
     """Valid step states."""
 
     PENDING = "pending"

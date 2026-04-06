@@ -81,7 +81,4 @@ def redact(text: str) -> str:
 
 def contains_secrets(text: str) -> bool:
     """Return ``True`` if *text* appears to contain any secret patterns."""
-    for _name, pattern in _SECRET_PATTERNS:
-        if pattern.search(text):
-            return True
-    return False
+    return any(pattern.search(text) for _name, pattern in _SECRET_PATTERNS)

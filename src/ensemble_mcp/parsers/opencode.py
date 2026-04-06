@@ -267,9 +267,7 @@ def parse_session(
 
         # Get all messages for this session, ordered by time
         msg_rows = conn.execute(
-            "SELECT data FROM message "
-            "WHERE session_id = ? "
-            "ORDER BY time_created ASC",
+            "SELECT data FROM message WHERE session_id = ? ORDER BY time_created ASC",
             (session_id,),
         ).fetchall()
 
