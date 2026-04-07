@@ -151,11 +151,12 @@ export ENSEMBLE_MCP_DRIFT_THRESHOLD_ALIGNED=0.25
 
 ### OpenCode
 
-Add to your OpenCode MCP config (`~/.config/opencode/opencode.json` or project `opencode.json`):
+Add to your OpenCode MCP config (`~/.config/opencode/config.json` or project `config.json`):
 
 ```json
 {
-  "mcpServers": {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
     "ensemble": {
       "type": "local",
       "command": ["ensemble-mcp"]
@@ -168,7 +169,8 @@ Or if using a virtual environment:
 
 ```json
 {
-  "mcpServers": {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
     "ensemble": {
       "type": "local",
       "command": ["/path/to/venv/bin/ensemble-mcp"]

@@ -1013,7 +1013,7 @@ graph LR
 graph TB
     subgraph "Developer Machine"
         subgraph "AI Tools (any one active)"
-            OC[OpenCode<br/>opencode.json]
+            OC[OpenCode<br/>config.json]
             CC[Claude Code<br/>claude_desktop_config.json]
             CP[GitHub Copilot<br/>.vscode/mcp.json]
             CU[Cursor<br/>~/.cursor/mcp.json]
@@ -1046,7 +1046,7 @@ graph TB
 
 | AI Tool | MCP Config Location | Config Format |
 |---------|-------------------|---------------|
-| OpenCode | `~/.config/opencode/opencode.json` or project `opencode.json` | JSON |
+| OpenCode | `~/.config/opencode/config.json` or project `config.json` | JSON |
 | Claude Code | `~/.claude/claude_desktop_config.json` | JSON |
 | GitHub Copilot (VS Code) | `.vscode/mcp.json` or VS Code settings | JSON |
 | Cursor | `~/.cursor/mcp.json` | JSON |
@@ -1055,10 +1055,11 @@ graph TB
 
 ### 5.2 MCP Registration Examples
 
-**OpenCode (`~/.config/opencode/opencode.json` or project `opencode.json`):**
+**OpenCode (`~/.config/opencode/config.json` or project `config.json`):**
 ```json
 {
-  "mcpServers": {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
     "ensemble": {
       "type": "local",
       "command": ["uvx", "ensemble-mcp"]

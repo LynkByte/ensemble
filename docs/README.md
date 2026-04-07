@@ -127,10 +127,11 @@ Zero-hassle: `uvx` auto-downloads Python if not installed. Works on Mac, Linux, 
 
 ### MCP Registration
 
-**OpenCode** (`~/.config/opencode/opencode.json` or project `opencode.json`):
+**OpenCode** (`~/.config/opencode/config.json` or project `config.json`):
 ```json
 {
-  "mcpServers": {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
     "ensemble": {
       "type": "local",
       "command": ["uvx", "ensemble-mcp"]
@@ -232,7 +233,7 @@ mindmap
 
 | AI Tool | MCP Config Location | Config Format |
 |---------|---------------------|---------------|
-| OpenCode | `~/.config/opencode/opencode.json` or project `opencode.json` | JSON |
+| OpenCode | `~/.config/opencode/config.json` or project `config.json` | JSON |
 | Claude Code | `~/.claude/claude_desktop_config.json` | JSON |
 | GitHub Copilot (VS Code) | `.vscode/mcp.json` | JSON |
 | Cursor | `~/.cursor/mcp.json` | JSON |

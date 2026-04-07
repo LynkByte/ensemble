@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0a3] - 2026-04-07
 
 ### Fixed
-- **OpenCode config format**: Installer now generates correct JSON config (`opencode.json`) instead of TOML (`config.toml`), using `{"type": "local", "command": ["uvx", "ensemble-mcp"]}` entry format
+- **OpenCode config format**: Installer now generates correct JSON config (`config.json` with `$schema`) instead of TOML (`config.toml`), using `{"type": "local", "command": ["uvx", "ensemble-mcp"]}` entry format under the `mcp` section
 - **Tool-specific agent/skill directories**: Agent and skill files are now placed in the correct tool-specific locations instead of generic `.agents/` and `.ai/skills/` paths
 
 ### Added

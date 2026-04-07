@@ -66,6 +66,8 @@ class ToolDefinition:
     """Relative path within project root for local skill file placement."""
     skill_format: SkillFormat = SkillFormat.FLAT
     """How skill files should be laid out at the destination."""
+    config_schema_url: str | None = None
+    """If set, a ``$schema`` key is injected when creating a new config file."""
 
 
 # ── Server name used as the key in MCP configs ───────────────────
@@ -95,8 +97,8 @@ TOOL_DEFINITIONS: list[ToolDefinition] = [
         name="opencode",
         display_name="OpenCode",
         config_format=ConfigFormat.JSON,
-        global_config_path=Path.home() / ".config" / "opencode" / "opencode.json",
-        local_config_filename="opencode.json",
+        global_config_path=Path.home() / ".config" / "opencode" / "config.json",
+        local_config_filename="config.json",
         mcp_section_path=["mcp"],
         detection_paths=[Path.home() / ".config" / "opencode"],
         server_entry=_OPENCODE_ENTRY,
@@ -105,6 +107,7 @@ TOOL_DEFINITIONS: list[ToolDefinition] = [
         global_skills_dir=Path.home() / ".config" / "opencode" / "skills",
         local_skills_dir=".opencode/skills",
         skill_format=SkillFormat.DIRECTORY,
+        config_schema_url="https://opencode.ai/config.json",
     ),
     ToolDefinition(
         name="claude_code",

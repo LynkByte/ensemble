@@ -50,14 +50,14 @@ If you prefer to edit configs manually, remove the `ensemble` entry from the rel
 
 #### OpenCode
 
-**Global:** `~/.config/opencode/opencode.json`
-**Local:** `opencode.json` (in project root)
+**Global:** `~/.config/opencode/config.json`
+**Local:** `config.json` (in project root)
 
-Remove the `"ensemble"` key from `"mcpServers"`:
+Remove the `"ensemble"` key from `"mcp"`:
 
 ```json
 {
-  "mcpServers": {
+  "mcp": {
     "ensemble": { ... }  // DELETE this entry
   }
 }
@@ -284,7 +284,7 @@ The installer creates `.bak` backup files before modifying any config. If you ne
 
 ```bash
 # Example for OpenCode
-cp ~/.config/opencode/opencode.json.bak ~/.config/opencode/opencode.json
+cp ~/.config/opencode/config.json.bak ~/.config/opencode/config.json
 
 # Example for Claude Code
 cp ~/.claude/claude_desktop_config.json.bak ~/.claude/claude_desktop_config.json

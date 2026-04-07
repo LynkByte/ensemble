@@ -1,8 +1,7 @@
 """Config file read/write for each supported AI tool.
 
-Handles TOML (OpenCode) and JSON (Claude Code, Copilot, Cursor, Windsurf,
-Devin CLI) config formats. Creates backups before modification and ensures
-parent directories exist.
+Handles JSON (all tools) and TOML (legacy) config formats. Creates backups
+before modification and ensures parent directories exist.
 """
 
 from __future__ import annotations
@@ -92,7 +91,14 @@ def register_mcp(
 
     If the MCP section does not exist, it is created. If ensemble is already
     registered, the entry is overwritten with the latest server_entry values.
+
+    When the tool definition includes a ``config_schema_url`` and the config
+    does not yet contain a ``$schema`` key, one is injected.
     """
+    # Inject $schema if the tool defines one and it's not already present
+    if definition.config_schema_url and "$schema" not in config:
+        config["$schema"] = definition.config_schema_url
+
     # Walk into the config creating intermediate dicts as needed
     node = config
     for key in definition.mcp_section_path:

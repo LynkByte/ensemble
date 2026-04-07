@@ -67,11 +67,12 @@ ensemble-mcp dashboard
 
 ### OpenCode
 
-Add to `~/.config/opencode/opencode.json` or project `opencode.json`:
+Add to `~/.config/opencode/config.json` or project `config.json`:
 
 ```json
 {
-  "mcpServers": {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
     "ensemble": {
       "type": "local",
       "command": ["uvx", "ensemble-mcp"]
@@ -84,7 +85,8 @@ Or for a local development install:
 
 ```json
 {
-  "mcpServers": {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
     "ensemble": {
       "type": "local",
       "command": ["/path/to/venv/bin/ensemble-mcp"]

@@ -19,9 +19,10 @@ ensemble-mcp install --tools opencode
 This adds the MCP server entry to OpenCode's config:
 
 ```json
-// opencode.json or ~/.config/opencode/opencode.json
+// config.json or ~/.config/opencode/config.json
 {
-  "mcpServers": {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
     "ensemble": {
       "type": "local",
       "command": ["uvx", "ensemble-mcp"]

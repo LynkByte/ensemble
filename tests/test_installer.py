@@ -64,8 +64,8 @@ def _opencode_def(tmp_path: Path) -> ToolDefinition:
         name="opencode",
         display_name="OpenCode",
         config_format=ConfigFormat.JSON,
-        global_config_path=tmp_path / "global" / "opencode" / "opencode.json",
-        local_config_filename="opencode.json",
+        global_config_path=tmp_path / "global" / "opencode" / "config.json",
+        local_config_filename="config.json",
         mcp_section_path=["mcp"],
         detection_paths=[tmp_path / "global" / "opencode"],
         server_entry={"type": "local", "command": ["uvx", "ensemble-mcp"]},
@@ -74,6 +74,7 @@ def _opencode_def(tmp_path: Path) -> ToolDefinition:
         global_skills_dir=tmp_path / "global" / "opencode" / "skills",
         local_skills_dir=".opencode/skills",
         skill_format=SkillFormat.DIRECTORY,
+        config_schema_url="https://opencode.ai/config.json",
     )
 
 
@@ -339,10 +340,25 @@ class TestRegisterMcp:
         defn = _opencode_def(tmp_path)
         config: dict[str, Any] = {}
         register_mcp(config, defn)
+        assert config["$schema"] == "https://opencode.ai/config.json"
         assert config["mcp"][MCP_SERVER_NAME] == {
             "type": "local",
             "command": ["uvx", "ensemble-mcp"],
         }
+
+    def test_register_preserves_existing_schema(self, tmp_path: Path):
+        """If $schema already exists in config, don't overwrite it."""
+        defn = _opencode_def(tmp_path)
+        config: dict[str, Any] = {"$schema": "https://custom.example.com/schema.json"}
+        register_mcp(config, defn)
+        assert config["$schema"] == "https://custom.example.com/schema.json"
+
+    def test_register_no_schema_for_tools_without_url(self, tmp_path: Path):
+        """Tools without config_schema_url should not inject $schema."""
+        defn = _claude_def(tmp_path)
+        config: dict[str, Any] = {}
+        register_mcp(config, defn)
+        assert "$schema" not in config
 
     def test_register_creates_intermediate_sections(self, tmp_path: Path):
         defn = _claude_def(tmp_path)
@@ -423,7 +439,7 @@ class TestDetection:
         assert len(detected) == 1
         assert detected[0].scope == InstallScope.LOCAL
         # Config path should be project-local
-        assert detected[0].config_path == tmp_path / "opencode.json"
+        assert detected[0].config_path == tmp_path / "config.json"
 
 
 # ── Plan ──────────────────────────────────────────────────────────
@@ -565,6 +581,7 @@ class TestExecute:
 
         # Verify JSON content
         config = json.loads(defn.global_config_path.read_text())
+        assert config["$schema"] == "https://opencode.ai/config.json"
         assert config["mcp"]["ensemble"]["type"] == "local"
         assert config["mcp"]["ensemble"]["command"] == ["uvx", "ensemble-mcp"]
 
