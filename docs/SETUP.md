@@ -192,6 +192,28 @@ Add to your Claude Code MCP settings:
 }
 ```
 
+## Adding Agents and Skills Separately
+
+If ensemble-mcp is already registered but you need to add agent or skill files to a project (e.g. cloning a repo that doesn't have them yet), use the dedicated commands:
+
+```bash
+# Copy bundled agent files to tool-specific directories
+ensemble-mcp add-agents --tools opencode
+
+# Copy bundled skill files to tool-specific directories
+ensemble-mcp add-skills --tools opencode
+```
+
+These commands do **not** touch MCP config files — they only copy agent/skill files. They also do not require the AI tool to be installed, so you can pre-seed files before setting up the tool.
+
+| Flag | Description |
+|------|-------------|
+| `--tools` | Comma-separated tool names (default: all known tools) |
+| `--local` | Copy to project-local directories (default for skills) |
+| `--global` | Copy to global directories (default for agents) |
+| `--dry-run` | Show the plan without making changes |
+| `--yes` | Skip confirmation prompt |
+
 ## Data Locations
 
 | Path | Contents |

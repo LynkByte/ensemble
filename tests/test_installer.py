@@ -40,7 +40,11 @@ from ensemble_mcp.installer.registry import (
 )
 from ensemble_mcp.installer.setup import (
     InstallResult,
+    _resolve_tool_defs,
+    add_agents,
+    add_skills,
     detect_ai_tools,
+    display_copy_plan,
     display_plan,
     display_result,
     display_uninstall_plan,
@@ -1633,6 +1637,512 @@ class TestUninstallCli:
             sys,
             "argv",
             ["ensemble-mcp", "uninstall", "--tools", "badtool", "--yes"],
+        )
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 1
+
+
+# ══════════════════════════════════════════════════════════════════
+# ADD-AGENTS / ADD-SKILLS
+# ══════════════════════════════════════════════════════════════════
+
+
+class TestResolveToolDefs:
+    def test_none_returns_all(self):
+        """When no filter, all tool definitions are returned."""
+        result = _resolve_tool_defs(None)
+        assert len(result) == len(TOOL_DEFINITIONS)
+
+    def test_filter_by_name(self):
+        """Filter returns only matching tools."""
+        result = _resolve_tool_defs({"opencode"})
+        assert len(result) == 1
+        assert result[0].name == "opencode"
+
+    def test_filter_multiple(self):
+        """Filter returns multiple matching tools."""
+        result = _resolve_tool_defs({"opencode", "cursor"})
+        assert len(result) == 2
+        names = {td.name for td in result}
+        assert names == {"opencode", "cursor"}
+
+    def test_filter_unknown_returns_empty(self):
+        """Unknown tool names produce an empty list."""
+        result = _resolve_tool_defs({"nonexistent_tool"})
+        assert result == []
+
+
+class TestDisplayCopyPlan:
+    def test_with_pairs(self, tmp_path: Path):
+        """Display plan should list files to copy."""
+        src = tmp_path / "src" / "team-captain.md"
+        dst = tmp_path / "dst" / "team-captain.md"
+        text = display_copy_plan("agent", [(src, dst)])
+        assert "agent" in text.lower()
+        assert "team-captain.md" in text
+
+    def test_empty_pairs(self):
+        """Display plan should show nothing-to-do message."""
+        text = display_copy_plan("agent", [])
+        assert "nothing to do" in text.lower()
+
+    def test_skill_label(self, tmp_path: Path):
+        """Label is correctly used in the header."""
+        src = tmp_path / "src" / "SKILL.md"
+        dst = tmp_path / "dst" / "SKILL.md"
+        text = display_copy_plan("skill", [(src, dst)])
+        assert "SKILL" in text
+
+
+class TestAddAgents:
+    def test_copies_agents_for_opencode(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """add_agents copies bundled agents to OpenCode global dir."""
+        bundled = tmp_path / "bundled"
+        bundled.mkdir()
+        (bundled / "team-captain.md").write_text("# Captain")
+        (bundled / "team-engineer.md").write_text("# Engineer")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled,
+        )
+
+        defn = _opencode_def(tmp_path)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        result = add_agents(
+            project_path=project,
+            scope=InstallScope.GLOBAL,
+            tool_filter={"opencode"},
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 2
+        assert defn.global_agents_dir is not None
+        assert (defn.global_agents_dir / "team-captain.md").exists()
+        assert (defn.global_agents_dir / "team-engineer.md").exists()
+
+    def test_copies_agents_local_scope(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """add_agents with LOCAL scope copies to project-local dir."""
+        bundled = tmp_path / "bundled"
+        bundled.mkdir()
+        (bundled / "team-captain.md").write_text("# Captain")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled,
+        )
+
+        defn = _opencode_def(tmp_path)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        result = add_agents(
+            project_path=project,
+            scope=InstallScope.LOCAL,
+            tool_filter={"opencode"},
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 1
+        assert (project / ".opencode" / "agents" / "team-captain.md").exists()
+
+    def test_skips_existing_agents(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """add_agents skips agents that already exist at the destination."""
+        bundled = tmp_path / "bundled"
+        bundled.mkdir()
+        (bundled / "team-captain.md").write_text("# Captain")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled,
+        )
+
+        defn = _opencode_def(tmp_path)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        # Pre-create the agent
+        assert defn.global_agents_dir is not None
+        defn.global_agents_dir.mkdir(parents=True)
+        (defn.global_agents_dir / "team-captain.md").write_text("# Already there")
+
+        result = add_agents(
+            project_path=project,
+            scope=InstallScope.GLOBAL,
+            tool_filter={"opencode"},
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 0
+
+    def test_dry_run_does_not_copy(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """add_agents with dry_run=True shows plan but copies nothing."""
+        bundled = tmp_path / "bundled"
+        bundled.mkdir()
+        (bundled / "team-captain.md").write_text("# Captain")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled,
+        )
+
+        defn = _opencode_def(tmp_path)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        result = add_agents(
+            project_path=project,
+            scope=InstallScope.GLOBAL,
+            tool_filter={"opencode"},
+            dry_run=True,
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 0
+        assert defn.global_agents_dir is not None
+        assert not (defn.global_agents_dir / "team-captain.md").exists()
+
+    def test_no_detection_required(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """add_agents works even if the AI tool is not installed."""
+        bundled = tmp_path / "bundled"
+        bundled.mkdir()
+        (bundled / "team-captain.md").write_text("# Captain")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled,
+        )
+
+        # Use the real TOOL_DEFINITIONS — OpenCode's detection_paths
+        # won't exist in tmp_path, but add_agents should still work
+        # because it bypasses detection.
+        defn = _opencode_def(tmp_path)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+        # NOTE: defn.detection_paths[0] does NOT exist — tool not installed
+
+        result = add_agents(
+            project_path=project,
+            scope=InstallScope.GLOBAL,
+            tool_filter={"opencode"},
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 1
+
+    def test_tool_without_agent_dir_copies_nothing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Tools without agent dir configs produce no copies."""
+        bundled = tmp_path / "bundled"
+        bundled.mkdir()
+        (bundled / "team-captain.md").write_text("# Captain")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled,
+        )
+
+        defn = _claude_def(tmp_path)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        result = add_agents(
+            project_path=project,
+            scope=InstallScope.GLOBAL,
+            tool_filter={"claude_code"},
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 0
+
+
+class TestAddSkills:
+    def test_copies_skills_directory_format(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """add_skills copies in directory format for OpenCode."""
+        bundled = tmp_path / "bundled_skills"
+        bundled.mkdir()
+        (bundled / "ensemble-mcp-workflow.md").write_text("# Workflow")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled,
+        )
+
+        defn = _opencode_def(tmp_path)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        result = add_skills(
+            project_path=project,
+            scope=InstallScope.LOCAL,
+            tool_filter={"opencode"},
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 1
+        skill_path = project / ".opencode" / "skills" / "ensemble-mcp-workflow" / "SKILL.md"
+        assert skill_path.exists()
+        assert skill_path.read_text() == "# Workflow"
+
+    def test_copies_skills_flat_format(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """add_skills copies in flat format for Claude Code."""
+        bundled = tmp_path / "bundled_skills"
+        bundled.mkdir()
+        (bundled / "ensemble-mcp-workflow.md").write_text("# Workflow")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled,
+        )
+
+        defn = _claude_def(tmp_path)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        result = add_skills(
+            project_path=project,
+            scope=InstallScope.LOCAL,
+            tool_filter={"claude_code"},
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 1
+        skill_path = project / ".claude" / "skills" / "ensemble-mcp-workflow.md"
+        assert skill_path.exists()
+
+    def test_default_scope_is_local(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """add_skills defaults to LOCAL scope."""
+        bundled = tmp_path / "bundled_skills"
+        bundled.mkdir()
+        (bundled / "ensemble-mcp-workflow.md").write_text("# Workflow")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled,
+        )
+
+        defn = _opencode_def(tmp_path)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        # Call without explicit scope — should default to LOCAL
+        result = add_skills(
+            project_path=project,
+            tool_filter={"opencode"},
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 1
+        # Should be in project-local dir, not global
+        skill_path = project / ".opencode" / "skills" / "ensemble-mcp-workflow" / "SKILL.md"
+        assert skill_path.exists()
+
+    def test_global_scope_uses_global_dir(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """add_skills with GLOBAL scope copies to global skill dir."""
+        bundled = tmp_path / "bundled_skills"
+        bundled.mkdir()
+        (bundled / "ensemble-mcp-workflow.md").write_text("# Workflow")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled,
+        )
+
+        defn = _opencode_def(tmp_path)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        result = add_skills(
+            project_path=project,
+            scope=InstallScope.GLOBAL,
+            tool_filter={"opencode"},
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 1
+        assert defn.global_skills_dir is not None
+        skill_path = defn.global_skills_dir / "ensemble-mcp-workflow" / "SKILL.md"
+        assert skill_path.exists()
+
+    def test_dry_run_does_not_copy(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """add_skills with dry_run=True copies nothing."""
+        bundled = tmp_path / "bundled_skills"
+        bundled.mkdir()
+        (bundled / "ensemble-mcp-workflow.md").write_text("# Workflow")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled,
+        )
+
+        defn = _opencode_def(tmp_path)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        result = add_skills(
+            project_path=project,
+            tool_filter={"opencode"},
+            dry_run=True,
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 0
+
+    def test_skips_existing_skills(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """add_skills skips skills already present at the destination."""
+        bundled = tmp_path / "bundled_skills"
+        bundled.mkdir()
+        (bundled / "ensemble-mcp-workflow.md").write_text("# Workflow")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled,
+        )
+
+        defn = _opencode_def(tmp_path)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        # Pre-create the skill in directory format
+        skill_dir = project / ".opencode" / "skills" / "ensemble-mcp-workflow"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("# Already there")
+
+        result = add_skills(
+            project_path=project,
+            tool_filter={"opencode"},
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 0
+
+    def test_no_detection_required(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """add_skills works even if the AI tool is not installed."""
+        bundled = tmp_path / "bundled_skills"
+        bundled.mkdir()
+        (bundled / "ensemble-mcp-workflow.md").write_text("# Workflow")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled,
+        )
+
+        defn = _opencode_def(tmp_path)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+        # detection_paths[0] does NOT exist — tool not installed
+
+        result = add_skills(
+            project_path=project,
+            tool_filter={"opencode"},
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 1
+
+
+class TestAddAgentsCli:
+    def test_add_agents_help(self):
+        import sys
+
+        from ensemble_mcp.__main__ import main
+
+        sys.argv = ["ensemble-mcp", "add-agents", "--help"]
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 0
+
+    def test_add_agents_unknown_tool_exits(self, monkeypatch: pytest.MonkeyPatch):
+        import sys
+
+        from ensemble_mcp.__main__ import main
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["ensemble-mcp", "add-agents", "--tools", "badtool", "--yes"],
+        )
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 1
+
+
+class TestAddSkillsCli:
+    def test_add_skills_help(self):
+        import sys
+
+        from ensemble_mcp.__main__ import main
+
+        sys.argv = ["ensemble-mcp", "add-skills", "--help"]
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 0
+
+    def test_add_skills_unknown_tool_exits(self, monkeypatch: pytest.MonkeyPatch):
+        import sys
+
+        from ensemble_mcp.__main__ import main
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["ensemble-mcp", "add-skills", "--tools", "badtool", "--yes"],
         )
         with pytest.raises(SystemExit) as exc_info:
             main()

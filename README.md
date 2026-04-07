@@ -53,6 +53,12 @@ ensemble-mcp serve
 # Auto-detect AI tools and register the MCP server
 ensemble-mcp install
 
+# Copy agent files to a project (no MCP registration needed)
+ensemble-mcp add-agents --tools opencode
+
+# Copy skill files to a project (no MCP registration needed)
+ensemble-mcp add-skills --tools opencode
+
 # Show terminal metrics dashboard
 ensemble-mcp dashboard
 ```

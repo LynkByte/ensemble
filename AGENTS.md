@@ -10,8 +10,10 @@ Python MCP server (`ensemble-mcp`) providing vector memory, token tracking, drif
 pip install -e .                  # editable install
 ensemble-mcp                      # run server (or: python -m ensemble_mcp)
 ensemble-mcp install              # auto-detect AI tools and register MCP
+ensemble-mcp add-agents           # copy agent files (no MCP registration)
+ensemble-mcp add-skills           # copy skill files (no MCP registration)
 ensemble-mcp dashboard            # terminal metrics dashboard
-python -m pytest tests/           # run tests (451 tests)
+python -m pytest tests/           # run tests
 ruff check src/ tests/            # lint
 ruff format src/ tests/           # format
 mypy src/                         # typecheck

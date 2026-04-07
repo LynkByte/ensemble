@@ -377,6 +377,189 @@ def install(
 
 
 # ══════════════════════════════════════════════════════════════════
+# ADD-AGENTS / ADD-SKILLS  (standalone agent/skill copy commands)
+# ══════════════════════════════════════════════════════════════════
+
+
+def _resolve_tool_defs(tool_filter: set[str] | None) -> list[ToolDefinition]:
+    """Resolve tool definitions by name — no detection/installation required.
+
+    Unlike ``detect_ai_tools``, this returns definitions purely by name
+    lookup.  When *tool_filter* is ``None``, **all** known definitions
+    are returned.
+    """
+    if tool_filter is None:
+        return list(TOOL_DEFINITIONS)
+    return [td for td in TOOL_DEFINITIONS if td.name in tool_filter]
+
+
+def display_copy_plan(
+    label: str,
+    pairs: list[tuple[Path, Path]],
+) -> str:
+    """Format a list of ``(source, destination)`` copy pairs for display."""
+    lines: list[str] = []
+
+    lines.append("")
+    header = f"ENSEMBLE-MCP {label.upper()} PLAN"
+    lines.append("╔══════════════════════════════════════════════════════════╗")
+    lines.append(f"║  {header:<55}║")
+    lines.append("╠══════════════════════════════════════════════════════════╣")
+
+    if pairs:
+        lines.append("║                                                          ║")
+        lines.append(f"║  Will copy {label} files:".ljust(59) + "║")
+        for _src, dst in pairs:
+            lines.append(f"║    ✓ {dst.name}")
+            lines.append(f"║      → {dst}")
+        lines.append("║                                                          ║")
+    else:
+        lines.append("║                                                          ║")
+        lines.append(f"║  Nothing to do — all {label} files already exist.".ljust(59) + "║")
+        lines.append("║                                                          ║")
+
+    lines.append("╚══════════════════════════════════════════════════════════╝")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def add_agents(
+    project_path: Path | None = None,
+    scope: InstallScope = InstallScope.GLOBAL,
+    tool_filter: set[str] | None = None,
+    dry_run: bool = False,
+    auto_confirm: bool = False,
+) -> InstallResult:
+    """Copy bundled agent files to tool-specific directories.
+
+    Unlike ``install``, this does **not** register MCP in any config.
+    It also does **not** require the AI tool to be installed — it uses
+    the known ``ToolDefinition`` paths directly.
+
+    Args:
+        project_path: Project root directory.  Defaults to cwd.
+        scope: ``GLOBAL`` copies to global agent dirs (e.g.
+            ``~/.config/opencode/agents/``); ``LOCAL`` copies to
+            project-local dirs (e.g. ``.opencode/agents/``).
+        tool_filter: Restrict to specific tool names.
+        dry_run: Show the plan without making changes.
+        auto_confirm: Skip the confirmation prompt.
+
+    Returns:
+        ``InstallResult`` with the ``copied`` field populated.
+    """
+    if project_path is None:
+        project_path = Path.cwd()
+    project_path = project_path.resolve()
+
+    tool_defs = _resolve_tool_defs(tool_filter)
+    pairs = discover_agents(project_path, tool_defs, scope)
+
+    plan_text = display_copy_plan("agent", pairs)
+    sys.stdout.write(plan_text)
+
+    if dry_run:
+        sys.stdout.write("Dry run — no changes made.\n")
+        return InstallResult()
+
+    if not pairs:
+        return InstallResult()
+
+    if not auto_confirm:
+        try:
+            answer = input("Proceed? [y/N] ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            sys.stdout.write("\nAborted.\n")
+            return InstallResult()
+        if answer not in ("y", "yes"):
+            sys.stdout.write("Aborted.\n")
+            return InstallResult()
+
+    result = InstallResult()
+    for src, dst in pairs:
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            import shutil
+
+            shutil.copy2(src, dst)
+            result.copied.append(dst)
+        except Exception as exc:
+            result.skipped.append((dst.name, f"copy error: {exc}"))
+
+    result_text = display_result(result)
+    sys.stdout.write(result_text)
+    return result
+
+
+def add_skills(
+    project_path: Path | None = None,
+    scope: InstallScope = InstallScope.LOCAL,
+    tool_filter: set[str] | None = None,
+    dry_run: bool = False,
+    auto_confirm: bool = False,
+) -> InstallResult:
+    """Copy bundled skill files to tool-specific directories.
+
+    Unlike ``install``, this does **not** register MCP in any config.
+    It also does **not** require the AI tool to be installed — it uses
+    the known ``ToolDefinition`` paths directly.
+
+    Args:
+        project_path: Project root directory.  Defaults to cwd.
+        scope: ``LOCAL`` copies to project-local skill dirs (e.g.
+            ``.opencode/skills/``); ``GLOBAL`` copies to global dirs.
+        tool_filter: Restrict to specific tool names.
+        dry_run: Show the plan without making changes.
+        auto_confirm: Skip the confirmation prompt.
+
+    Returns:
+        ``InstallResult`` with the ``copied`` field populated.
+    """
+    if project_path is None:
+        project_path = Path.cwd()
+    project_path = project_path.resolve()
+
+    tool_defs = _resolve_tool_defs(tool_filter)
+    pairs = discover_skills(project_path, tool_defs, scope)
+
+    plan_text = display_copy_plan("skill", pairs)
+    sys.stdout.write(plan_text)
+
+    if dry_run:
+        sys.stdout.write("Dry run — no changes made.\n")
+        return InstallResult()
+
+    if not pairs:
+        return InstallResult()
+
+    if not auto_confirm:
+        try:
+            answer = input("Proceed? [y/N] ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            sys.stdout.write("\nAborted.\n")
+            return InstallResult()
+        if answer not in ("y", "yes"):
+            sys.stdout.write("Aborted.\n")
+            return InstallResult()
+
+    result = InstallResult()
+    for src, dst in pairs:
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            import shutil
+
+            shutil.copy2(src, dst)
+            result.copied.append(dst)
+        except Exception as exc:
+            result.skipped.append((dst.name, f"copy error: {exc}"))
+
+    result_text = display_result(result)
+    sys.stdout.write(result_text)
+    return result
+
+
+# ══════════════════════════════════════════════════════════════════
 # UNINSTALL
 # ══════════════════════════════════════════════════════════════════
 
