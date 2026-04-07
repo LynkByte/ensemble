@@ -29,6 +29,15 @@ class InstallScope(StrEnum):
 # ── Tool definitions ──────────────────────────────────────────────
 
 
+class SkillFormat(StrEnum):
+    """How skill files are stored at the destination."""
+
+    FLAT = "flat"
+    """Single ``.md`` file dropped directly in the skills dir."""
+    DIRECTORY = "directory"
+    """Each skill lives in ``<name>/SKILL.md`` inside the skills dir."""
+
+
 @dataclass(slots=True)
 class ToolDefinition:
     """Static definition of a supported AI tool and its config layout."""
@@ -46,6 +55,18 @@ class ToolDefinition:
     server_entry: dict[str, object]
     """The MCP server registration payload (value under the server key)."""
 
+    # ── Tool-specific agent/skill directories ──────────────────────
+    global_agents_dir: Path | None = None
+    """Absolute path for global agent file placement (e.g. ~/.config/opencode/agents/)."""
+    local_agents_dir: str | None = None
+    """Relative path within project root for local agent file placement (e.g. .opencode/agents/)."""
+    global_skills_dir: Path | None = None
+    """Absolute path for global skill file placement."""
+    local_skills_dir: str | None = None
+    """Relative path within project root for local skill file placement."""
+    skill_format: SkillFormat = SkillFormat.FLAT
+    """How skill files should be laid out at the destination."""
+
 
 # ── Server name used as the key in MCP configs ───────────────────
 MCP_SERVER_NAME = "ensemble"
@@ -61,18 +82,29 @@ _UVXENTRY_TYPED: dict[str, object] = {
     "args": ["ensemble-mcp"],
 }
 
+# OpenCode uses {"type": "local", "command": ["cmd", ...]} — no separate "args"
+_OPENCODE_ENTRY: dict[str, object] = {
+    "type": "local",
+    "command": ["uvx", "ensemble-mcp"],
+}
+
 # ── Supported tool definitions ────────────────────────────────────
 
 TOOL_DEFINITIONS: list[ToolDefinition] = [
     ToolDefinition(
         name="opencode",
         display_name="OpenCode",
-        config_format=ConfigFormat.TOML,
-        global_config_path=Path.home() / ".config" / "opencode" / "config.toml",
-        local_config_filename=".opencode.toml",
+        config_format=ConfigFormat.JSON,
+        global_config_path=Path.home() / ".config" / "opencode" / "opencode.json",
+        local_config_filename="opencode.json",
         mcp_section_path=["mcp"],
         detection_paths=[Path.home() / ".config" / "opencode"],
-        server_entry=_UVXENTRY_TYPED,
+        server_entry=_OPENCODE_ENTRY,
+        global_agents_dir=Path.home() / ".config" / "opencode" / "agents",
+        local_agents_dir=".opencode/agents",
+        global_skills_dir=Path.home() / ".config" / "opencode" / "skills",
+        local_skills_dir=".opencode/skills",
+        skill_format=SkillFormat.DIRECTORY,
     ),
     ToolDefinition(
         name="claude_code",
@@ -83,6 +115,7 @@ TOOL_DEFINITIONS: list[ToolDefinition] = [
         mcp_section_path=["mcpServers"],
         detection_paths=[Path.home() / ".claude"],
         server_entry=_UVXENTRY,
+        local_skills_dir=".claude/skills",
     ),
     ToolDefinition(
         name="copilot",
@@ -103,6 +136,7 @@ TOOL_DEFINITIONS: list[ToolDefinition] = [
         mcp_section_path=["mcpServers"],
         detection_paths=[Path.home() / ".cursor"],
         server_entry=_UVXENTRY,
+        local_skills_dir=".cursor/rules",
     ),
     ToolDefinition(
         name="windsurf",
@@ -123,6 +157,7 @@ TOOL_DEFINITIONS: list[ToolDefinition] = [
         mcp_section_path=["mcpServers"],
         detection_paths=[Path.home() / ".devin"],
         server_entry=_UVXENTRY,
+        local_skills_dir=".devin",
     ),
 ]
 
@@ -157,7 +192,7 @@ class InstallPlan:
     tools_to_register: list[DetectedTool] = field(default_factory=list)
     agents_to_copy: list[tuple[Path, Path]] = field(default_factory=list)
     skills_to_copy: list[tuple[Path, Path]] = field(default_factory=list)
-    """Skill files to copy to .ai/skills/ in the project."""
+    """Skill files to copy to tool-specific skill directories."""
     skipped: list[tuple[str, str]] = field(default_factory=list)
     """(tool_display_name, reason) for tools that were skipped."""
 

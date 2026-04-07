@@ -53,6 +53,12 @@ ensemble-mcp serve
 # Auto-detect AI tools and register the MCP server
 ensemble-mcp install
 
+# Copy agent files to a project (no MCP registration needed)
+ensemble-mcp add-agents --tools opencode
+
+# Copy skill files to a project (no MCP registration needed)
+ensemble-mcp add-skills --tools opencode
+
 # Show terminal metrics dashboard
 ensemble-mcp dashboard
 ```
@@ -61,22 +67,30 @@ ensemble-mcp dashboard
 
 ### OpenCode
 
-Add to `~/.config/opencode/config.toml` or project `.opencode.toml`:
+Add to `~/.config/opencode/opencode.json` or project `opencode.json`:
 
-```toml
-[mcp.ensemble]
-type = "stdio"
-command = "uvx"
-args = ["ensemble-mcp"]
+```json
+{
+  "mcpServers": {
+    "ensemble": {
+      "type": "local",
+      "command": ["uvx", "ensemble-mcp"]
+    }
+  }
+}
 ```
 
 Or for a local development install:
 
-```toml
-[mcp.ensemble]
-type = "stdio"
-command = "/path/to/venv/bin/ensemble-mcp"
-args = []
+```json
+{
+  "mcpServers": {
+    "ensemble": {
+      "type": "local",
+      "command": ["/path/to/venv/bin/ensemble-mcp"]
+    }
+  }
+}
 ```
 
 ### Claude Code

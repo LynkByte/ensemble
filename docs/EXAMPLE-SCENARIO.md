@@ -18,14 +18,19 @@ ensemble-mcp install --tools opencode
 
 This adds the MCP server entry to OpenCode's config:
 
-```toml
-# .opencode.toml or ~/.config/opencode/config.toml
-[mcp.ensemble]
-command = "uvx"
-args = ["ensemble-mcp"]
+```json
+// opencode.json or ~/.config/opencode/opencode.json
+{
+  "mcpServers": {
+    "ensemble": {
+      "type": "local",
+      "command": ["uvx", "ensemble-mcp"]
+    }
+  }
+}
 ```
 
-**Important:** The installer also copies agent files into `.agents/` and a workflow skill file at `.ai/skills/ensemble-mcp-workflow.md`. This skill file is what tells the AI agent **when and how** to call ensemble-mcp tools. Without it, the tools are available but the agent won't know to use them. See the [Uninstall Guide](UNINSTALL.md) to reverse this setup.
+**Important:** The installer also copies agent files into tool-specific directories (e.g. `.opencode/agents/` for OpenCode) and a workflow skill file (e.g. `.opencode/skills/ensemble-mcp-workflow/SKILL.md` for OpenCode). This skill file is what tells the AI agent **when and how** to call ensemble-mcp tools. Without it, the tools are available but the agent won't know to use them. See the [Uninstall Guide](UNINSTALL.md) to reverse this setup.
 
 ---
 

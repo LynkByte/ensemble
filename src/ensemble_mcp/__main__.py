@@ -1,9 +1,11 @@
 """Entry point: python -m ensemble_mcp.
 
-Provides four subcommands:
+Provides six subcommands:
   - ``serve`` (default): Start the MCP server on stdio.
   - ``install``: Detect AI tools and register ensemble-mcp in their configs.
   - ``uninstall``: Remove ensemble-mcp registration from AI tool configs.
+  - ``add-agents``: Copy bundled agent files to tool-specific directories.
+  - ``add-skills``: Copy bundled skill files to tool-specific directories.
   - ``dashboard``: Display a terminal-based metrics dashboard.
 """
 
@@ -100,7 +102,7 @@ def main() -> None:
         "--remove-agents",
         action="store_true",
         default=False,
-        help="Also remove agent files from the project's .agents/ directory.",
+        help="Also remove agent/skill files from tool-specific directories.",
     )
     uninstall_parser.add_argument(
         "--clean-data",
@@ -118,6 +120,95 @@ def main() -> None:
         help="Show the uninstall plan without making any changes.",
     )
     uninstall_parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        default=False,
+        help="Skip confirmation prompt.",
+    )
+
+    # ── add-agents ────────────────────────────────────────────────
+    add_agents_parser = subparsers.add_parser(
+        "add-agents",
+        help="Copy bundled agent files to tool-specific directories.",
+    )
+    add_agents_parser.add_argument(
+        "--local",
+        action="store_true",
+        default=False,
+        help="Copy to project-local agent dirs instead of global dirs.",
+    )
+    add_agents_parser.add_argument(
+        "--project-path",
+        type=Path,
+        default=None,
+        help="Project root directory (defaults to current working directory).",
+    )
+    add_agents_parser.add_argument(
+        "--tools",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated list of tools to copy agents for "
+            "(e.g. --tools opencode). "
+            "Defaults to all known tools."
+        ),
+    )
+    add_agents_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Show the plan without making any changes.",
+    )
+    add_agents_parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        default=False,
+        help="Skip confirmation prompt.",
+    )
+
+    # ── add-skills ────────────────────────────────────────────────
+    add_skills_parser = subparsers.add_parser(
+        "add-skills",
+        help="Copy bundled skill files to tool-specific directories.",
+    )
+    add_skills_parser.add_argument(
+        "--local",
+        action="store_true",
+        default=False,
+        help="Copy to project-local skill dirs (this is the default).",
+    )
+    add_skills_parser.add_argument(
+        "--global",
+        dest="use_global",
+        action="store_true",
+        default=False,
+        help="Copy to global skill dirs instead of project-local.",
+    )
+    add_skills_parser.add_argument(
+        "--project-path",
+        type=Path,
+        default=None,
+        help="Project root directory (defaults to current working directory).",
+    )
+    add_skills_parser.add_argument(
+        "--tools",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated list of tools to copy skills for "
+            "(e.g. --tools opencode). "
+            "Defaults to all known tools."
+        ),
+    )
+    add_skills_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Show the plan without making any changes.",
+    )
+    add_skills_parser.add_argument(
         "--yes",
         "-y",
         action="store_true",
@@ -164,6 +255,10 @@ def main() -> None:
         _run_install(args)
     elif args.command == "uninstall":
         _run_uninstall(args)
+    elif args.command == "add-agents":
+        _run_add_agents(args)
+    elif args.command == "add-skills":
+        _run_add_skills(args)
     elif args.command == "dashboard":
         _run_dashboard(args)
     else:
@@ -233,6 +328,61 @@ def _run_uninstall(args: argparse.Namespace) -> None:
         tool_filter=tool_filter,
         remove_agents=args.remove_agents,
         clean_data=args.clean_data,
+        dry_run=args.dry_run,
+        auto_confirm=args.yes,
+    )
+
+
+def _run_add_agents(args: argparse.Namespace) -> None:
+    """Copy bundled agent files to tool-specific directories."""
+    from ensemble_mcp.installer import TOOL_NAMES, InstallScope
+    from ensemble_mcp.installer.setup import add_agents
+
+    scope = InstallScope.LOCAL if args.local else InstallScope.GLOBAL
+
+    tool_filter: set[str] | None = None
+    if args.tools:
+        tool_filter = {t.strip() for t in args.tools.split(",")}
+        unknown = tool_filter - TOOL_NAMES
+        if unknown:
+            sys.stderr.write(
+                f"Unknown tool(s): {', '.join(sorted(unknown))}\n"
+                f"Available: {', '.join(sorted(TOOL_NAMES))}\n"
+            )
+            sys.exit(1)
+
+    add_agents(
+        project_path=args.project_path,
+        scope=scope,
+        tool_filter=tool_filter,
+        dry_run=args.dry_run,
+        auto_confirm=args.yes,
+    )
+
+
+def _run_add_skills(args: argparse.Namespace) -> None:
+    """Copy bundled skill files to tool-specific directories."""
+    from ensemble_mcp.installer import TOOL_NAMES, InstallScope
+    from ensemble_mcp.installer.setup import add_skills
+
+    # add-skills defaults to LOCAL; --global overrides to GLOBAL
+    scope = InstallScope.GLOBAL if args.use_global else InstallScope.LOCAL
+
+    tool_filter: set[str] | None = None
+    if args.tools:
+        tool_filter = {t.strip() for t in args.tools.split(",")}
+        unknown = tool_filter - TOOL_NAMES
+        if unknown:
+            sys.stderr.write(
+                f"Unknown tool(s): {', '.join(sorted(unknown))}\n"
+                f"Available: {', '.join(sorted(TOOL_NAMES))}\n"
+            )
+            sys.exit(1)
+
+    add_skills(
+        project_path=args.project_path,
+        scope=scope,
+        tool_filter=tool_filter,
         dry_run=args.dry_run,
         auto_confirm=args.yes,
     )

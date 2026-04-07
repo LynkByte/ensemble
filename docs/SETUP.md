@@ -151,14 +151,14 @@ export ENSEMBLE_MCP_DRIFT_THRESHOLD_ALIGNED=0.25
 
 ### OpenCode
 
-Add to your OpenCode MCP config (typically `~/.config/opencode/config.json` or project-level):
+Add to your OpenCode MCP config (`~/.config/opencode/opencode.json` or project `opencode.json`):
 
 ```json
 {
   "mcpServers": {
     "ensemble": {
-      "command": "ensemble-mcp",
-      "args": []
+      "type": "local",
+      "command": ["ensemble-mcp"]
     }
   }
 }
@@ -170,8 +170,8 @@ Or if using a virtual environment:
 {
   "mcpServers": {
     "ensemble": {
-      "command": "/path/to/venv/bin/ensemble-mcp",
-      "args": []
+      "type": "local",
+      "command": ["/path/to/venv/bin/ensemble-mcp"]
     }
   }
 }
@@ -191,6 +191,28 @@ Add to your Claude Code MCP settings:
   }
 }
 ```
+
+## Adding Agents and Skills Separately
+
+If ensemble-mcp is already registered but you need to add agent or skill files to a project (e.g. cloning a repo that doesn't have them yet), use the dedicated commands:
+
+```bash
+# Copy bundled agent files to tool-specific directories
+ensemble-mcp add-agents --tools opencode
+
+# Copy bundled skill files to tool-specific directories
+ensemble-mcp add-skills --tools opencode
+```
+
+These commands do **not** touch MCP config files — they only copy agent/skill files. They also do not require the AI tool to be installed, so you can pre-seed files before setting up the tool.
+
+| Flag | Description |
+|------|-------------|
+| `--tools` | Comma-separated tool names (default: all known tools) |
+| `--local` | Copy to project-local directories (default for skills) |
+| `--global` | Copy to global directories (default for agents) |
+| `--dry-run` | Show the plan without making changes |
+| `--yes` | Skip confirmation prompt |
 
 ## Data Locations
 

@@ -50,17 +50,17 @@ If you prefer to edit configs manually, remove the `ensemble` entry from the rel
 
 #### OpenCode
 
-**Global:** `~/.config/opencode/config.toml`
-**Local:** `.opencode.toml` (in project root)
+**Global:** `~/.config/opencode/opencode.json`
+**Local:** `opencode.json` (in project root)
 
-Remove the entire `[mcp.ensemble]` section:
+Remove the `"ensemble"` key from `"mcpServers"`:
 
-```toml
-# DELETE this block:
-[mcp.ensemble]
-type = "stdio"
-command = "uvx"
-args = ["ensemble-mcp"]
+```json
+{
+  "mcpServers": {
+    "ensemble": { ... }  // DELETE this entry
+  }
+}
 ```
 
 #### Claude Code
@@ -157,15 +157,26 @@ ensemble-mcp uninstall --yes
 
 ### Step 2: Remove agent files from the project
 
-The installer copies agent definition files (team-captain.md, team-architect.md, etc.) into your project's `.agents/` directory. Remove them:
+The installer copies agent definition files into a tool-specific directory. The location depends on which AI tool you use:
+
+| AI Tool | Agent Directory |
+|---------|----------------|
+| OpenCode | `.opencode/agents/` (local) or `~/.config/opencode/agents/` (global) |
+| Other tools | `.agents/` (legacy) |
+
+Remove the agent files:
 
 ```bash
-rm -rf .agents/
-```
+# OpenCode (local)
+rm -f .opencode/agents/team-captain.md
+rm -f .opencode/agents/team-architect.md
+rm -f .opencode/agents/team-engineer.md
+rm -f .opencode/agents/team-forge.md
+rm -f .opencode/agents/team-inspector.md
+rm -f .opencode/agents/team-shipper.md
+rm -f .opencode/agents/team-hunter.md
 
-Or to remove only the ensemble agents while keeping other files in `.agents/`:
-
-```bash
+# Legacy path (also check this for older installations)
 rm -f .agents/team-captain.md
 rm -f .agents/team-architect.md
 rm -f .agents/team-engineer.md
@@ -177,9 +188,30 @@ rm -f .agents/team-hunter.md
 
 ### Step 3: Remove skill files (optional)
 
-If the installer or your workflow created ensemble-mcp skill files:
+The installer copies skill files into a tool-specific directory:
+
+| AI Tool | Skill Location |
+|---------|---------------|
+| OpenCode | `.opencode/skills/ensemble-mcp-workflow/SKILL.md` |
+| Claude Code | `.claude/skills/ensemble-mcp-workflow.md` |
+| Cursor | `.cursor/rules/ensemble-mcp-workflow.md` |
+| Devin | `.devin/ensemble-mcp-workflow.md` |
+| Legacy | `.ai/skills/ensemble-mcp-workflow.md` |
 
 ```bash
+# OpenCode
+rm -rf .opencode/skills/ensemble-mcp-workflow/
+
+# Claude Code
+rm -f .claude/skills/ensemble-mcp-workflow.md
+
+# Cursor
+rm -f .cursor/rules/ensemble-mcp-workflow.md
+
+# Devin
+rm -f .devin/ensemble-mcp-workflow.md
+
+# Legacy path (also check this for older installations)
 rm -f .ai/skills/ensemble-mcp-workflow.md
 ```
 
@@ -252,7 +284,7 @@ The installer creates `.bak` backup files before modifying any config. If you ne
 
 ```bash
 # Example for OpenCode
-cp ~/.config/opencode/config.toml.bak ~/.config/opencode/config.toml
+cp ~/.config/opencode/opencode.json.bak ~/.config/opencode/opencode.json
 
 # Example for Claude Code
 cp ~/.claude/claude_desktop_config.json.bak ~/.claude/claude_desktop_config.json
