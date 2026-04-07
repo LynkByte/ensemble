@@ -5,6 +5,37 @@ All notable changes to **ensemble-mcp** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0a3] - 2026-04-07
+
+### Fixed
+- **OpenCode config format**: Installer now generates correct JSON config (`opencode.json`) instead of TOML (`config.toml`), using `{"type": "local", "command": ["uvx", "ensemble-mcp"]}` entry format
+- **Tool-specific agent/skill directories**: Agent and skill files are now placed in the correct tool-specific locations instead of generic `.agents/` and `.ai/skills/` paths
+
+### Added
+- `SkillFormat` enum (`FLAT` / `DIRECTORY`) to support OpenCode's `<name>/SKILL.md` directory layout vs flat `.md` files for other tools
+- Per-tool `global_agents_dir`, `local_agents_dir`, `global_skills_dir`, `local_skills_dir`, `skill_format` fields on `ToolDefinition`
+- `ensemble-mcp add-agents` CLI command — copy bundled agent files without MCP registration (defaults to global scope)
+- `ensemble-mcp add-skills` CLI command — copy bundled skill files without MCP registration (defaults to local scope)
+- Both commands support `--tools`, `--local`/`--global`, `--dry-run`, `--yes` flags
+- Both commands work without requiring the AI tool to be installed
+- Uninstall now scans tool-specific directories plus legacy paths (`.agents/`, `.ai/skills/`) for backwards compatibility
+
+### Changed
+- `discover_agents()` and `discover_skills()` now accept a tool list and scope parameter with deduplication across tools
+- Updated all documentation (README, SETUP, UNINSTALL, EXAMPLE-SCENARIO, DESIGN-SPEC) to reflect correct OpenCode format and tool-specific paths
+
+### Tool-specific paths
+
+| Tool | Agent Dir (local) | Skill Dir (local) | Skill Format |
+|------|-------------------|-------------------|--------------|
+| OpenCode | `.opencode/agents/` | `.opencode/skills/` | directory (`<name>/SKILL.md`) |
+| Claude Code | — | `.claude/skills/` | flat |
+| Cursor | — | `.cursor/rules/` | flat |
+| Devin | — | `.devin/` | flat |
+
+### Test Suite
+- 529 tests passing (up from 505)
+
 ## [0.1.0] - 2026-04-06
 
 Initial release with all 21 MCP tools across 6 implementation phases.
@@ -79,4 +110,5 @@ Initial release with all 21 MCP tools across 6 implementation phases.
 - Shared fixtures: `tmp_db`, `test_conn`, `test_store`, `MockEmbeddingModel`
 - Full lint (ruff) and format compliance
 
+[0.1.0a3]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0a3
 [0.1.0]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0
