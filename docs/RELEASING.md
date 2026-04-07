@@ -122,50 +122,72 @@ git push origin main --tags
 
 ## How Testers Install
 
-### Private repository
+> **Note:** Modern Debian/Ubuntu systems (Python 3.12+) block global `pip install` with an `externally-managed-environment` error ([PEP 668](https://peps.python.org/pep-0668/)). Use `pipx` or a virtual environment as described below.
 
-Testers need a [GitHub Personal Access Token](https://github.com/settings/tokens) (classic, with `repo` scope) or a fine-grained token with **Contents: Read** permission on this repo.
+### 1. Download the wheel
 
-**Option A — direct wheel URL:**
+For a **private** repository, testers need a [GitHub Personal Access Token](https://github.com/settings/tokens) (classic with `repo` scope, or fine-grained with **Contents: Read** permission).
 
-```bash
-pip install "https://<GITHUB_PAT>@github.com/LynkByte/ensemble/releases/download/v0.1.0a1/ensemble_mcp-0.1.0a1-py3-none-any.whl"
-```
-
-**Option B — using `gh` CLI (simpler, no token in URL):**
+**Option A — using `gh` CLI (simplest):**
 
 ```bash
 gh release download v0.1.0a1 --repo LynkByte/ensemble --pattern "*.whl"
+```
+
+**Option B — direct URL with token:**
+
+```bash
+curl -L -H "Authorization: token <GITHUB_PAT>" \
+  -o ensemble_mcp-0.1.0a1-py3-none-any.whl \
+  "https://github.com/LynkByte/ensemble/releases/download/v0.1.0a1/ensemble_mcp-0.1.0a1-py3-none-any.whl"
+```
+
+For a **public** repository, no authentication is needed:
+
+```bash
+curl -L -o ensemble_mcp-0.1.0a1-py3-none-any.whl \
+  "https://github.com/LynkByte/ensemble/releases/download/v0.1.0a1/ensemble_mcp-0.1.0a1-py3-none-any.whl"
+```
+
+### 2. Install the wheel
+
+#### Using pipx (recommended)
+
+`pipx` is ideal for CLI tools like `ensemble-mcp` — it automatically creates an isolated environment and makes the command available globally. No need to activate a venv every time.
+
+```bash
+# Install pipx if you don't have it
+sudo apt install pipx    # Debian/Ubuntu
+# or: brew install pipx  # macOS
+# or: pip install --user pipx
+
+pipx ensurepath  # add ~/.local/bin to PATH (one-time setup, restart shell after)
+
+# Install the wheel
+pipx install ensemble_mcp-0.1.0a1-py3-none-any.whl
+
+# Verify
+ensemble-mcp --help
+```
+
+#### Using a virtual environment
+
+If you prefer to manage your own environment or need `ensemble-mcp` as a library dependency:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install ensemble_mcp-0.1.0a1-py3-none-any.whl
+
+# Verify
+ensemble-mcp --help
 ```
 
-**Option C — pip with netrc auth (avoids token in shell history):**
-
-Add to `~/.netrc`:
-
-```
-machine github.com
-  login <GITHUB_USERNAME>
-  password <GITHUB_PAT>
-```
-
-Then:
-
-```bash
-pip install "https://github.com/LynkByte/ensemble/releases/download/v0.1.0a1/ensemble_mcp-0.1.0a1-py3-none-any.whl"
-```
-
-### Public repository
-
-No authentication needed:
-
-```bash
-pip install "https://github.com/LynkByte/ensemble/releases/download/v0.1.0a1/ensemble_mcp-0.1.0a1-py3-none-any.whl"
-```
+> Remember to activate the venv (`source .venv/bin/activate`) each time you open a new terminal.
 
 ### Pinning in requirements.txt
 
-Testers can add this to their `requirements.txt`:
+For projects using a `requirements.txt` (inside a venv):
 
 ```
 ensemble-mcp @ https://github.com/LynkByte/ensemble/releases/download/v0.1.0a1/ensemble_mcp-0.1.0a1-py3-none-any.whl
@@ -175,9 +197,19 @@ ensemble-mcp @ https://github.com/LynkByte/ensemble/releases/download/v0.1.0a1/e
 
 1. Bump the version in `pyproject.toml` (e.g., `0.1.0a1` -> `0.1.0a2`)
 2. Repeat steps 2-7 above
-3. Tell testers to run:
+3. Tell testers to upgrade:
+
+   **pipx:**
    ```bash
-   pip install --upgrade "https://github.com/LynkByte/ensemble/releases/download/v0.1.0a2/ensemble_mcp-0.1.0a2-py3-none-any.whl"
+   gh release download v0.1.0a2 --repo LynkByte/ensemble --pattern "*.whl"
+   pipx install --force ensemble_mcp-0.1.0a2-py3-none-any.whl
+   ```
+
+   **venv:**
+   ```bash
+   gh release download v0.1.0a2 --repo LynkByte/ensemble --pattern "*.whl"
+   source .venv/bin/activate
+   pip install --upgrade ensemble_mcp-0.1.0a2-py3-none-any.whl
    ```
 
 ## Transitioning to Public PyPI
