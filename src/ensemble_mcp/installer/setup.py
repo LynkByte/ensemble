@@ -17,11 +17,17 @@ from . import (
     InstallPlan,
     InstallResult,
     InstallScope,
+    SkillFormat,
     ToolDefinition,
     UninstallPlan,
     UninstallResult,
 )
-from .agents import discover_agents, discover_skills
+from .agents import (
+    _resolve_agents_dir,
+    _resolve_skills_dir,
+    discover_agents,
+    discover_skills,
+)
 from .registry import (
     create_backup,
     deregister_mcp,
@@ -144,11 +150,17 @@ def plan_install(
                         plan.skipped.append((td.display_name, "not installed"))
                         break
 
-    # Discover agent files for copying
-    plan.agents_to_copy = discover_agents(project_path)
+    # Collect tool definitions from detected tools for agent/skill discovery.
+    # Use ALL detected tools (both to-register and already-registered) so
+    # agent/skill files are copied for every installed tool.
+    all_tool_defs = [t.definition for t in detected]
 
-    # Discover skill files for copying
-    plan.skills_to_copy = discover_skills(project_path)
+    # Discover agent files for copying (global scope by default for agents)
+    plan.agents_to_copy = discover_agents(project_path, all_tool_defs, scope)
+
+    # Discover skill files for copying (local scope by default for skills)
+    skills_scope = InstallScope.LOCAL if scope == InstallScope.GLOBAL else scope
+    plan.skills_to_copy = discover_skills(project_path, all_tool_defs, skills_scope)
 
     return plan
 
@@ -368,7 +380,7 @@ def install(
 # UNINSTALL
 # ══════════════════════════════════════════════════════════════════
 
-# Default agent filenames that the installer copies into .agents/
+# Default agent filenames that the installer copies
 _AGENT_FILES = [
     "team-captain.md",
     "team-architect.md",
@@ -379,7 +391,7 @@ _AGENT_FILES = [
     "team-hunter.md",
 ]
 
-# Default skill filenames that the installer copies into .ai/skills/
+# Default skill filenames that the installer copies
 _SKILL_FILES = [
     "ensemble-mcp-workflow.md",
 ]
@@ -422,20 +434,59 @@ def plan_uninstall(
                         plan.skipped.append((td.display_name, "not installed"))
                         break
 
-    # Discover agent files for removal
+    # Discover agent and skill files for removal
     if remove_agents:
-        agents_dir = project_path / ".agents"
-        for filename in _AGENT_FILES:
-            agent_path = agents_dir / filename
-            if agent_path.exists():
-                plan.agents_to_remove.append(agent_path)
+        # Build the set of all tool definitions we detected
+        all_tool_defs = [t.definition for t in detected]
 
-        # Also discover skill files for removal
-        skills_dir = project_path / ".ai" / "skills"
+        # Also include definitions from the filter that weren't detected
+        # (the user may have manually placed files for a tool that's since
+        # been uninstalled)
+        if not all_tool_defs:
+            all_tool_defs = list(TOOL_DEFINITIONS)
+
+        seen_agent_paths: set[Path] = set()
+        seen_skill_paths: set[Path] = set()
+
+        for td in all_tool_defs:
+            # Agent files
+            agents_dir = _resolve_agents_dir(td, project_path, scope)
+            if agents_dir is not None:
+                for filename in _AGENT_FILES:
+                    agent_path = agents_dir / filename
+                    if agent_path.exists() and agent_path not in seen_agent_paths:
+                        plan.agents_to_remove.append(agent_path)
+                        seen_agent_paths.add(agent_path)
+
+            # Skill files
+            skills_scope = InstallScope.LOCAL if scope == InstallScope.GLOBAL else scope
+            skills_dir = _resolve_skills_dir(td, project_path, skills_scope)
+            if skills_dir is not None:
+                for filename in _SKILL_FILES:
+                    if td.skill_format == SkillFormat.DIRECTORY:
+                        # e.g. ensemble-mcp-workflow.md → ensemble-mcp-workflow/SKILL.md
+                        skill_name = Path(filename).stem
+                        skill_path = skills_dir / skill_name / "SKILL.md"
+                    else:
+                        skill_path = skills_dir / filename
+                    if skill_path.exists() and skill_path not in seen_skill_paths:
+                        plan.skills_to_remove.append(skill_path)
+                        seen_skill_paths.add(skill_path)
+
+        # Also check legacy paths (.agents/ and .ai/skills/) for backwards compat
+        legacy_agents_dir = project_path / ".agents"
+        for filename in _AGENT_FILES:
+            agent_path = legacy_agents_dir / filename
+            if agent_path.exists() and agent_path not in seen_agent_paths:
+                plan.agents_to_remove.append(agent_path)
+                seen_agent_paths.add(agent_path)
+
+        legacy_skills_dir = project_path / ".ai" / "skills"
         for filename in _SKILL_FILES:
-            skill_path = skills_dir / filename
-            if skill_path.exists():
+            skill_path = legacy_skills_dir / filename
+            if skill_path.exists() and skill_path not in seen_skill_paths:
                 plan.skills_to_remove.append(skill_path)
+                seen_skill_paths.add(skill_path)
 
     return plan
 
@@ -626,7 +677,7 @@ def uninstall(
         project_path: Project root directory. Defaults to cwd.
         scope: Global or project-local config deregistration.
         tool_filter: Restrict to specific tool names (e.g. {"opencode", "cursor"}).
-        remove_agents: Also remove agent files from .agents/ directory.
+        remove_agents: Also remove agent/skill files from tool-specific directories.
         clean_data: Also remove ~/.cache/ensemble-mcp/ and ~/.config/ensemble-mcp/.
         dry_run: If True, display the plan but do not execute.
         auto_confirm: If True, skip interactive confirmation.

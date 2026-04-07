@@ -127,12 +127,16 @@ Zero-hassle: `uvx` auto-downloads Python if not installed. Works on Mac, Linux, 
 
 ### MCP Registration
 
-**OpenCode** (`~/.config/opencode/config.toml`):
-```toml
-[mcp.ensemble]
-type = "stdio"
-command = "uvx"
-args = ["ensemble-mcp"]
+**OpenCode** (`~/.config/opencode/opencode.json` or project `opencode.json`):
+```json
+{
+  "mcpServers": {
+    "ensemble": {
+      "type": "local",
+      "command": ["uvx", "ensemble-mcp"]
+    }
+  }
+}
 ```
 
 **Claude Code** (`~/.claude/claude_desktop_config.json`):
@@ -228,7 +232,7 @@ mindmap
 
 | AI Tool | MCP Config Location | Config Format |
 |---------|---------------------|---------------|
-| OpenCode | `~/.config/opencode/config.toml` | TOML |
+| OpenCode | `~/.config/opencode/opencode.json` or project `opencode.json` | JSON |
 | Claude Code | `~/.claude/claude_desktop_config.json` | JSON |
 | GitHub Copilot (VS Code) | `.vscode/mcp.json` | JSON |
 | Cursor | `~/.cursor/mcp.json` | JSON |

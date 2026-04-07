@@ -61,22 +61,30 @@ ensemble-mcp dashboard
 
 ### OpenCode
 
-Add to `~/.config/opencode/config.toml` or project `.opencode.toml`:
+Add to `~/.config/opencode/opencode.json` or project `opencode.json`:
 
-```toml
-[mcp.ensemble]
-type = "stdio"
-command = "uvx"
-args = ["ensemble-mcp"]
+```json
+{
+  "mcpServers": {
+    "ensemble": {
+      "type": "local",
+      "command": ["uvx", "ensemble-mcp"]
+    }
+  }
+}
 ```
 
 Or for a local development install:
 
-```toml
-[mcp.ensemble]
-type = "stdio"
-command = "/path/to/venv/bin/ensemble-mcp"
-args = []
+```json
+{
+  "mcpServers": {
+    "ensemble": {
+      "type": "local",
+      "command": ["/path/to/venv/bin/ensemble-mcp"]
+    }
+  }
+}
 ```
 
 ### Claude Code

@@ -100,7 +100,7 @@ def main() -> None:
         "--remove-agents",
         action="store_true",
         default=False,
-        help="Also remove agent files from the project's .agents/ directory.",
+        help="Also remove agent/skill files from tool-specific directories.",
     )
     uninstall_parser.add_argument(
         "--clean-data",

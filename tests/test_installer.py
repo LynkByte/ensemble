@@ -21,6 +21,7 @@ from ensemble_mcp.installer import (
     DetectedTool,
     InstallPlan,
     InstallScope,
+    SkillFormat,
     ToolDefinition,
     UninstallPlan,
     UninstallResult,
@@ -58,12 +59,17 @@ def _opencode_def(tmp_path: Path) -> ToolDefinition:
     return ToolDefinition(
         name="opencode",
         display_name="OpenCode",
-        config_format=ConfigFormat.TOML,
-        global_config_path=tmp_path / "global" / "opencode" / "config.toml",
-        local_config_filename=".opencode.toml",
+        config_format=ConfigFormat.JSON,
+        global_config_path=tmp_path / "global" / "opencode" / "opencode.json",
+        local_config_filename="opencode.json",
         mcp_section_path=["mcp"],
         detection_paths=[tmp_path / "global" / "opencode"],
-        server_entry={"type": "stdio", "command": "uvx", "args": ["ensemble-mcp"]},
+        server_entry={"type": "local", "command": ["uvx", "ensemble-mcp"]},
+        global_agents_dir=tmp_path / "global" / "opencode" / "agents",
+        local_agents_dir=".opencode/agents",
+        global_skills_dir=tmp_path / "global" / "opencode" / "skills",
+        local_skills_dir=".opencode/skills",
+        skill_format=SkillFormat.DIRECTORY,
     )
 
 
@@ -78,6 +84,7 @@ def _claude_def(tmp_path: Path) -> ToolDefinition:
         mcp_section_path=["mcpServers"],
         detection_paths=[tmp_path / "global" / ".claude"],
         server_entry={"command": "uvx", "args": ["ensemble-mcp"]},
+        local_skills_dir=".claude/skills",
     )
 
 
@@ -92,6 +99,7 @@ def _cursor_def(tmp_path: Path) -> ToolDefinition:
         mcp_section_path=["mcpServers"],
         detection_paths=[tmp_path / "global" / ".cursor"],
         server_entry={"command": "uvx", "args": ["ensemble-mcp"]},
+        local_skills_dir=".cursor/rules",
     )
 
 
@@ -114,13 +122,13 @@ class TestToolDefinitions:
     def test_get_tool_definition_not_found(self):
         assert get_tool_definition("nonexistent") is None
 
-    def test_opencode_is_toml_format(self):
+    def test_opencode_is_json_format(self):
         td = get_tool_definition("opencode")
         assert td is not None
-        assert td.config_format == ConfigFormat.TOML
+        assert td.config_format == ConfigFormat.JSON
 
-    def test_json_tools_have_json_format(self):
-        for name in ("claude_code", "copilot", "cursor", "windsurf", "devin"):
+    def test_all_tools_have_json_format(self):
+        for name in ("opencode", "claude_code", "copilot", "cursor", "windsurf", "devin"):
             td = get_tool_definition(name)
             assert td is not None
             assert td.config_format == ConfigFormat.JSON
@@ -293,7 +301,7 @@ class TestIsRegistered:
 
     def test_opencode_registered(self, tmp_path: Path):
         defn = _opencode_def(tmp_path)
-        config: dict[str, Any] = {"mcp": {"ensemble": {"type": "stdio"}}}
+        config: dict[str, Any] = {"mcp": {"ensemble": {"type": "local"}}}
         assert is_registered(config, defn) is True
 
 
@@ -323,14 +331,13 @@ class TestRegisterMcp:
         register_mcp(config, defn)
         assert config["mcpServers"][MCP_SERVER_NAME]["command"] == "uvx"
 
-    def test_register_opencode_toml(self, tmp_path: Path):
+    def test_register_opencode_json(self, tmp_path: Path):
         defn = _opencode_def(tmp_path)
         config: dict[str, Any] = {}
         register_mcp(config, defn)
         assert config["mcp"][MCP_SERVER_NAME] == {
-            "type": "stdio",
-            "command": "uvx",
-            "args": ["ensemble-mcp"],
+            "type": "local",
+            "command": ["uvx", "ensemble-mcp"],
         }
 
     def test_register_creates_intermediate_sections(self, tmp_path: Path):
@@ -412,7 +419,7 @@ class TestDetection:
         assert len(detected) == 1
         assert detected[0].scope == InstallScope.LOCAL
         # Config path should be project-local
-        assert detected[0].config_path == tmp_path / ".opencode.toml"
+        assert detected[0].config_path == tmp_path / "opencode.json"
 
 
 # ── Plan ──────────────────────────────────────────────────────────
@@ -535,10 +542,10 @@ class TestExecute:
         config = json.loads(defn.global_config_path.read_text())
         assert config["mcpServers"]["ensemble"]["command"] == "uvx"
 
-    def test_execute_registers_toml_tool(self, tmp_path: Path):
+    def test_execute_registers_opencode_tool(self, tmp_path: Path):
         defn = _opencode_def(tmp_path)
         defn.global_config_path.parent.mkdir(parents=True, exist_ok=True)
-        defn.global_config_path.write_text("")
+        defn.global_config_path.write_text("{}")
 
         plan = InstallPlan(
             tools_to_register=[
@@ -552,10 +559,10 @@ class TestExecute:
         result = execute_plan(plan)
         assert "OpenCode" in result.registered
 
-        # Verify TOML content
-        text = defn.global_config_path.read_text()
-        assert "ensemble" in text
-        assert "uvx" in text
+        # Verify JSON content
+        config = json.loads(defn.global_config_path.read_text())
+        assert config["mcp"]["ensemble"]["type"] == "local"
+        assert config["mcp"]["ensemble"]["command"] == ["uvx", "ensemble-mcp"]
 
     def test_execute_creates_new_config(self, tmp_path: Path):
         defn = _cursor_def(tmp_path)
@@ -666,13 +673,24 @@ class TestExecute:
 class TestAgentDiscovery:
     def test_no_bundled_agents_dir(self, tmp_path: Path):
         """When no data/agents/ directory exists, return empty list."""
-        result = discover_agents(tmp_path)
+        defn = _opencode_def(tmp_path)
+        result = discover_agents(tmp_path, tools=[defn])
         # The bundled agents dir doesn't exist in the package yet
         # so this should return an empty list (or whatever is there)
         assert isinstance(result, list)
 
-    def test_discover_bundled_agents(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-        """When bundled agents exist, return copy pairs."""
+    def test_no_tools_returns_empty(self, tmp_path: Path):
+        """When no tools are provided, return empty list."""
+        result = discover_agents(tmp_path, tools=None)
+        assert result == []
+
+        result2 = discover_agents(tmp_path, tools=[])
+        assert result2 == []
+
+    def test_discover_bundled_agents_opencode_global(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """When bundled agents exist, copy to OpenCode global agents dir."""
         bundled = tmp_path / "bundled"
         bundled.mkdir()
         (bundled / "team-captain.md").write_text("# Captain")
@@ -685,13 +703,35 @@ class TestAgentDiscovery:
         project = tmp_path / "project"
         project.mkdir()
 
-        pairs = discover_agents(project)
+        defn = _opencode_def(tmp_path)
+        pairs = discover_agents(project, tools=[defn], scope=InstallScope.GLOBAL)
         assert len(pairs) == 2
         sources = {p[0].name for p in pairs}
         assert sources == {"team-captain.md", "team-engineer.md"}
-        # Destinations should be under project/.agents/
+        # Destinations should be under the OpenCode global agents dir
         for _, dst in pairs:
-            assert str(dst).startswith(str(project / ".agents"))
+            assert str(dst).startswith(str(defn.global_agents_dir))
+
+    def test_discover_bundled_agents_opencode_local(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """When local scope, agents go to .opencode/agents/ in the project."""
+        bundled = tmp_path / "bundled"
+        bundled.mkdir()
+        (bundled / "team-captain.md").write_text("# Captain")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled,
+        )
+        project = tmp_path / "project"
+        project.mkdir()
+
+        defn = _opencode_def(tmp_path)
+        pairs = discover_agents(project, tools=[defn], scope=InstallScope.LOCAL)
+        assert len(pairs) == 1
+        _, dst = pairs[0]
+        assert str(dst).startswith(str(project / ".opencode" / "agents"))
 
     def test_discover_skips_existing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """Already-copied agents are not included in the copy plan."""
@@ -704,11 +744,50 @@ class TestAgentDiscovery:
             bundled,
         )
         project = tmp_path / "project"
-        (project / ".agents").mkdir(parents=True)
-        (project / ".agents" / "team-captain.md").write_text("# Already there")
+        defn = _opencode_def(tmp_path)
+        # Pre-create the agent file at the global destination
+        assert defn.global_agents_dir is not None
+        defn.global_agents_dir.mkdir(parents=True)
+        (defn.global_agents_dir / "team-captain.md").write_text("# Already there")
 
-        pairs = discover_agents(project)
+        pairs = discover_agents(project, tools=[defn], scope=InstallScope.GLOBAL)
         assert len(pairs) == 0
+
+    def test_tool_without_agents_dir_skipped(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """Tools without agent dir configs produce no copy pairs."""
+        bundled = tmp_path / "bundled"
+        bundled.mkdir()
+        (bundled / "team-captain.md").write_text("# Captain")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled,
+        )
+        project = tmp_path / "project"
+        project.mkdir()
+
+        # Claude Code has no agent dirs
+        defn = _claude_def(tmp_path)
+        pairs = discover_agents(project, tools=[defn], scope=InstallScope.GLOBAL)
+        assert len(pairs) == 0
+
+    def test_deduplicates_across_tools(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """If two tools share the same agents dir, files are only copied once."""
+        bundled = tmp_path / "bundled"
+        bundled.mkdir()
+        (bundled / "team-captain.md").write_text("# Captain")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled,
+        )
+        project = tmp_path / "project"
+        project.mkdir()
+
+        defn = _opencode_def(tmp_path)
+        # Two copies of same tool (simulates dedup scenario)
+        pairs = discover_agents(project, tools=[defn, defn], scope=InstallScope.GLOBAL)
+        assert len(pairs) == 1
 
 
 # ── Full Flow (Orchestrator) ─────────────────────────────────────
@@ -808,11 +887,43 @@ class TestCli:
 class TestSkillDiscovery:
     def test_no_bundled_skills_dir(self, tmp_path: Path):
         """When no data/skills/ directory exists, return empty list."""
-        result = discover_skills(tmp_path)
+        defn = _opencode_def(tmp_path)
+        result = discover_skills(tmp_path, tools=[defn])
         assert isinstance(result, list)
 
-    def test_discover_bundled_skills(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-        """When bundled skills exist, return copy pairs."""
+    def test_no_tools_returns_empty(self, tmp_path: Path):
+        """When no tools are provided, return empty list."""
+        result = discover_skills(tmp_path, tools=None)
+        assert result == []
+
+        result2 = discover_skills(tmp_path, tools=[])
+        assert result2 == []
+
+    def test_discover_skills_opencode_directory_format(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """OpenCode skills use directory format: <name>/SKILL.md."""
+        bundled = tmp_path / "bundled_skills"
+        bundled.mkdir()
+        (bundled / "ensemble-mcp-workflow.md").write_text("# Workflow")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled,
+        )
+        project = tmp_path / "project"
+        project.mkdir()
+
+        defn = _opencode_def(tmp_path)
+        pairs = discover_skills(project, tools=[defn], scope=InstallScope.LOCAL)
+        assert len(pairs) == 1
+        src, dst = pairs[0]
+        assert src.name == "ensemble-mcp-workflow.md"
+        # Destination should be .opencode/skills/ensemble-mcp-workflow/SKILL.md
+        assert dst == project / ".opencode" / "skills" / "ensemble-mcp-workflow" / "SKILL.md"
+
+    def test_discover_skills_flat_format(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """Claude Code skills use flat format: <name>.md."""
         bundled = tmp_path / "bundled_skills"
         bundled.mkdir()
         (bundled / "ensemble-mcp-workflow.md").write_text("# Workflow")
@@ -825,13 +936,17 @@ class TestSkillDiscovery:
         project = tmp_path / "project"
         project.mkdir()
 
-        pairs = discover_skills(project)
+        defn = _claude_def(tmp_path)
+        pairs = discover_skills(project, tools=[defn], scope=InstallScope.LOCAL)
         assert len(pairs) == 2
         sources = {p[0].name for p in pairs}
         assert sources == {"ensemble-mcp-workflow.md", "another-skill.md"}
-        # Destinations should be under project/.ai/skills/
+        # Destinations should be under project/.claude/skills/
         for _, dst in pairs:
-            assert str(dst).startswith(str(project / ".ai" / "skills"))
+            assert str(dst).startswith(str(project / ".claude" / "skills"))
+            # Flat format: file name preserved
+            assert dst.suffix == ".md"
+            assert dst.parent == project / ".claude" / "skills"
 
     def test_discover_skills_skips_existing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """Already-copied skills are not included in the copy plan."""
@@ -844,11 +959,59 @@ class TestSkillDiscovery:
             bundled,
         )
         project = tmp_path / "project"
-        (project / ".ai" / "skills").mkdir(parents=True)
-        (project / ".ai" / "skills" / "ensemble-mcp-workflow.md").write_text("# Already there")
+        # Pre-create the skill in directory format
+        skill_dir = project / ".opencode" / "skills" / "ensemble-mcp-workflow"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("# Already there")
 
-        pairs = discover_skills(project)
+        defn = _opencode_def(tmp_path)
+        pairs = discover_skills(project, tools=[defn], scope=InstallScope.LOCAL)
         assert len(pairs) == 0
+
+    def test_tool_without_skills_dir_skipped(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """Tools without skill dir configs produce no copy pairs."""
+        bundled = tmp_path / "bundled_skills"
+        bundled.mkdir()
+        (bundled / "ensemble-mcp-workflow.md").write_text("# Workflow")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled,
+        )
+        project = tmp_path / "project"
+        project.mkdir()
+
+        # Copilot has no skill dirs
+        copilot_def = ToolDefinition(
+            name="copilot",
+            display_name="GitHub Copilot",
+            config_format=ConfigFormat.JSON,
+            global_config_path=tmp_path / "global" / ".vscode" / "mcp.json",
+            local_config_filename=".vscode/mcp.json",
+            mcp_section_path=["servers"],
+            detection_paths=[tmp_path / "global" / ".vscode"],
+            server_entry={"command": "uvx", "args": ["ensemble-mcp"]},
+        )
+        pairs = discover_skills(project, tools=[copilot_def], scope=InstallScope.LOCAL)
+        assert len(pairs) == 0
+
+    def test_multiple_tools_deduplicates(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """Skills are de-duplicated when multiple tools share same dir."""
+        bundled = tmp_path / "bundled_skills"
+        bundled.mkdir()
+        (bundled / "ensemble-mcp-workflow.md").write_text("# Workflow")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled,
+        )
+        project = tmp_path / "project"
+        project.mkdir()
+
+        defn = _opencode_def(tmp_path)
+        pairs = discover_skills(project, tools=[defn, defn], scope=InstallScope.LOCAL)
+        # Should not duplicate
+        assert len(pairs) == 1
 
 
 class TestSkillInstallIntegration:
@@ -862,9 +1025,13 @@ class TestSkillInstallIntegration:
             "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
             bundled_skills,
         )
+
+        # Use OpenCode definition so skills have a destination
+        defn = _opencode_def(tmp_path)
+        defn.detection_paths[0].mkdir(parents=True)
         monkeypatch.setattr(
             "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
-            [],
+            [defn],
         )
 
         project = tmp_path / "project"
@@ -874,8 +1041,10 @@ class TestSkillInstallIntegration:
         assert len(plan.skills_to_copy) == 1
         assert plan.skills_to_copy[0][0].name == "ensemble-mcp-workflow.md"
 
-    def test_execute_copies_skills(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-        """Execute plan should copy skill files to project."""
+    def test_execute_copies_skills_directory_format(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Execute plan should copy skill files to project in directory format."""
         bundled_skills = tmp_path / "bundled_skills"
         bundled_skills.mkdir()
         (bundled_skills / "ensemble-mcp-workflow.md").write_text("# Workflow")
@@ -892,9 +1061,13 @@ class TestSkillInstallIntegration:
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
             empty_agents,
         )
+
+        # Use OpenCode definition for directory format skills
+        defn = _opencode_def(tmp_path)
+        defn.detection_paths[0].mkdir(parents=True)
         monkeypatch.setattr(
             "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
-            [],
+            [defn],
         )
 
         project = tmp_path / "project"
@@ -902,33 +1075,71 @@ class TestSkillInstallIntegration:
 
         plan = plan_install(project, InstallScope.GLOBAL)
         result = execute_plan(plan)
-        assert len(result.copied) == 1
-        assert result.copied[0].name == "ensemble-mcp-workflow.md"
-        assert (project / ".ai" / "skills" / "ensemble-mcp-workflow.md").exists()
+        assert len(result.copied) >= 1
+        # Verify the skill was copied in directory format
+        skill_path = project / ".opencode" / "skills" / "ensemble-mcp-workflow" / "SKILL.md"
+        assert skill_path.exists()
+        assert skill_path.read_text() == "# Workflow"
+
+    def test_execute_copies_skills_flat_format(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Execute plan should copy skill files as flat .md for Claude Code."""
+        bundled_skills = tmp_path / "bundled_skills"
+        bundled_skills.mkdir()
+        (bundled_skills / "ensemble-mcp-workflow.md").write_text("# Workflow")
+
+        empty_agents = tmp_path / "empty_agents"
+        empty_agents.mkdir()
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_SKILLS_DIR",
+            bundled_skills,
+        )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            empty_agents,
+        )
+
+        defn = _claude_def(tmp_path)
+        defn.detection_paths[0].mkdir(parents=True)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        plan = plan_install(project, InstallScope.GLOBAL)
+        execute_plan(plan)
+        # Verify the skill was copied as flat .md
+        skill_path = project / ".claude" / "skills" / "ensemble-mcp-workflow.md"
+        assert skill_path.exists()
 
     def test_display_plan_shows_skills(self, tmp_path: Path):
         """Display plan should mention skill files."""
         src = tmp_path / "src" / "ensemble-mcp-workflow.md"
         src.parent.mkdir(parents=True)
         src.write_text("# Workflow")
-        dst = tmp_path / "project" / ".ai" / "skills" / "ensemble-mcp-workflow.md"
+        dst = tmp_path / "project" / ".opencode" / "skills" / "ensemble-mcp-workflow" / "SKILL.md"
 
         plan = InstallPlan(skills_to_copy=[(src, dst)])
         text = display_plan(plan)
         assert "skill files" in text.lower()
-        assert "ensemble-mcp-workflow.md" in text
+        assert "SKILL.md" in text
 
 
 class TestSkillUninstallIntegration:
-    def test_plan_discovers_skill_files_to_remove(
+    def test_plan_discovers_skill_files_to_remove_legacy(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ):
-        """Uninstall plan should discover skill files for removal."""
+        """Uninstall plan should discover legacy skill files for removal."""
         monkeypatch.setattr(
             "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
             [],
         )
-        # Create skill files
+        # Create legacy skill files at .ai/skills/
         skills_dir = tmp_path / ".ai" / "skills"
         skills_dir.mkdir(parents=True)
         (skills_dir / "ensemble-mcp-workflow.md").write_text("# Workflow")
@@ -941,11 +1152,34 @@ class TestSkillUninstallIntegration:
         names = {p.name for p in plan.skills_to_remove}
         assert "custom-skill.md" not in names
 
+    def test_plan_discovers_skill_files_opencode_format(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Uninstall plan should discover OpenCode directory-format skill files."""
+        defn = _opencode_def(tmp_path)
+        defn.detection_paths[0].mkdir(parents=True)
+        # Pre-create an empty OpenCode config so the tool is detected as registered
+        defn.global_config_path.parent.mkdir(parents=True, exist_ok=True)
+        defn.global_config_path.write_text(json.dumps({"mcp": {"ensemble": {"type": "local"}}}))
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+        # Create skill in directory format at the project path
+        skill_dir = tmp_path / ".opencode" / "skills" / "ensemble-mcp-workflow"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("# Workflow")
+
+        plan = plan_uninstall(tmp_path, InstallScope.GLOBAL, remove_agents=True)
+        assert len(plan.skills_to_remove) == 1
+        assert plan.skills_to_remove[0].name == "SKILL.md"
+        assert "ensemble-mcp-workflow" in str(plan.skills_to_remove[0].parent)
+
     def test_execute_removes_skill_files(self, tmp_path: Path):
         """Execute uninstall plan should remove skill files."""
-        skills_dir = tmp_path / ".ai" / "skills"
+        skills_dir = tmp_path / ".opencode" / "skills" / "ensemble-mcp-workflow"
         skills_dir.mkdir(parents=True)
-        skill_path = skills_dir / "ensemble-mcp-workflow.md"
+        skill_path = skills_dir / "SKILL.md"
         skill_path.write_text("# Workflow")
 
         plan = UninstallPlan(skills_to_remove=[skill_path])
@@ -955,11 +1189,11 @@ class TestSkillUninstallIntegration:
 
     def test_display_uninstall_plan_shows_skills(self, tmp_path: Path):
         """Uninstall plan display should mention skill files."""
-        skill_path = tmp_path / ".ai" / "skills" / "ensemble-mcp-workflow.md"
+        skill_path = tmp_path / ".opencode" / "skills" / "ensemble-mcp-workflow" / "SKILL.md"
         plan = UninstallPlan(skills_to_remove=[skill_path])
         text = display_uninstall_plan(plan)
         assert "skill files" in text.lower()
-        assert "ensemble-mcp-workflow.md" in text
+        assert "SKILL.md" in text
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -992,11 +1226,11 @@ class TestDeregisterMcp:
         deregister_mcp(config, defn)
         assert config == {"unrelated": "data"}
 
-    def test_deregister_opencode_toml(self, tmp_path: Path):
+    def test_deregister_opencode_json(self, tmp_path: Path):
         defn = _opencode_def(tmp_path)
         config: dict[str, Any] = {
             "mcp": {
-                "ensemble": {"type": "stdio", "command": "uvx"},
+                "ensemble": {"type": "local", "command": ["uvx", "ensemble-mcp"]},
                 "other": {"command": "other"},
             }
         }
@@ -1045,7 +1279,9 @@ class TestUninstallPlan:
 
         # Register both
         oc_def.global_config_path.parent.mkdir(parents=True, exist_ok=True)
-        oc_def.global_config_path.write_text('[mcp.ensemble]\ntype = "stdio"\ncommand = "uvx"\n')
+        oc_def.global_config_path.write_text(
+            json.dumps({"mcp": {"ensemble": {"type": "local", "command": ["uvx", "ensemble-mcp"]}}})
+        )
         cl_def.global_config_path.parent.mkdir(parents=True, exist_ok=True)
         cl_def.global_config_path.write_text(
             json.dumps({"mcpServers": {"ensemble": {"command": "uvx"}}})
@@ -1067,7 +1303,7 @@ class TestUninstallPlan:
             "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
             [],
         )
-        # Create agent files
+        # Create agent files at legacy .agents/ path
         agents_dir = tmp_path / ".agents"
         agents_dir.mkdir()
         (agents_dir / "team-captain.md").write_text("# Captain")
@@ -1080,6 +1316,29 @@ class TestUninstallPlan:
         assert names == {"team-captain.md", "team-engineer.md"}
         # custom-agent.md should NOT be in the removal list
         assert "custom-agent.md" not in names
+
+    def test_plan_discovers_agents_in_opencode_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Uninstall discovers agents in OpenCode's global agents dir."""
+        defn = _opencode_def(tmp_path)
+        defn.detection_paths[0].mkdir(parents=True)
+        defn.global_config_path.parent.mkdir(parents=True, exist_ok=True)
+        defn.global_config_path.write_text(json.dumps({"mcp": {"ensemble": {"type": "local"}}}))
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        # Create agent files in OpenCode's global agents dir
+        assert defn.global_agents_dir is not None
+        defn.global_agents_dir.mkdir(parents=True)
+        (defn.global_agents_dir / "team-captain.md").write_text("# Captain")
+
+        plan = plan_uninstall(tmp_path, InstallScope.GLOBAL, remove_agents=True)
+        assert len(plan.agents_to_remove) == 1
+        assert plan.agents_to_remove[0].name == "team-captain.md"
+        assert str(plan.agents_to_remove[0]).startswith(str(defn.global_agents_dir))
 
     def test_plan_clean_data_flag(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr(
@@ -1182,13 +1441,18 @@ class TestUninstallExecute:
         assert "ensemble" not in config["mcpServers"]
         assert "other" in config["mcpServers"]
 
-    def test_execute_deregisters_toml_tool(self, tmp_path: Path):
+    def test_execute_deregisters_opencode_tool(self, tmp_path: Path):
         defn = _opencode_def(tmp_path)
         defn.global_config_path.parent.mkdir(parents=True, exist_ok=True)
         defn.global_config_path.write_text(
-            '[mcp.ensemble]\ntype = "stdio"\ncommand = "uvx"\n'
-            'args = ["ensemble-mcp"]\n\n'
-            '[mcp.other]\ncommand = "other"\n'
+            json.dumps(
+                {
+                    "mcp": {
+                        "ensemble": {"type": "local", "command": ["uvx", "ensemble-mcp"]},
+                        "other": {"command": "other"},
+                    }
+                }
+            )
         )
 
         plan = UninstallPlan(
@@ -1204,9 +1468,10 @@ class TestUninstallExecute:
         result = execute_uninstall_plan(plan)
         assert "OpenCode" in result.deregistered
 
-        # Verify ensemble is removed from TOML
-        text = defn.global_config_path.read_text()
-        assert "ensemble" not in text
+        # Verify ensemble is removed from JSON
+        config = json.loads(defn.global_config_path.read_text())
+        assert "ensemble" not in config["mcp"]
+        assert "other" in config["mcp"]
 
     def test_execute_removes_agent_files(self, tmp_path: Path):
         agents_dir = tmp_path / ".agents"
@@ -1255,7 +1520,9 @@ class TestUninstallExecute:
         oc_def.global_config_path.parent.mkdir(parents=True, exist_ok=True)
         cl_def.global_config_path.parent.mkdir(parents=True, exist_ok=True)
 
-        oc_def.global_config_path.write_text('[mcp.ensemble]\ntype = "stdio"\ncommand = "uvx"\n')
+        oc_def.global_config_path.write_text(
+            json.dumps({"mcp": {"ensemble": {"type": "local", "command": ["uvx", "ensemble-mcp"]}}})
+        )
         cl_def.global_config_path.write_text(
             json.dumps({"mcpServers": {"ensemble": {"command": "uvx"}}})
         )
