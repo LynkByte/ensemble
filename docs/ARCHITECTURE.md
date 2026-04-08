@@ -24,7 +24,7 @@ ensemble-mcp server  (server.py)
     +-- Tool Dispatch (match on tool name)
     |       |
     |       +-- patterns.py    (3 tools)
-    |       +-- metrics.py     (6 tools)
+    |       +-- metrics.py     (7 tools)
     |       +-- drift.py       (1 tool)
     |       +-- routing.py     (1 tool)
     |       +-- skills.py      (3 tools)
@@ -74,7 +74,7 @@ src/ensemble_mcp/
 │
 ├── tools/
 │   ├── patterns.py       # patterns_search, patterns_store, patterns_prune
-│   ├── metrics.py        # 6 metrics tools (start/record/end/report/trend/compare)
+│   ├── metrics.py        # 7 metrics tools (start/record/end/report/trend/compare/backfill)
 │   ├── drift.py          # drift_check
 │   ├── routing.py        # model_recommend (7x4 agent-classification matrix)
 │   ├── skills.py         # skills_discover, skills_suggest, skills_generate
@@ -84,7 +84,13 @@ src/ensemble_mcp/
 ├── parsers/              # Phase 3 — session file parsers
 │   ├── __init__.py       # ParsedStep/ParsedSession types, detect_ai_tool(), dispatcher
 │   ├── opencode.py       # OpenCode SQLite parser (~/.local/share/opencode/opencode.db)
-│   └── claude_code.py    # Claude Code JSONL parser (~/.claude/projects/) + subagents
+│   ├── claude_code.py    # Claude Code JSONL parser (~/.claude/projects/) + subagents
+│   ├── cursor.py         # Stub — Cursor (no local token data)
+│   ├── copilot.py        # Stub — GitHub Copilot (no local token data)
+│   ├── windsurf.py       # Stub — Windsurf (encrypted protobuf)
+│   └── devin.py          # Stub — Devin CLI (cloud-only)
+│
+├── watcher.py            # File watcher daemon for auto-backfill
 │
 └── installer/            # Phase 4 (not yet implemented)
     └── setup.py          # Auto-detect AI tools, register MCP server
@@ -412,7 +418,7 @@ Every setting tracks which layer it came from via `source_map` for debugging.
 | Phase | Scope | Status |
 |---|---|---|
 | 1.0 | Contract Foundation (config, errors, envelope, state, security) | Complete |
-| 1 | MCP Core (21 tools, server, tests) | Complete |
-| 2 | Metrics system (6 tools, pricing, reports) | Complete |
-| 3 | Session file parsers (OpenCode, Claude Code) | Complete |
+| 1 | MCP Core (22 tools, server, tests) | Complete |
+| 2 | Metrics system (7 tools, pricing, reports) | Complete |
+| 3 | Session file parsers (OpenCode, Claude Code + 4 stubs) | Complete |
 | 4 | Auto-installer for AI tools | Complete |

@@ -25,7 +25,7 @@ from ..state.locks import get_connection
 logger = logging.getLogger(__name__)
 
 # Current schema version — bump when adding new migrations.
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class VectorStore:
@@ -126,6 +126,7 @@ class VectorStore:
                 duration_ms INTEGER,
                 unknown_model_cost INTEGER DEFAULT 0,
                 accuracy TEXT DEFAULT 'estimated',
+                reasoning_tokens INTEGER DEFAULT 0,
                 started_at TEXT DEFAULT (datetime('now')),
                 ended_at TEXT
             );
@@ -253,9 +254,20 @@ class VectorStore:
         # Idempotency table in its own module
         ensure_idempotency_table(self.conn)
 
-        # Record schema version
+        # ── Forward-only migrations ────────────────────────────────
         existing = self.conn.execute("SELECT MAX(version) FROM schema_version").fetchone()[0]
-        if existing is None or existing < SCHEMA_VERSION:
+        if existing is None:
+            existing = 0
+
+        # v2: add reasoning_tokens column to steps table
+        if existing < 2:
+            # Check whether the column already exists (fresh DBs have it
+            # from the CREATE TABLE above; only upgraded DBs need ALTER).
+            cols = {row[1] for row in self.conn.execute("PRAGMA table_info(steps)").fetchall()}
+            if "reasoning_tokens" not in cols:
+                self.conn.execute("ALTER TABLE steps ADD COLUMN reasoning_tokens INTEGER DEFAULT 0")
+
+        if existing < SCHEMA_VERSION:
             self.conn.execute(
                 "INSERT OR REPLACE INTO schema_version (version) VALUES (?)",
                 (SCHEMA_VERSION,),

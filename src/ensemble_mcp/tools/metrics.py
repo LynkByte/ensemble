@@ -1,5 +1,6 @@
 """Metrics tools: metrics_start_session, metrics_record_step,
-metrics_end_session, metrics_session_report, metrics_trend, metrics_compare.
+metrics_end_session, metrics_session_report, metrics_trend,
+metrics_compare, metrics_backfill.
 
 Token tracking with per-agent cost breakdown using hybrid source precedence:
 1. Direct response usage (exact)
@@ -572,3 +573,43 @@ async def metrics_compare(
         },
         "__confidence__": overall_confidence,
     }
+
+
+@tool_handler(source="sqlite")
+async def metrics_backfill(
+    conn: sqlite3.Connection,
+    *,
+    session_id: str | None = None,
+    force: bool = False,
+    ai_tool: str | None = None,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    """Backfill step records with real token data from AI tool session files.
+
+    Reads actual token usage from OpenCode's SQLite database or Claude
+    Code's JSONL session files and retroactively updates steps that were
+    recorded with zero or estimated tokens.
+
+    Both OpenCode and Claude Code are supported via the shared parser
+    dispatcher.  Steps are matched to parsed messages by timestamp
+    proximity and model name.
+    """
+    cached = check_idempotency(conn, idempotency_key)
+    if cached is not None:
+        return cached
+
+    from .backfill import backfill_session
+
+    result = backfill_session(
+        conn,
+        session_id=session_id,
+        force=force,
+        ai_tool_override=ai_tool,
+    )
+
+    data = result.to_dict()
+    data["__confidence__"] = result.confidence
+    data["__source__"] = "sqlite"
+
+    store_idempotency(conn, idempotency_key, data)
+    return data

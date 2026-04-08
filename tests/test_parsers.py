@@ -875,6 +875,10 @@ class TestAutoDetection:
         result = detect_ai_tool(
             opencode_db_path=tmp_path / "nope.db",
             claude_projects_dir=tmp_path / "nope",
+            cursor_ai_tracking_db=tmp_path / "nope2.db",
+            copilot_chat_dir=tmp_path / "nope3",
+            windsurf_cascade_dir=tmp_path / "nope4",
+            devin_config_dir=tmp_path / "nope5",
         )
         assert result is None
 

@@ -53,6 +53,9 @@ dev = [
     "mypy>=1.10",
     "build>=1.0",
 ]
+watch = [
+    "watchdog>=4.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/LynkByte/ensemble"

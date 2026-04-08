@@ -5,6 +5,26 @@ All notable changes to **ensemble-mcp** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `metrics_backfill` MCP tool — backfill session steps with real token data from OpenCode or Claude Code session files
+- `backfill` CLI command — `ensemble-mcp backfill [--session-id X] [--force] [--ai-tool opencode|claude-code]`
+- `reasoning_tokens` column on the `steps` table (schema v2 migration)
+- `SOURCE_BACKFILL = "backfill"` source label constant
+- `watch` CLI command — file watcher daemon that monitors AI tool session files and auto-triggers backfill on changes (`ensemble-mcp watch [--debounce N] [--poll-interval N] [--ai-tool X]`)
+- `watchdog>=4.0` optional dependency (`pip install ensemble-mcp[watch]`)
+- Stub parsers for Cursor, GitHub Copilot, Windsurf, and Devin CLI — `detect()` functions identify installed tools; `parse_latest_session()` returns None with a logged warning explaining why token parsing is not feasible for each tool
+- 7 new path constants in `config/defaults.py` for stub parser data locations
+- Watcher engine (`watcher.py`) with debounced filesystem events (Claude Code via watchdog) and mtime polling (OpenCode SQLite WAL)
+
+### Changed
+- Skill workflow (`ensemble-mcp-workflow.md`) now promotes `metrics_backfill` from optional to standard post-pipeline step
+- `parsers/__init__.py` expanded: `detect_ai_tool()` checks 6 tools (2 active + 4 stubs); `parse_latest_session()` dispatcher handles aliases (`github-copilot`, `github_copilot`, `codeium`)
+
+### Test Suite
+- 619 tests passing (up from 562)
+
 ## [0.1.0a3] - 2026-04-07
 
 ### Fixed

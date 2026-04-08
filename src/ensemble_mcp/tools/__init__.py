@@ -1,9 +1,10 @@
-"""MCP tool implementations (21 tools total).
+"""MCP tool implementations (22 tools total).
 
 Tool categories:
 - Patterns (3): patterns_search, patterns_store, patterns_prune
-- Metrics (6): metrics_start_session, metrics_record_step, metrics_end_session,
-               metrics_session_report, metrics_trend, metrics_compare
+- Metrics (7): metrics_start_session, metrics_record_step, metrics_end_session,
+               metrics_session_report, metrics_trend, metrics_compare,
+               metrics_backfill
 - Drift (1): drift_check
 - Routing (1): model_recommend
 - Skills (3): skills_discover, skills_suggest, skills_generate

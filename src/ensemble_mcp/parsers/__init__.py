@@ -1,12 +1,21 @@
 """AI tool session file parsers.
 
 Provides parsers for extracting exact token usage data from AI tool
-session files.  Two parsers are implemented:
+session files.  Six parser modules exist:
+
+**Active parsers** (extract real token data):
 
 - **OpenCode**: reads the monolithic SQLite database at
   ``~/.local/share/opencode/opencode.db``.
 - **Claude Code**: reads JSONL session files under
   ``~/.claude/projects/<project-slug>/*.jsonl``.
+
+**Stub parsers** (detect tool presence, explain why parsing is not feasible):
+
+- **Cursor**: local DB tracks code attribution, not token usage.
+- **GitHub Copilot**: session metadata only; token tracking is server-side.
+- **Windsurf**: cascade files are encrypted Protocol Buffers.
+- **Devin CLI**: cloud-only architecture; no local session data.
 
 Common return types (:class:`ParsedStep`, :class:`ParsedSession`) and an
 auto-detection dispatcher (:func:`detect_ai_tool`, :func:`parse_latest_session`)
@@ -24,8 +33,12 @@ from typing import Any
 from ..config.defaults import (
     CLAUDE_PROJECTS_DIR,
     CONFIDENCE_EXACT,
+    COPILOT_CHAT_DIR,
+    CURSOR_AI_TRACKING_DB,
+    DEVIN_CONFIG_DIR,
     OPENCODE_DB_PATH,
     SOURCE_PARSER,
+    WINDSURF_CASCADE_DIR,
 )
 
 __all__ = [
@@ -107,26 +120,52 @@ def detect_ai_tool(
     *,
     opencode_db_path: Path | None = None,
     claude_projects_dir: Path | None = None,
+    cursor_ai_tracking_db: Path | None = None,
+    copilot_chat_dir: Path | None = None,
+    windsurf_cascade_dir: Path | None = None,
+    devin_config_dir: Path | None = None,
 ) -> str | None:
     """Auto-detect which AI tool has session data available.
 
-    Checks for the OpenCode SQLite database and the Claude Code projects
-    directory.  Returns ``"opencode"``, ``"claude-code"``, or ``None``.
+    Checks for session data from all six supported tools.  Returns the
+    tool identifier string or ``None`` if nothing is detected.
 
-    If both are present, returns ``"opencode"`` (preferred because it's
-    a single DB with richer metadata).  Callers can override by
-    specifying the tool explicitly.
+    **Active parsers** (can extract token data):
+      ``"opencode"``, ``"claude-code"``
+
+    **Stub parsers** (detected but token data not accessible):
+      ``"cursor"``, ``"copilot"``, ``"windsurf"``, ``"devin"``
+
+    If multiple tools are present, returns the first *active* parser
+    found (OpenCode preferred, then Claude Code).  If only stub-parsable
+    tools are present, returns the first detected stub tool.
     """
     oc_path = opencode_db_path or OPENCODE_DB_PATH
     cc_path = claude_projects_dir or CLAUDE_PROJECTS_DIR
 
-    has_opencode = oc_path.is_file()
-    has_claude = cc_path.is_dir()
-
-    if has_opencode:
+    # Active parsers — prefer these (they yield real token data)
+    if oc_path.is_file():
         return "opencode"
-    if has_claude:
+    if cc_path.is_dir():
         return "claude-code"
+
+    # Stub parsers — detected but cannot extract tokens
+    cu_path = cursor_ai_tracking_db or CURSOR_AI_TRACKING_DB
+    if cu_path.is_file():
+        return "cursor"
+
+    cp_path = copilot_chat_dir or COPILOT_CHAT_DIR
+    if cp_path.is_dir():
+        return "copilot"
+
+    ws_path = windsurf_cascade_dir or WINDSURF_CASCADE_DIR
+    if ws_path.is_dir():
+        return "windsurf"
+
+    dv_path = devin_config_dir or DEVIN_CONFIG_DIR
+    if dv_path.is_dir():
+        return "devin"
+
     return None
 
 
@@ -145,8 +184,9 @@ def parse_latest_session(
     Parameters
     ----------
     ai_tool:
-        ``"opencode"`` or ``"claude-code"``.  If *None*, auto-detected
-        via :func:`detect_ai_tool`.
+        Tool identifier — ``"opencode"``, ``"claude-code"``, ``"cursor"``,
+        ``"copilot"``, ``"windsurf"``, or ``"devin"``.  If *None*,
+        auto-detected via :func:`detect_ai_tool`.
     project_path:
         Optional project directory to scope the search.
     opencode_db_path:
@@ -157,8 +197,9 @@ def parse_latest_session(
     Returns
     -------
     ParsedSession | None
-        Parsed session data, or *None* if no session was found or the
-        detected tool has no data.
+        Parsed session data, or *None* if no session was found, the
+        detected tool has no data, or the tool's session data is not
+        parsable (stub parser).
     """
     tool = ai_tool or detect_ai_tool(
         opencode_db_path=opencode_db_path,
@@ -168,6 +209,7 @@ def parse_latest_session(
         logger.debug("No AI tool session data detected")
         return None
 
+    # ── Active parsers ────────────────────────────────────────────
     if tool == "opencode":
         from .opencode import parse_latest_session as _oc_parse
 
@@ -183,6 +225,31 @@ def parse_latest_session(
             projects_dir=claude_projects_dir,
             project_path=project_path,
         )
+
+    # ── Stub parsers (detected but not parsable) ──────────────────
+    if tool == "cursor":
+        from .cursor import parse_latest_session as _cu_parse
+
+        _cu_parse(project_path=project_path)
+        return None
+
+    if tool in ("copilot", "github-copilot", "github_copilot"):
+        from .copilot import parse_latest_session as _cp_parse
+
+        _cp_parse(project_path=project_path)
+        return None
+
+    if tool in ("windsurf", "codeium"):
+        from .windsurf import parse_latest_session as _ws_parse
+
+        _ws_parse(project_path=project_path)
+        return None
+
+    if tool == "devin":
+        from .devin import parse_latest_session as _dv_parse
+
+        _dv_parse(project_path=project_path)
+        return None
 
     logger.warning("Unknown AI tool %r — cannot parse session", tool)
     return None
