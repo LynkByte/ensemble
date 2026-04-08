@@ -24,6 +24,17 @@ from ensemble_mcp.watcher import (
     _OpenCodePoller,
 )
 
+_has_watchdog = True
+try:
+    import watchdog  # noqa: F401
+except ImportError:
+    _has_watchdog = False
+
+requires_watchdog = pytest.mark.skipif(
+    not _has_watchdog,
+    reason="watchdog not installed (optional dependency)",
+)
+
 # ── Debouncer ────────────────────────────────────────────────────
 
 
@@ -280,6 +291,7 @@ class TestWatcherEngineLifecycle:
         thread.join(timeout=3)
         assert not thread.is_alive()
 
+    @requires_watchdog
     def test_run_and_stop_claude_code(self, tmp_path: Path) -> None:
         """Engine should start and stop cleanly with Claude Code watching."""
         cc_dir = tmp_path / "projects"

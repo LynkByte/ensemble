@@ -295,16 +295,12 @@ class WatcherEngine:
 
         Raises
         ------
-        ImportError
-            If ``watchdog`` is not installed.
         RuntimeError
             If no watchable AI tool session data is found.
+        ImportError
+            If ``watchdog`` is not installed (only checked when Claude
+            Code watching is needed).
         """
-        _check_watchdog()
-
-        from watchdog.events import FileSystemEventHandler
-        from watchdog.observers import Observer
-
         watch_oc, watch_cc = self._resolve_tools()
         if not watch_oc and not watch_cc:
             raise RuntimeError(
@@ -335,6 +331,10 @@ class WatcherEngine:
         try:
             # Start Claude Code filesystem watcher
             if watch_cc:
+                _check_watchdog()
+                from watchdog.events import FileSystemEventHandler
+                from watchdog.observers import Observer
+
                 handler = _ClaudeCodeHandler(debouncer)
                 # Create a proper FileSystemEventHandler subclass wrapping our handler
                 _wrapped = type(
