@@ -2563,11 +2563,11 @@ def generate_skill(
 
 | File | Current Lines | Projected Lines | Change |
 |------|--------------|----------------|--------|
-| `team-captain.md` | 250 | ~330 | +80 (patterns, parallel, drift, hooks, config) |
-| `team-architect.md` | 159 | ~170 | +11 (pattern context, drift scope) |
-| `team-engineer.md` | 67 | ~72 | +5 (minor hooks/parallel additions) |
+| `team-ensemble.md` | 250 | ~330 | +80 (patterns, parallel, drift, hooks, config) |
+| `team-scope.md` | 159 | ~170 | +11 (pattern context, drift scope) |
+| `team-craft.md` | 67 | ~72 | +5 (minor hooks/parallel additions) |
 | `team-forge.md` | 134 | ~140 | +6 (parallel clarification) |
-| `team-hunter.md` | 228 | 228 | 0 (unchanged, isolated agent) |
-| `team-inspector.md` | 142 | ~148 | +6 (parallel clarification) |
-| `team-shipper.md` | 88 | ~92 | +4 (session ID) |
+| `team-trace.md` | 228 | 228 | 0 (unchanged, isolated agent) |
+| `team-lens.md` | 142 | ~148 | +6 (parallel clarification) |
+| `team-signal.md` | 88 | ~92 | +4 (session ID) |
 | **Total** | **1,068** | **~1,180** | **+112 net** |

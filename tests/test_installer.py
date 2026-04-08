@@ -714,8 +714,8 @@ class TestAgentDiscovery:
         """When bundled agents exist, copy to OpenCode global agents dir."""
         bundled = tmp_path / "bundled"
         bundled.mkdir()
-        (bundled / "team-captain.md").write_text("# Captain")
-        (bundled / "team-engineer.md").write_text("# Engineer")
+        (bundled / "team-ensemble.md").write_text("# Captain")
+        (bundled / "team-craft.md").write_text("# Engineer")
 
         monkeypatch.setattr(
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
@@ -728,7 +728,7 @@ class TestAgentDiscovery:
         pairs = discover_agents(project, tools=[defn], scope=InstallScope.GLOBAL)
         assert len(pairs) == 2
         sources = {p[0].name for p in pairs}
-        assert sources == {"team-captain.md", "team-engineer.md"}
+        assert sources == {"team-ensemble.md", "team-craft.md"}
         # Destinations should be under the OpenCode global agents dir
         for _, dst in pairs:
             assert str(dst).startswith(str(defn.global_agents_dir))
@@ -739,7 +739,7 @@ class TestAgentDiscovery:
         """When local scope, agents go to .opencode/agents/ in the project."""
         bundled = tmp_path / "bundled"
         bundled.mkdir()
-        (bundled / "team-captain.md").write_text("# Captain")
+        (bundled / "team-ensemble.md").write_text("# Captain")
 
         monkeypatch.setattr(
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
@@ -758,7 +758,7 @@ class TestAgentDiscovery:
         """Already-copied agents are not included in the copy plan."""
         bundled = tmp_path / "bundled"
         bundled.mkdir()
-        (bundled / "team-captain.md").write_text("# Captain")
+        (bundled / "team-ensemble.md").write_text("# Captain")
 
         monkeypatch.setattr(
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
@@ -769,7 +769,7 @@ class TestAgentDiscovery:
         # Pre-create the agent file at the global destination
         assert defn.global_agents_dir is not None
         defn.global_agents_dir.mkdir(parents=True)
-        (defn.global_agents_dir / "team-captain.md").write_text("# Already there")
+        (defn.global_agents_dir / "team-ensemble.md").write_text("# Already there")
 
         pairs = discover_agents(project, tools=[defn], scope=InstallScope.GLOBAL)
         assert len(pairs) == 0
@@ -778,7 +778,7 @@ class TestAgentDiscovery:
         """Tools without agent dir configs produce no copy pairs."""
         bundled = tmp_path / "bundled"
         bundled.mkdir()
-        (bundled / "team-captain.md").write_text("# Captain")
+        (bundled / "team-ensemble.md").write_text("# Captain")
 
         monkeypatch.setattr(
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
@@ -796,7 +796,7 @@ class TestAgentDiscovery:
         """If two tools share the same agents dir, files are only copied once."""
         bundled = tmp_path / "bundled"
         bundled.mkdir()
-        (bundled / "team-captain.md").write_text("# Captain")
+        (bundled / "team-ensemble.md").write_text("# Captain")
 
         monkeypatch.setattr(
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
@@ -1327,14 +1327,14 @@ class TestUninstallPlan:
         # Create agent files at legacy .agents/ path
         agents_dir = tmp_path / ".agents"
         agents_dir.mkdir()
-        (agents_dir / "team-captain.md").write_text("# Captain")
-        (agents_dir / "team-engineer.md").write_text("# Engineer")
+        (agents_dir / "team-ensemble.md").write_text("# Captain")
+        (agents_dir / "team-craft.md").write_text("# Engineer")
         (agents_dir / "custom-agent.md").write_text("# Custom")  # not removed
 
         plan = plan_uninstall(tmp_path, InstallScope.GLOBAL, remove_agents=True)
         assert len(plan.agents_to_remove) == 2
         names = {p.name for p in plan.agents_to_remove}
-        assert names == {"team-captain.md", "team-engineer.md"}
+        assert names == {"team-ensemble.md", "team-craft.md"}
         # custom-agent.md should NOT be in the removal list
         assert "custom-agent.md" not in names
 
@@ -1354,11 +1354,11 @@ class TestUninstallPlan:
         # Create agent files in OpenCode's global agents dir
         assert defn.global_agents_dir is not None
         defn.global_agents_dir.mkdir(parents=True)
-        (defn.global_agents_dir / "team-captain.md").write_text("# Captain")
+        (defn.global_agents_dir / "team-ensemble.md").write_text("# Captain")
 
         plan = plan_uninstall(tmp_path, InstallScope.GLOBAL, remove_agents=True)
         assert len(plan.agents_to_remove) == 1
-        assert plan.agents_to_remove[0].name == "team-captain.md"
+        assert plan.agents_to_remove[0].name == "team-ensemble.md"
         assert str(plan.agents_to_remove[0]).startswith(str(defn.global_agents_dir))
 
     def test_plan_clean_data_flag(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -1497,9 +1497,9 @@ class TestUninstallExecute:
     def test_execute_removes_agent_files(self, tmp_path: Path):
         agents_dir = tmp_path / ".agents"
         agents_dir.mkdir()
-        captain = agents_dir / "team-captain.md"
+        captain = agents_dir / "team-ensemble.md"
         captain.write_text("# Captain")
-        engineer = agents_dir / "team-engineer.md"
+        engineer = agents_dir / "team-craft.md"
         engineer.write_text("# Engineer")
 
         plan = UninstallPlan(
@@ -1693,11 +1693,11 @@ class TestResolveToolDefs:
 class TestDisplayCopyPlan:
     def test_with_pairs(self, tmp_path: Path):
         """Display plan should list files to copy."""
-        src = tmp_path / "src" / "team-captain.md"
-        dst = tmp_path / "dst" / "team-captain.md"
+        src = tmp_path / "src" / "team-ensemble.md"
+        dst = tmp_path / "dst" / "team-ensemble.md"
         text = display_copy_plan("agent", [(src, dst)])
         assert "agent" in text.lower()
-        assert "team-captain.md" in text
+        assert "team-ensemble.md" in text
 
     def test_empty_pairs(self):
         """Display plan should show nothing-to-do message."""
@@ -1717,8 +1717,8 @@ class TestAddAgents:
         """add_agents copies bundled agents to OpenCode global dir."""
         bundled = tmp_path / "bundled"
         bundled.mkdir()
-        (bundled / "team-captain.md").write_text("# Captain")
-        (bundled / "team-engineer.md").write_text("# Engineer")
+        (bundled / "team-ensemble.md").write_text("# Captain")
+        (bundled / "team-craft.md").write_text("# Engineer")
 
         monkeypatch.setattr(
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
@@ -1742,14 +1742,14 @@ class TestAddAgents:
         )
         assert len(result.copied) == 2
         assert defn.global_agents_dir is not None
-        assert (defn.global_agents_dir / "team-captain.md").exists()
-        assert (defn.global_agents_dir / "team-engineer.md").exists()
+        assert (defn.global_agents_dir / "team-ensemble.md").exists()
+        assert (defn.global_agents_dir / "team-craft.md").exists()
 
     def test_copies_agents_local_scope(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """add_agents with LOCAL scope copies to project-local dir."""
         bundled = tmp_path / "bundled"
         bundled.mkdir()
-        (bundled / "team-captain.md").write_text("# Captain")
+        (bundled / "team-ensemble.md").write_text("# Captain")
 
         monkeypatch.setattr(
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
@@ -1772,13 +1772,13 @@ class TestAddAgents:
             auto_confirm=True,
         )
         assert len(result.copied) == 1
-        assert (project / ".opencode" / "agents" / "team-captain.md").exists()
+        assert (project / ".opencode" / "agents" / "team-ensemble.md").exists()
 
     def test_skips_existing_agents(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """add_agents skips agents that already exist at the destination."""
         bundled = tmp_path / "bundled"
         bundled.mkdir()
-        (bundled / "team-captain.md").write_text("# Captain")
+        (bundled / "team-ensemble.md").write_text("# Captain")
 
         monkeypatch.setattr(
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
@@ -1797,7 +1797,7 @@ class TestAddAgents:
         # Pre-create the agent
         assert defn.global_agents_dir is not None
         defn.global_agents_dir.mkdir(parents=True)
-        (defn.global_agents_dir / "team-captain.md").write_text("# Already there")
+        (defn.global_agents_dir / "team-ensemble.md").write_text("# Already there")
 
         result = add_agents(
             project_path=project,
@@ -1811,7 +1811,7 @@ class TestAddAgents:
         """add_agents with dry_run=True shows plan but copies nothing."""
         bundled = tmp_path / "bundled"
         bundled.mkdir()
-        (bundled / "team-captain.md").write_text("# Captain")
+        (bundled / "team-ensemble.md").write_text("# Captain")
 
         monkeypatch.setattr(
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
@@ -1836,13 +1836,13 @@ class TestAddAgents:
         )
         assert len(result.copied) == 0
         assert defn.global_agents_dir is not None
-        assert not (defn.global_agents_dir / "team-captain.md").exists()
+        assert not (defn.global_agents_dir / "team-ensemble.md").exists()
 
     def test_no_detection_required(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """add_agents works even if the AI tool is not installed."""
         bundled = tmp_path / "bundled"
         bundled.mkdir()
-        (bundled / "team-captain.md").write_text("# Captain")
+        (bundled / "team-ensemble.md").write_text("# Captain")
 
         monkeypatch.setattr(
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
@@ -1876,7 +1876,7 @@ class TestAddAgents:
         """Tools without agent dir configs produce no copies."""
         bundled = tmp_path / "bundled"
         bundled.mkdir()
-        (bundled / "team-captain.md").write_text("# Captain")
+        (bundled / "team-ensemble.md").write_text("# Captain")
 
         monkeypatch.setattr(
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",

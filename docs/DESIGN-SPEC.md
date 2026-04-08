@@ -87,13 +87,13 @@ graph TB
 
 | File | Lines | Role | Model | Temperature |
 |------|-------|------|-------|-------------|
-| `team-captain.md` | 250 | Primary orchestrator (Ensemble) | Global (Opus) | 0.3 |
-| `team-architect.md` | 159 | Read-only planner (Scope) | Global (Opus) | 0.5 |
-| `team-engineer.md` | 67 | Code writer (Craft) | Global (Opus) | 0.3 |
+| `team-ensemble.md` | 250 | Primary orchestrator (Ensemble) | Global (Opus) | 0.3 |
+| `team-scope.md` | 159 | Read-only planner (Scope) | Global (Opus) | 0.5 |
+| `team-craft.md` | 67 | Code writer (Craft) | Global (Opus) | 0.3 |
 | `team-forge.md` | 134 | Format/build/test (Proof) | Sonnet 4.6 | 0.1 |
-| `team-hunter.md` | 228 | Bug hunter (isolated, standalone) (Trace) | Global (Opus) | 0.2 |
-| `team-inspector.md` | 142 | Code reviewer (Lens) | Sonnet 4.6 | 0.1 |
-| `team-shipper.md` | 88 | Git operations (Signal) | GPT-5-mini | 0.1 |
+| `team-trace.md` | 228 | Bug hunter (isolated, standalone) (Trace) | Global (Opus) | 0.2 |
+| `team-lens.md` | 142 | Code reviewer (Lens) | Sonnet 4.6 | 0.1 |
+| `team-signal.md` | 88 | Git operations (Signal) | GPT-5-mini | 0.1 |
 
 **Total:** 1,068 lines across 7 agents
 

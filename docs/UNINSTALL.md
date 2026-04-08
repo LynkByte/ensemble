@@ -168,22 +168,22 @@ Remove the agent files:
 
 ```bash
 # OpenCode (local)
-rm -f .opencode/agents/team-captain.md
-rm -f .opencode/agents/team-architect.md
-rm -f .opencode/agents/team-engineer.md
+rm -f .opencode/agents/team-ensemble.md
+rm -f .opencode/agents/team-scope.md
+rm -f .opencode/agents/team-craft.md
 rm -f .opencode/agents/team-forge.md
-rm -f .opencode/agents/team-inspector.md
-rm -f .opencode/agents/team-shipper.md
-rm -f .opencode/agents/team-hunter.md
+rm -f .opencode/agents/team-lens.md
+rm -f .opencode/agents/team-signal.md
+rm -f .opencode/agents/team-trace.md
 
 # Legacy path (also check this for older installations)
-rm -f .agents/team-captain.md
-rm -f .agents/team-architect.md
-rm -f .agents/team-engineer.md
+rm -f .agents/team-ensemble.md
+rm -f .agents/team-scope.md
+rm -f .agents/team-craft.md
 rm -f .agents/team-forge.md
-rm -f .agents/team-inspector.md
-rm -f .agents/team-shipper.md
-rm -f .agents/team-hunter.md
+rm -f .agents/team-lens.md
+rm -f .agents/team-signal.md
+rm -f .agents/team-trace.md
 ```
 
 ### Step 3: Remove skill files (optional)
