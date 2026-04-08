@@ -123,14 +123,19 @@ After each subagent returns, you MUST compress its output before passing context
 3. Include: decisions made, file paths affected, errors/warnings found, and actionable items
 4. Discard: verbose explanations, repeated information, formatting details
 
-**What to preserve in full:**
-- Architect's Implementation Steps and Design Spec (verbatim)
-- Exact file paths from architect's exploration
-- Exact error messages from forge
+**What to preserve in full (when passing to @team-craft):**
+- Architect's Relevant Files section (file paths + descriptions -- Craft needs to know *why* each file matters)
+- Architect's Conventions Observed section (Craft must follow project conventions)
+- Architect's Reusable Components section (Craft must reuse existing code, not reinvent)
+- Architect's Implementation Steps section (verbatim)
+- Architect's Dependencies section (step ordering matters)
+- Architect's Design Spec (verbatim, if present)
+- Discovered skills from `skills_discover` (so Craft can load them)
+- Exact error messages from forge (for remediation loops)
 
-**What to compress:**
+**What to compress (for all other agents):**
+- Architect output for forge/lens/signal → 2-4 bullet points + file paths
 - Architect's risk analysis → 1 bullet of key risks
-- Architect's exploration → file paths + 1-2 pattern notes
 - Engineer → files changed + issues
 - Forge → pass/fail + errors if failed
 - Inspector → verdict + critical/high findings only
@@ -161,10 +166,40 @@ The approval gate does NOT count as a subagent invocation against the Pipeline B
 ## Delegation Rules
 
 - Always pass the compressed context from previous steps to the next subagent
-- Include the architect's task breakdown and Design Spec (if any) when invoking the engineer
-- Include the architect's relevant file paths when invoking the engineer
 - Include the list of changed files when invoking the forge, inspector, and shipper agents
 - When re-invoking an agent after failure, include the specific error to fix
+
+### Craft Handoff Template
+
+When invoking @team-craft, pass the following sections from the Architect's output. Copy these verbatim -- do NOT summarize or compress these for the engineer. Craft needs this full context to write correct, idiomatic code without wasting steps re-exploring the codebase.
+
+```
+## Task
+[1-2 sentence task summary from Architect's Task Analysis]
+
+## Relevant Files
+[Architect's full Relevant Files section -- paths + descriptions]
+
+## Conventions Observed
+[Architect's full Conventions section]
+
+## Reusable Components
+[Architect's full Reusable Components section]
+
+## Implementation Steps
+[Architect's full numbered steps -- verbatim]
+
+## Dependencies
+[Architect's Dependencies section]
+
+## Design Spec
+[Architect's Design Spec -- verbatim, if present. Omit this heading entirely for simple tasks.]
+
+## Skills
+[List of discovered skills from skills_discover, if any. Omit if none.]
+```
+
+If the Architect's output is missing any of these sections (e.g., no Reusable Components found), omit that heading -- do not fabricate content.
 
 ## Drift Detection
 
@@ -189,9 +224,28 @@ This check runs in addition to the MCP `drift_check` tool (see Ensemble MCP Inte
 If a subagent returns a 400 error, empty result, timeout, or other technical failure:
 
 1. **NEVER attempt to do the subagent's work yourself** -- you are an orchestrator, not a worker
-2. Retry the SAME subagent with the SAME instructions (up to 2 retries)
-3. If it fails 3 times total, report the technical error to the user and ask for guidance
+2. Retry the SAME subagent with the SAME instructions plus Retry Context (see below), up to 2 retries
+3. If it fails 3 times total:
+   a. Report the technical error details to the user
+   b. List what the subagent attempted and where it stopped
+   c. Output pipeline status as **FAILED**
+   d. Ask: "Should I retry with different parameters, or would you like to take over?"
+   e. **WAIT for user response** -- do NOT proceed, do NOT attempt the work yourself
+   f. You have `edit` permissions for trivial self-handle ONLY -- using them to implement non-trivial code after a subagent fails is a pipeline violation
 4. Each retry counts against the Pipeline Budget
+
+### Retry Context
+
+When retrying @team-craft after an incomplete or empty result, do NOT send the same bare instructions again. Include additional context so the retry can continue from where the previous attempt stopped instead of starting over:
+
+1. Include the original Craft Handoff Template (unchanged)
+2. Add a **Previous Attempt** section with:
+   - Which files were already created or modified (if any)
+   - Which Implementation Steps were completed vs remaining
+   - Any partial work, errors, or output from the previous attempt
+3. Instruct Craft: "Continue from step N. The following files were already modified: [list]. Focus on the remaining steps."
+
+This prevents the retry from wasting steps re-doing work that was already completed.
 
 ## Remediation Loop
 
