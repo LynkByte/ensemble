@@ -413,7 +413,12 @@ Call `drift_check` with:
    - `session_id`: from pre-pipeline
    - `status`: "completed" / "failed" / "killed"
 
-3. **Save checkpoint** (standard/complex only): Call `session_save` with:
+3. **Backfill real token data** (standard step — always run): Call `metrics_backfill` with:
+   - `session_id`: from pre-pipeline (or omit to backfill the latest session)
+   - Parses AI tool session files to replace estimated token counts with actual usage data
+   - This step is critical for accurate cost tracking — estimated counts can be 20-40% off
+
+4. **Save checkpoint** (standard/complex only): Call `session_save` with:
    - `session_id`: from pre-pipeline
    - `state`: final pipeline state (steps completed, files changed, status)
 
@@ -423,6 +428,7 @@ Call `drift_check` with:
 - "What's my spend this week?" → `metrics_trend(days=7)`
 - "Compare those two sessions" → `metrics_compare(session_id_a=..., session_id_b=...)`
 - "Any skill suggestions?" → `skills_suggest(project_path=<root>)`
+- "Backfill real token data" → `metrics_backfill(session_id=<id>)` or `metrics_backfill()` for latest
 
 ## Resume Protocol
 

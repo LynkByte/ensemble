@@ -8,7 +8,7 @@ title: Home
 
 **Status:** Implementation Complete (Phases 1.0 through 5)
 **Version:** 1.0
-**Package:** `ensemble-mcp` -- 21 MCP tools across 9 subpackages
+**Package:** `ensemble-mcp` -- 22 MCP tools across 9 subpackages
 
 ---
 
@@ -178,13 +178,13 @@ Zero-hassle: `uvx` auto-downloads Python if not installed. Works on Mac, Linux, 
 
 ---
 
-## MCP Tools (21 total)
+## MCP Tools (22 total)
 
 All tools return a standardized envelope: `{ ok, data, error, meta: { duration_ms, source, confidence } }`.
 
 ```mermaid
 mindmap
-    root((ensemble-mcp<br/>21 Tools))
+    root((ensemble-mcp<br/>22 Tools))
         Patterns
             patterns_search
             patterns_store
@@ -196,6 +196,7 @@ mindmap
             metrics_session_report
             metrics_trend
             metrics_compare
+            metrics_backfill
         Drift
             drift_check
         Routing
@@ -219,7 +220,7 @@ mindmap
 | Category | Tools | Description |
 |----------|-------|-------------|
 | **Patterns** | `patterns_search`, `patterns_store`, `patterns_prune` | Semantic pattern memory -- store, search, and prune learned patterns |
-| **Metrics** | `metrics_start_session`, `metrics_record_step`, `metrics_end_session`, `metrics_session_report`, `metrics_trend`, `metrics_compare` | Per-agent token/cost tracking with confidence indicators |
+| **Metrics** | `metrics_start_session`, `metrics_record_step`, `metrics_end_session`, `metrics_session_report`, `metrics_trend`, `metrics_compare`, `metrics_backfill` | Per-agent token/cost tracking with confidence indicators |
 | **Drift** | `drift_check` | Cosine similarity between task and changes, returns 0-1 score |
 | **Routing** | `model_recommend` | Recommend model tier based on agent + task classification |
 | **Skills** | `skills_discover`, `skills_suggest`, `skills_generate` | Cross-tool skill discovery, auto-suggestion from recurring patterns, stale skill detection |

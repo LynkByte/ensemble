@@ -1,6 +1,6 @@
 """MCP server setup and tool registration.
 
-Registers all 21 tools with the MCP protocol and runs the stdio server.
+Registers all 22 tools with the MCP protocol and runs the stdio server.
 """
 
 from __future__ import annotations
@@ -213,6 +213,33 @@ TOOL_DEFINITIONS: list[Tool] = [
             "required": ["session_id_a", "session_id_b"],
         },
     ),
+    Tool(
+        name="metrics_backfill",
+        description=(
+            "Backfill step records with real token data from AI tool session files. "
+            "Reads actual usage from OpenCode or Claude Code and retroactively "
+            "updates steps that were recorded with zero or estimated tokens."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "description": "Session to backfill. Defaults to the most recent session.",
+                },
+                "force": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Overwrite steps that already have real token data.",
+                },
+                "ai_tool": {
+                    "type": "string",
+                    "description": "Override AI tool detection: 'opencode' or 'claude-code'.",
+                },
+                "idempotency_key": {"type": "string"},
+            },
+        },
+    ),
     # ── Drift ──
     Tool(
         name="drift_check",
@@ -413,6 +440,8 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]
             return cast(dict[str, Any], await metrics.metrics_trend(conn, **arguments))
         case "metrics_compare":
             return cast(dict[str, Any], await metrics.metrics_compare(conn, **arguments))
+        case "metrics_backfill":
+            return cast(dict[str, Any], await metrics.metrics_backfill(conn, **arguments))
 
         # Drift
         case "drift_check":

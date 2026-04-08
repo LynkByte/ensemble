@@ -21,6 +21,7 @@ This skill tells you **when and how** to call ensemble-mcp tools during your wor
 | `metrics_session_report` | When user asks about session cost | `session_id` |
 | `metrics_trend` | When user asks about cost over time | `days` (optional) |
 | `metrics_compare` | When user asks to compare sessions | `session_id_a`, `session_id_b` |
+| `metrics_backfill` | After session completes, to backfill real token data from AI tool files | *(none — defaults to latest session)* |
 | `patterns_search` | Before planning/implementing | `query` |
 | `patterns_store` | After successful task completion | `name`, `context`, `approach`, `outcome` |
 | `patterns_prune` | Periodic maintenance | *(none required)* |
@@ -140,7 +141,13 @@ For simple tasks, run Forge first, then Inspector (sequential).
 
 11. metrics_end_session(session_id=<id>, status=<completed|failed|killed>)
 
-12. session_save(session_id=<id>, state=<final pipeline state>)
+12. metrics_backfill(session_id=<id>)
+     → Backfill real token/cost data from AI tool session files
+     → Call AFTER metrics_end_session to allow the AI tool to flush data to disk
+     → This is a standard post-pipeline step (not optional)
+     → If it returns no matches, that's fine — the session still has estimated data
+
+13. session_save(session_id=<id>, state=<final pipeline state>)
     → Only for standard/complex tasks
 ```
 
@@ -190,8 +197,11 @@ When working as a single agent (no pipeline, just one AI assistant), use a simpl
 
 ```
 8. patterns_store(name=..., context=..., approach=..., outcome=...)
-   → On success, save for future recall
+    → On success, save for future recall
 9. metrics_end_session(session_id=<id>, status="completed")
+10. metrics_backfill(session_id=<id>)
+    → Backfill real token data from AI tool session files
+    → Call after metrics_end_session so the AI tool has flushed data to disk
 ```
 
 ### On Demand (when user asks)
@@ -201,6 +211,7 @@ When working as a single agent (no pipeline, just one AI assistant), use a simpl
 - "What's my spend this week?" → metrics_trend(days=7)
 - "Compare those two sessions" → metrics_compare(session_id_a=..., session_id_b=...)
 - "Any skill suggestions?" → skills_suggest(project_path=<root>)
+- "Backfill real token data" → metrics_backfill(session_id="sess_xxx") or metrics_backfill() for latest
 ```
 
 ---

@@ -134,6 +134,7 @@ def test_conn(tmp_db: Path) -> Generator[sqlite3.Connection, None, None]:
             duration_ms INTEGER,
             unknown_model_cost INTEGER DEFAULT 0,
             accuracy TEXT DEFAULT 'estimated',
+            reasoning_tokens INTEGER DEFAULT 0,
             started_at TEXT DEFAULT (datetime('now')),
             ended_at TEXT
         );

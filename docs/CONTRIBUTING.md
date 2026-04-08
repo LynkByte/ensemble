@@ -68,7 +68,7 @@ Tests are async by default (`asyncio_mode = "auto"` in pyproject.toml).
 
 ### Test Coverage
 
-The project has 451 tests across 23 test files:
+The project has 619 tests across 26 test files:
 
 | Test File | Tests | Coverage |
 |---|---|---|
@@ -88,11 +88,16 @@ The project has 451 tests across 23 test files:
 | `test_skills.py` | 12 | Discover, suggest, generate, clustering |
 | `test_config.py` | 16 | Settings loading, TOML, env overrides |
 | `test_parsers.py` | 50 | OpenCode + Claude Code parsers, auto-detection, dispatcher |
+| `test_parsers_stubs.py` | 34 | Stub parsers (Cursor, Copilot, Windsurf, Devin), detection, dispatcher |
 | `test_installer.py` | 50 | Tool detection, registration, config read/write, CLI |
 | `test_dashboard.py` | 50 | Queries, widgets, rendering, CLI integration |
 | `test_report_formatter.py` | 18 | ASCII report tables, formatting helpers |
 | `test_token_utils.py` | 22 | Token estimation, usage_raw parsing, 3-tier resolution |
 | `test_mcp_tracking.py` | 5 | MCP call recording |
+| `test_backfill.py` | 31 | Backfill engine, step matching, session totals |
+| `test_watcher.py` | 23 | File watcher daemon, debouncer, poller, lifecycle |
+| `test_banner.py` | 4 | Server startup banner |
+| `test_download_progress.py` | 7 | Model download with progress bar |
 
 ## Linting and Formatting
 
@@ -316,7 +321,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ensemble-mcp
 
 ### Check what the server exposes
 
-All 23 tools are defined in `src/ensemble_mcp/server.py` in the `TOOL_DEFINITIONS` list. The tool names, descriptions, and JSON schemas are all there.
+All 24 tools are defined in `src/ensemble_mcp/server.py` in the `TOOL_DEFINITIONS` list. The tool names, descriptions, and JSON schemas are all there.
 
 ## Docker (CI / Isolation Only)
 

@@ -208,6 +208,56 @@ ensemble-mcp add-skills --tools opencode
 
 These commands do **not** touch MCP config files — they only copy agent/skill files. They also do not require the AI tool to be installed, so you can pre-seed files before setting up the tool.
 
+### Backfilling Session Metrics
+
+If you have existing sessions with estimated token data, you can backfill them with real token usage from OpenCode or Claude Code session files:
+
+```bash
+# Backfill all sessions
+ensemble-mcp backfill
+
+# Backfill a specific session
+ensemble-mcp backfill --session-id <session-id>
+
+# Force re-backfill sessions that already have exact data
+ensemble-mcp backfill --force
+
+# Target a specific AI tool's session files
+ensemble-mcp backfill --ai-tool opencode
+ensemble-mcp backfill --ai-tool claude-code
+```
+
+### Automatic Backfill (File Watcher)
+
+The `watch` command monitors AI tool session files and automatically triggers backfill when changes are detected:
+
+```bash
+# Install the optional watchdog dependency
+pip install ensemble-mcp[watch]
+
+# Start the watcher (blocks until Ctrl+C)
+ensemble-mcp watch
+
+# Customize debounce and poll intervals
+ensemble-mcp watch --debounce 10 --poll-interval 30
+
+# Watch a specific AI tool only
+ensemble-mcp watch --ai-tool opencode
+ensemble-mcp watch --ai-tool claude-code
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--debounce` | 5 | Seconds to wait after last change before triggering backfill |
+| `--poll-interval` | 10 | Seconds between mtime polls for OpenCode DB |
+| `--ai-tool` | auto | Override tool detection: `opencode` or `claude-code` |
+| `--db-path` | default | Override the ensemble-mcp database path |
+
+**How it works:**
+- **Claude Code**: Uses `watchdog` filesystem events on `~/.claude/projects/` for `.jsonl` changes
+- **OpenCode**: Polls the SQLite DB modification time (WAL mode makes inotify unreliable)
+- Both strategies debounce rapid changes to prevent repeated backfills during burst writes
+
 | Flag | Description |
 |------|-------------|
 | `--tools` | Comma-separated tool names (default: all known tools) |

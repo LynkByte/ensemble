@@ -196,7 +196,7 @@ ensemble-mcp/
       tools/
         __init__.py
         patterns.py          # patterns_search, patterns_store, patterns_prune
-        metrics.py           # metrics_start_session, metrics_record_step, etc.
+        metrics.py           # metrics_start_session, metrics_record_step, metrics_backfill, etc.
         drift.py             # drift_check
         routing.py           # model_recommend
         skills.py            # skills_discover, skills_suggest, skills_generate
@@ -227,7 +227,7 @@ ensemble-mcp/
     test_indexer.py
 ```
 
-### 1.4 MCP Tools (21 total)
+### 1.4 MCP Tools (22 total)
 
 ### Tool Response Contract (applies to all tools)
 
@@ -242,7 +242,7 @@ All tools return the standardized envelope from Section 1.1.1.
 
 ```mermaid
 mindmap
-    root((ensemble-mcp<br/>21 Tools))
+    root((ensemble-mcp<br/>22 Tools))
         Patterns
             patterns_search
             patterns_store
@@ -254,6 +254,7 @@ mindmap
             metrics_session_report
             metrics_trend
             metrics_compare
+            metrics_backfill
         Drift
             drift_check
         Routing
@@ -282,7 +283,7 @@ mindmap
 | `patterns_store` | `name, context, approach, outcome, project: str?, idempotency_key?: str` | `envelope<{id, stored: true}>` | Store a new pattern with embedding |
 | `patterns_prune` | `max_age_days: int = 90, min_score: float = 0.3, idempotency_key?: str` | `envelope<{pruned: int, remaining: int}>` | Remove old/low-relevance patterns |
 
-#### Metrics (6 tools)
+#### Metrics (7 tools)
 
 | Tool | Input | Output | Description |
 |------|-------|--------|-------------|
@@ -292,6 +293,7 @@ mindmap
 | `metrics_session_report` | `session_id` | `envelope<{report: str, confidence}>` | Generate formatted session report |
 | `metrics_trend` | `days: int = 30` | `envelope<{daily_costs, avg_tokens, trend, confidence}>` | Cost/token trends over time |
 | `metrics_compare` | `session_id_a, session_id_b` | `envelope<{diff, confidence}>` | Compare two sessions |
+| `metrics_backfill` | `session_id?, force?: bool, ai_tool?: str, idempotency_key?: str` | `envelope<{backfilled: int, skipped: int, errors: int, details: []}>` | Backfill session steps with real token data from AI tool session files |
 
 `metrics_record_step` precedence rules:
 1. Use `usage_raw` (provider/runtime usage payload) when present.

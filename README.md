@@ -61,6 +61,13 @@ ensemble-mcp add-skills --tools opencode
 
 # Show terminal metrics dashboard
 ensemble-mcp dashboard
+
+# Backfill session tokens from AI tool files
+ensemble-mcp backfill
+
+# Watch AI tool session files and auto-trigger backfill
+pip install ensemble-mcp[watch]   # install optional dependency
+ensemble-mcp watch
 ```
 
 ## MCP Client Configuration
@@ -173,7 +180,7 @@ ensemble-mcp install --dry-run
 ensemble-mcp install --yes
 ```
 
-## 21 MCP Tools
+## 22 MCP Tools
 
 ### Patterns (semantic memory)
 
@@ -193,6 +200,7 @@ ensemble-mcp install --yes
 | `metrics_session_report` | Generate formatted session report |
 | `metrics_trend` | Cost/token trends over time |
 | `metrics_compare` | Compare two sessions |
+| `metrics_backfill` | Backfill steps with real token data from AI tool session files |
 
 ### Drift Detection
 
@@ -264,10 +272,11 @@ ensemble-mcp/
     config/               # Settings, defaults, model pricing
     contracts/            # Response envelope, error taxonomy
     memory/               # ONNX embeddings, SQLite vector store, cosine similarity
-    parsers/              # OpenCode + Claude Code session file parsers
+    parsers/              # Session file parsers (2 active + 4 stubs)
+    watcher.py            # File watcher daemon for auto-backfill
     security/             # Secret redaction, trust boundaries
     state/                # Session/step lifecycle, idempotency, locks
-    tools/                # 21 MCP tool implementations
+    tools/                # 22 MCP tool implementations
     installer/            # AI tool detection + MCP registration
     cli/                  # Terminal dashboard
 ```
@@ -314,7 +323,7 @@ cluster_similarity_threshold = 0.8
 # Install with dev dependencies
 pip install -e ".[dev]"
 
-# Run tests (451 tests, ~6s)
+# Run tests (619 tests, ~10s)
 python -m pytest tests/ -v
 
 # Lint
@@ -339,14 +348,14 @@ docker run --rm -v ~/.cache/ensemble-mcp:/home/app/.cache/ensemble-mcp ensemble-
 
 ## Supported AI Tools
 
-| AI Tool | Config Format | Auto-Install |
-|---------|--------------|--------------|
-| OpenCode | TOML | Yes |
-| Claude Code | JSON | Yes |
-| GitHub Copilot (VS Code) | JSON | Yes |
-| Cursor | JSON | Yes |
-| Windsurf | JSON | Yes |
-| Devin CLI | JSON | Yes |
+| AI Tool | Config Format | Auto-Install | Session Parser |
+|---------|--------------|--------------|----------------|
+| OpenCode | JSON | Yes | Active (SQLite) |
+| Claude Code | JSON | Yes | Active (JSONL) |
+| GitHub Copilot (VS Code) | JSON | Yes | Stub (no local token data) |
+| Cursor | JSON | Yes | Stub (no local token data) |
+| Windsurf | JSON | Yes | Stub (encrypted protobuf) |
+| Devin CLI | JSON | Yes | Stub (cloud-only) |
 
 ## License
 

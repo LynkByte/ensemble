@@ -1,6 +1,6 @@
 # API Reference
 
-Complete reference for all 23 MCP tools provided by **ensemble-mcp** (21 core tools + `health` + `reset`).
+Complete reference for all 24 MCP tools provided by **ensemble-mcp** (22 core tools + `health` + `reset`).
 
 ## Response Envelope
 
@@ -337,6 +337,39 @@ Compare two sessions side by side with a diff of key metrics.
 
 **Possible errors:**
 - `NOT_FOUND_SESSION` — either session_id does not exist
+
+---
+
+### `metrics_backfill`
+
+Backfill step records with real token data from AI tool session files. Reads actual usage from OpenCode's SQLite database or Claude Code's JSONL session files and retroactively updates steps that were recorded with zero or estimated tokens.
+
+Supports both OpenCode and Claude Code via the shared parser dispatcher. Steps are matched to parsed messages by timestamp proximity and model name.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `session_id` | string | No | Session to backfill. Defaults to the most recent session. |
+| `force` | boolean | No | Overwrite steps that already have real token data. Default: `false`. |
+| `ai_tool` | string | No | Override AI tool detection: `"opencode"` or `"claude-code"`. |
+| `idempotency_key` | string | No | Deduplication key. |
+
+**Response data:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `session_id` | string | The session that was backfilled. |
+| `steps_updated` | integer | Number of steps updated with real data. |
+| `steps_skipped` | integer | Steps skipped (already had real data). |
+| `steps_unmatched_db` | integer | DB steps with no parser match. |
+| `steps_unmatched_parser` | integer | Parser steps with no DB match. |
+| `before` | object | Session totals before backfill. |
+| `after` | object | Session totals after backfill. |
+| `source` | string | Always `"backfill"`. |
+| `confidence` | string | `"exact"` if all steps matched, `"partial"` if some unmatched. |
+
+**Possible errors:** `NOT_FOUND_SESSION`, `NOT_FOUND_STEP`, `VALIDATION_MISSING_FIELD`, `IO_FILESYSTEM`
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Python MCP server (`ensemble-mcp`) providing vector memory, token tracking, drift detection, model routing, skills discovery, session management, and codebase indexing. **Fully implemented** — 21 MCP tools across 9 subpackages, 451 tests, CLI with serve/install/dashboard commands.
+Python MCP server (`ensemble-mcp`) providing vector memory, token tracking, drift detection, model routing, skills discovery, session management, and codebase indexing. **Fully implemented** — 22 MCP tools across 9 subpackages, 619 tests, CLI with serve/install/dashboard/backfill/watch commands.
 
 ## Commands
 
@@ -13,6 +13,8 @@ ensemble-mcp install              # auto-detect AI tools and register MCP
 ensemble-mcp add-agents           # copy agent files (no MCP registration)
 ensemble-mcp add-skills           # copy skill files (no MCP registration)
 ensemble-mcp dashboard            # terminal metrics dashboard
+ensemble-mcp backfill             # backfill session tokens from AI tool files
+ensemble-mcp watch               # watch AI tool files and auto-trigger backfill
 python -m pytest tests/           # run tests
 ruff check src/ tests/            # lint
 ruff format src/ tests/           # format
@@ -34,16 +36,16 @@ Entry point: `__main__.py` → `server.serve()` (stdio MCP server).
 | `config/` | Layered settings, defaults, model pricing tables |
 | `contracts/` | Response envelope and error taxonomy |
 | `memory/` | ONNX embeddings, SQLite vector store, cosine similarity |
-| `parsers/` | OpenCode and Claude Code session file parsers |
+| `parsers/` | Session file parsers (2 active: OpenCode, Claude Code; 4 stubs: Cursor, Copilot, Windsurf, Devin) |
 | `security/` | Secret redaction, trust boundary enforcement |
 | `state/` | Session/step lifecycle, idempotency, locks |
-| `tools/` | 21 MCP tool implementations (7 categories below) |
+| `tools/` | 22 MCP tool implementations (7 categories below) |
 | `installer/` | Auto-detect AI tools, register MCP server |
 
-### Tool categories (21 tools)
+### Tool categories (22 tools)
 
 - **Patterns**: `patterns_search`, `patterns_store`, `patterns_prune`
-- **Metrics**: `metrics_start_session`, `metrics_record_step`, `metrics_end_session`, `metrics_session_report`, `metrics_trend`, `metrics_compare`
+- **Metrics**: `metrics_start_session`, `metrics_record_step`, `metrics_end_session`, `metrics_session_report`, `metrics_trend`, `metrics_compare`, `metrics_backfill`
 - **Drift**: `drift_check`
 - **Routing**: `model_recommend`
 - **Skills**: `skills_discover`, `skills_suggest`, `skills_generate`
