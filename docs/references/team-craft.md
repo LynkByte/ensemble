@@ -4,8 +4,8 @@ mode: subagent
 hidden: false
 color: "#10B981"
 temperature: 0.3
-steps: 25
-reasoningEffort: medium
+steps: 40
+reasoningEffort: high
 permission:
   edit: allow
   bash: allow
