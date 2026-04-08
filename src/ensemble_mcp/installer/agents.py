@@ -9,8 +9,8 @@ to tool-specific skill directories, using the correct format per tool
 (flat ``.md`` files or ``<name>/SKILL.md`` directory layout).
 
 Bundled agents include the 7-agent orchestration pipeline:
-team-captain, team-architect, team-engineer, team-forge,
-team-hunter, team-inspector, and team-shipper.
+team-ensemble, team-scope, team-craft, team-forge,
+team-trace, team-lens, and team-signal.
 
 Bundled skills include the ensemble-mcp workflow skill that teaches
 AI agents when and how to invoke ensemble-mcp tools.

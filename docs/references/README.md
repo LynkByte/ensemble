@@ -267,7 +267,7 @@ When tests fail or the reviewer finds critical issues, fixes route through the E
 
 1. Opening instruction: "NEVER attempt to resolve it yourself"
 2. Technical Failure Handling: "you are an orchestrator, not a worker"
-3. Remediation Loop: "NEVER fix code yourself -- always delegate to @team-engineer"
+3. Remediation Loop: "NEVER fix code yourself -- always delegate to @team-craft"
 
 ### Hidden Subagents
 
@@ -330,12 +330,12 @@ Place all 6 agent files in `~/.config/opencode/agents/`:
 
 ```
 ~/.config/opencode/agents/
-├── team-captain.md       # Primary orchestrator
-├── team-architect.md     # Plan + explore + architecture
-├── team-engineer.md      # Write/edit code + docs
+├── team-ensemble.md      # Primary orchestrator
+├── team-scope.md         # Plan + explore + architecture
+├── team-craft.md         # Write/edit code + docs
 ├── team-forge.md         # Format + build + test
-├── team-inspector.md     # Quality + security review
-└── team-shipper.md       # Commit, push, CI analysis
+├── team-lens.md          # Quality + security review
+└── team-signal.md        # Commit, push, CI analysis
 ```
 
 These are **global agents** -- they work across all your projects, not just one.
@@ -347,21 +347,21 @@ Edit (or create) `~/.config/opencode/opencode.json`:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "default_agent": "team-captain"
+  "default_agent": "team-ensemble"
 }
 ```
 
-The `default_agent` setting makes every new conversation start with the Captain automatically. Without this, you'd need to manually select `@team-captain` each time.
+The `default_agent` setting makes every new conversation start with the Captain automatically. Without this, you'd need to manually select `@team-ensemble` each time.
 
 **Step 3 (optional): Adjust model assignments.**
 
 Each agent file has a `model` field in its frontmatter. If you don't have access to the exact models used, edit the agent files to match your available models:
 
 ```yaml
-# In team-forge.md and team-inspector.md (mid-tier)
+# In team-forge.md and team-lens.md (mid-tier)
 model: github-copilot/claude-sonnet-4.6
 
-# In team-shipper.md (light-tier)
+# In team-signal.md (light-tier)
 model: github-copilot/gpt-5-mini
 ```
 
@@ -418,7 +418,7 @@ The Captain handles the edit directly (no Architect or Engineer needed), but sti
 
 ### Customization
 
-**Adjust pipeline budgets** -- Edit the Pipeline Budget section in `team-captain.md` if the default caps (trivial: 3, simple: 6, standard: 8, complex: 12) are too tight or too loose for your workflow.
+**Adjust pipeline budgets** -- Edit the Pipeline Budget section in `team-ensemble.md` if the default caps (trivial: 3, simple: 6, standard: 8, complex: 12) are too tight or too loose for your workflow.
 
 **Add project-specific skills** -- Place skill files in your project's `.opencode/agents/skills/` directory. The agents will pick them up automatically for technology-specific guidance (e.g., Laravel, React, Rust conventions).
 

@@ -113,10 +113,10 @@ sequenceDiagram
 
 For standard and complex tasks, steps 3 (BUILD+TEST) and 4 (REVIEW) run in parallel:
 
-1. PLAN+EXPLORE → @team-architect [sequential]
-2. IMPLEMENT → @team-engineer [sequential]
-3+4. BUILD+TEST + REVIEW → @team-forge + @team-inspector [PARALLEL]
-5. GIT → @team-shipper [sequential, after both 3+4 complete]
+1. PLAN+EXPLORE → @team-scope [sequential]
+2. IMPLEMENT → @team-craft [sequential]
+3+4. BUILD+TEST + REVIEW → @team-forge + @team-lens [PARALLEL]
+5. GIT → @team-signal [sequential, after both 3+4 complete]
 
 **Parallel rules:**
 - Lens reviews the code BEFORE formatting (reviews logical changes, not style)
@@ -301,9 +301,9 @@ flowchart LR
 
 ### 4.6 Trace (Isolated Agent)
 
-`team-hunter.md` is a **standalone, isolated agent**. It is NOT part of Ensemble's pipeline and is never invoked automatically during the standard flow. Users invoke it manually when they want a dedicated bug scan or code health audit on demand.
+`team-trace.md` is a **standalone, isolated agent**. It is NOT part of Ensemble's pipeline and is never invoked automatically during the standard flow. Users invoke it manually when they want a dedicated bug scan or code health audit on demand.
 
-**Rationale:** Trace's broad scope (bug detection, code smells, health scoring, architecture analysis) doesn't fit cleanly into the pipeline's step-by-step flow. Keeping it isolated avoids adding complexity and token cost to every pipeline run. Users who want a health check can invoke `@team-hunter` directly.
+**Rationale:** Trace's broad scope (bug detection, code smells, health scoring, architecture analysis) doesn't fit cleanly into the pipeline's step-by-step flow. Keeping it isolated avoids adding complexity and token cost to every pipeline run. Users who want a health check can invoke `@team-trace` directly.
 
 #### Remediation Loop (Pipeline Only)
 

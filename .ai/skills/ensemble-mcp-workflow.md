@@ -57,6 +57,31 @@ When working within the multi-agent pipeline (Captain orchestrating Architect, E
 
 4. skills_discover(project_path=<project root>, query=<task-relevant keywords>)
    → Pass discovered skills to the Architect and Engineer
+
+5. model_recommend(agent="scope", task_classification=<trivial|simple|standard|complex>)
+   → Use the returned tier (best/mid/cheapest) as a routing hint when invoking each agent
+   → Call model_recommend before each subsequent agent invocation as well
+   → If User Configuration defines model overrides, those take precedence
+```
+
+### Hooks Check (Pre-Pipeline)
+
+```
+6. Check if .opencode/hooks.md exists in the project root
+   → If found, read it and execute any "pre-pipeline" hooks before Step 1
+   → Execute "pre-step" hooks before each agent invocation
+   → Execute "post-step" hooks after each agent returns
+   → Execute "post-pipeline" hooks after the final step
+   → If not found, skip hooks entirely -- they are optional
+```
+
+### User Configuration (Pre-Pipeline)
+
+```
+7. Check for .opencode/team-config.json (project-level) or ~/.config/opencode/team-config.json (global)
+   → If found, load model tier mappings, per-agent overrides, and pipeline budget overrides
+   → Config takes precedence over model_recommend suggestions and agent frontmatter defaults
+   → If not found, use default agent frontmatter values
 ```
 
 ### After Step 1: PLAN+EXPLORE (Captain)
@@ -78,20 +103,28 @@ When working within the multi-agent pipeline (Captain orchestrating Architect, E
      list flagged files, and ask whether to proceed or revert
    → If "aligned" or "minor_drift": proceed normally
 
-7. metrics_record_step(session_id=<id>, agent="craft")
+7. Also perform the prompt-based 3-point drift check:
+   → Scope match: do changed files match the Architect's plan?
+   → File relevance: are changes related to the task?
+   → Scope creep: were unrequested features added?
+   → These are soft warnings, logged in the pipeline report
+
+8. metrics_record_step(session_id=<id>, agent="craft")
 ```
 
-### After Step 3: BUILD+TEST (Captain)
+### After Steps 3+4: BUILD+TEST + REVIEW (Captain)
+
+For standard and complex tasks, steps 3 and 4 run in **parallel**:
+- Invoke @team-forge and @team-lens simultaneously
+- Inspector reviews the code BEFORE formatting (logical changes, not style)
+- Both must complete before proceeding to GIT
 
 ```
-8. metrics_record_step(session_id=<id>, agent="forge")
+9. metrics_record_step(session_id=<id>, agent="forge")
+10. metrics_record_step(session_id=<id>, agent="lens")
 ```
 
-### After Step 4: REVIEW (Captain)
-
-```
-9. metrics_record_step(session_id=<id>, agent="lens")
-```
+For simple tasks, run Forge first, then Inspector (sequential).
 
 ### Post-Pipeline (Captain, after final step)
 

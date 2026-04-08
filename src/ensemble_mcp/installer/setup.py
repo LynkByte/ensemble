@@ -565,13 +565,13 @@ def add_skills(
 
 # Default agent filenames that the installer copies
 _AGENT_FILES = [
-    "team-captain.md",
-    "team-architect.md",
-    "team-engineer.md",
+    "team-ensemble.md",
+    "team-scope.md",
+    "team-craft.md",
     "team-forge.md",
-    "team-inspector.md",
-    "team-shipper.md",
-    "team-hunter.md",
+    "team-lens.md",
+    "team-signal.md",
+    "team-trace.md",
 ]
 
 # Default skill filenames that the installer copies
