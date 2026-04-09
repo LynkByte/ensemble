@@ -169,6 +169,21 @@ def test_conn(tmp_db: Path) -> Generator[sqlite3.Connection, None, None]:
             UNIQUE(skill_path, project)
         );
 
+        CREATE TABLE IF NOT EXISTS skill_file_cache (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_path TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            name TEXT NOT NULL,
+            source_tool TEXT NOT NULL,
+            content TEXT NOT NULL,
+            embedding BLOB NOT NULL,
+            modified_at TEXT NOT NULL,
+            cached_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(project_path, file_path)
+        );
+        CREATE INDEX IF NOT EXISTS idx_skill_cache_project
+            ON skill_file_cache(project_path);
+
         CREATE TABLE IF NOT EXISTS session_checkpoints (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             session_id TEXT NOT NULL,
