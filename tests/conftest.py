@@ -126,6 +126,8 @@ def test_conn(tmp_db: Path) -> Generator[sqlite3.Connection, None, None]:
             name TEXT NOT NULL,
             kind TEXT NOT NULL,
             line_number INTEGER,
+            signature TEXT,
+            docstring TEXT,
             UNIQUE(file_id, name, kind)
         );
 

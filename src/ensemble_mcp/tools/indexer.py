@@ -134,8 +134,116 @@ def _extract_exports(content: str, language: str | None) -> list[dict[str, Any]]
     return exports
 
 
+# ── Signature & docstring helpers ─────────────────────────────────
+
+
+def _get_line_at_pos(content: str, pos: int) -> str:
+    """Extract the full source line containing character offset *pos*.
+
+    Strips trailing ``{``, ``:``, and whitespace. Caps at 300 chars.
+    """
+    line_start = content.rfind("\n", 0, pos) + 1
+    line_end = content.find("\n", pos)
+    if line_end == -1:
+        line_end = len(content)
+    line = content[line_start:line_end].strip().rstrip("{:").rstrip()
+    return line[:300]
+
+
+def _extract_python_docstring(lines: list[str], line_idx: int) -> str | None:
+    """Scan lines below *line_idx* for a triple-quoted docstring.
+
+    Handles both single-line (``\"\"\"text\"\"\"``) and multiline forms.
+    Returns the docstring text stripped of quotes, capped at 500 chars,
+    or ``None`` if no docstring is found.
+    """
+    # Look at the next non-blank line after the definition
+    idx = line_idx + 1
+    while idx < len(lines) and lines[idx].strip() == "":
+        idx += 1
+    if idx >= len(lines):
+        return None
+
+    stripped = lines[idx].strip()
+    for quote in ('"""', "'''"):
+        if stripped.startswith(quote):
+            # Single-line docstring: """text"""
+            rest = stripped[len(quote) :]
+            close_idx = rest.find(quote)
+            if close_idx >= 0 and close_idx + len(quote) == len(rest):
+                text = rest[:close_idx].strip()
+                return text[:500] if text else None
+            # Multiline docstring
+            doc_lines = [stripped[len(quote) :]]
+            for j in range(idx + 1, min(idx + 50, len(lines))):
+                if quote in lines[j]:
+                    end_pos = lines[j].find(quote)
+                    doc_lines.append(lines[j][:end_pos].strip())
+                    break
+                doc_lines.append(lines[j].strip())
+            text = "\n".join(doc_lines).strip()
+            return text[:500] if text else None
+    return None
+
+
+def _extract_block_doc_comment(content: str, match_start: int) -> str | None:
+    """Extract a ``/** ... */`` block doc comment directly above *match_start*.
+
+    Scans backwards from *match_start* for a closing ``*/``, then finds the
+    opening ``/**``. Strips leading ``*`` prefixes on each line.
+    Shared by TypeScript/JavaScript and PHP extractors.
+    Returns the cleaned text capped at 500 chars, or ``None``.
+    """
+    # Walk backwards to find the */ that closes the comment
+    before = content[:match_start].rstrip()
+    if not before.endswith("*/"):
+        return None
+    # close_pos is the position of '*/' in the original content
+    close_pos = len(before)
+    open_pos = content.rfind("/**", 0, close_pos)
+    if open_pos == -1:
+        return None
+    block = content[open_pos:close_pos].rstrip()
+    # Strip /** prefix, */ suffix, and * line prefixes
+    block = block.removeprefix("/**").removesuffix("*/").strip()
+    cleaned_lines: list[str] = []
+    for line in block.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("* "):
+            stripped = stripped[2:]
+        elif stripped == "*":
+            stripped = ""
+        cleaned_lines.append(stripped)
+    text = "\n".join(cleaned_lines).strip()
+    return text[:500] if text else None
+
+
+def _extract_line_doc_comment(lines: list[str], line_idx: int, prefix: str) -> str | None:
+    """Walk backwards from *line_idx* collecting consecutive doc-comment lines.
+
+    Lines must start with *prefix* (e.g. ``//``, ``///``, ``#``).
+    Shared by Go, Rust, and Ruby extractors.
+    Returns the joined text capped at 500 chars, or ``None``.
+    """
+    collected: list[str] = []
+    idx = line_idx - 1
+    while idx >= 0:
+        stripped = lines[idx].strip()
+        if stripped.startswith(prefix):
+            text = stripped[len(prefix) :].strip()
+            collected.append(text)
+            idx -= 1
+        else:
+            break
+    if not collected:
+        return None
+    collected.reverse()
+    text = "\n".join(collected).strip()
+    return text[:500] if text else None
+
+
 def _extract_ts_js_exports(content: str, exports: list[dict[str, Any]]) -> None:
-    """Extract exports from TypeScript/JavaScript."""
+    """Extract exports from TypeScript/JavaScript, including signatures and docstrings."""
     patterns = [
         (r"export\s+(?:default\s+)?class\s+(\w+)", "class"),
         (r"export\s+(?:default\s+)?function\s+(\w+)", "function"),
@@ -151,28 +259,40 @@ def _extract_ts_js_exports(content: str, exports: list[dict[str, Any]]) -> None:
                     "name": match.group(1),
                     "kind": kind,
                     "line_number": content[: match.start()].count("\n") + 1,
+                    "signature": _get_line_at_pos(content, match.start()),
+                    "docstring": _extract_block_doc_comment(content, match.start()),
                 }
             )
 
 
 def _extract_python_exports(content: str, exports: list[dict[str, Any]]) -> None:
-    """Extract exports from Python (top-level class/def, __all__)."""
+    """Extract exports from Python (top-level class/def, __all__).
+
+    Includes signatures and docstrings.
+    """
+    lines = content.split("\n")
     # Top-level classes
     for match in re.finditer(r"^class\s+(\w+)", content, re.MULTILINE):
+        line_idx = content[: match.start()].count("\n")
         exports.append(
             {
                 "name": match.group(1),
                 "kind": "class",
-                "line_number": content[: match.start()].count("\n") + 1,
+                "line_number": line_idx + 1,
+                "signature": _get_line_at_pos(content, match.start()),
+                "docstring": _extract_python_docstring(lines, line_idx),
             }
         )
     # Top-level functions
     for match in re.finditer(r"^def\s+(\w+)", content, re.MULTILINE):
+        line_idx = content[: match.start()].count("\n")
         exports.append(
             {
                 "name": match.group(1),
                 "kind": "function",
-                "line_number": content[: match.start()].count("\n") + 1,
+                "line_number": line_idx + 1,
+                "signature": _get_line_at_pos(content, match.start()),
+                "docstring": _extract_python_docstring(lines, line_idx),
             }
         )
     # __all__
@@ -182,11 +302,19 @@ def _extract_python_exports(content: str, exports: list[dict[str, Any]]) -> None
             # Don't duplicate if already found
             name = name_match.group(1)
             if not any(e["name"] == name for e in exports):
-                exports.append({"name": name, "kind": "constant", "line_number": None})
+                exports.append(
+                    {
+                        "name": name,
+                        "kind": "constant",
+                        "line_number": None,
+                        "signature": None,
+                        "docstring": None,
+                    }
+                )
 
 
 def _extract_php_exports(content: str, exports: list[dict[str, Any]]) -> None:
-    """Extract exports from PHP."""
+    """Extract exports from PHP, including signatures and docstrings."""
     patterns = [
         (r"(?:abstract\s+)?class\s+(\w+)", "class"),
         (r"interface\s+(\w+)", "interface"),
@@ -200,33 +328,64 @@ def _extract_php_exports(content: str, exports: list[dict[str, Any]]) -> None:
                     "name": match.group(1),
                     "kind": kind,
                     "line_number": content[: match.start()].count("\n") + 1,
+                    "signature": _get_line_at_pos(content, match.start()),
+                    "docstring": _extract_block_doc_comment(content, match.start()),
                 }
             )
 
 
 def _extract_go_exports(content: str, exports: list[dict[str, Any]]) -> None:
-    """Extract exports from Go (capitalized = exported)."""
-    for match in re.finditer(r"^func\s+(\(?[A-Z]\w*)", content, re.MULTILINE):
-        name = match.group(1).lstrip("(")
+    """Extract exports from Go (capitalized = exported).
+
+    Uses two function patterns: one for method receivers
+    (``func (r *Receiver) Name()``) and one for standalone functions
+    (``func Name()``). Also extracts struct and interface types.
+    """
+    lines = content.split("\n")
+    # Methods with receiver: func (r *Receiver) Name(...)
+    method_pat = r"^func\s+\(\w+\s+\*?\w+\)\s+([A-Z]\w+)"
+    for match in re.finditer(method_pat, content, re.MULTILINE):
+        line_idx = content[: match.start()].count("\n")
         exports.append(
             {
-                "name": name,
+                "name": match.group(1),
                 "kind": "function",
-                "line_number": content[: match.start()].count("\n") + 1,
+                "line_number": line_idx + 1,
+                "signature": _get_line_at_pos(content, match.start()),
+                "docstring": _extract_line_doc_comment(lines, line_idx, "//"),
             }
         )
-    for match in re.finditer(r"^type\s+([A-Z]\w+)\s+struct", content, re.MULTILINE):
+    # Standalone exported functions: func Name(...)
+    func_pat = r"^func\s+([A-Z]\w+)"
+    for match in re.finditer(func_pat, content, re.MULTILINE):
+        line_idx = content[: match.start()].count("\n")
+        exports.append(
+            {
+                "name": match.group(1),
+                "kind": "function",
+                "line_number": line_idx + 1,
+                "signature": _get_line_at_pos(content, match.start()),
+                "docstring": _extract_line_doc_comment(lines, line_idx, "//"),
+            }
+        )
+    # Exported structs and interfaces
+    type_pat = r"^type\s+([A-Z]\w+)\s+(?:struct|interface)"
+    for match in re.finditer(type_pat, content, re.MULTILINE):
+        line_idx = content[: match.start()].count("\n")
         exports.append(
             {
                 "name": match.group(1),
                 "kind": "class",
-                "line_number": content[: match.start()].count("\n") + 1,
+                "line_number": line_idx + 1,
+                "signature": _get_line_at_pos(content, match.start()),
+                "docstring": _extract_line_doc_comment(lines, line_idx, "//"),
             }
         )
 
 
 def _extract_rust_exports(content: str, exports: list[dict[str, Any]]) -> None:
-    """Extract exports from Rust (pub items)."""
+    """Extract exports from Rust (pub items), including signatures and docstrings."""
+    lines = content.split("\n")
     patterns = [
         (r"pub\s+fn\s+(\w+)", "function"),
         (r"pub\s+struct\s+(\w+)", "class"),
@@ -235,39 +394,52 @@ def _extract_rust_exports(content: str, exports: list[dict[str, Any]]) -> None:
     ]
     for pat, kind in patterns:
         for match in re.finditer(pat, content):
+            line_idx = content[: match.start()].count("\n")
             exports.append(
                 {
                     "name": match.group(1),
                     "kind": kind,
-                    "line_number": content[: match.start()].count("\n") + 1,
+                    "line_number": line_idx + 1,
+                    "signature": _get_line_at_pos(content, match.start()),
+                    "docstring": _extract_line_doc_comment(lines, line_idx, "///"),
                 }
             )
 
 
 def _extract_ruby_exports(content: str, exports: list[dict[str, Any]]) -> None:
-    """Extract exports from Ruby."""
+    """Extract exports from Ruby, including signatures and docstrings."""
+    lines = content.split("\n")
     for match in re.finditer(r"^\s*class\s+(\w+)", content, re.MULTILINE):
+        line_idx = content[: match.start()].count("\n")
         exports.append(
             {
                 "name": match.group(1),
                 "kind": "class",
-                "line_number": content[: match.start()].count("\n") + 1,
+                "line_number": line_idx + 1,
+                "signature": _get_line_at_pos(content, match.start()),
+                "docstring": _extract_line_doc_comment(lines, line_idx, "#"),
             }
         )
     for match in re.finditer(r"^\s*module\s+(\w+)", content, re.MULTILINE):
+        line_idx = content[: match.start()].count("\n")
         exports.append(
             {
                 "name": match.group(1),
                 "kind": "module",
-                "line_number": content[: match.start()].count("\n") + 1,
+                "line_number": line_idx + 1,
+                "signature": _get_line_at_pos(content, match.start()),
+                "docstring": _extract_line_doc_comment(lines, line_idx, "#"),
             }
         )
     for match in re.finditer(r"^\s*def\s+(\w+)", content, re.MULTILINE):
+        line_idx = content[: match.start()].count("\n")
         exports.append(
             {
                 "name": match.group(1),
                 "kind": "function",
-                "line_number": content[: match.start()].count("\n") + 1,
+                "line_number": line_idx + 1,
+                "signature": _get_line_at_pos(content, match.start()),
+                "docstring": _extract_line_doc_comment(lines, line_idx, "#"),
             }
         )
 
@@ -379,25 +551,19 @@ async def project_index(
     project_str = str(project)
     gitignore_patterns = _load_gitignore_patterns(project)
 
-    # Force: clear existing index
+    # Force: clear existing index using subqueries to avoid
+    # SQLite's SQLITE_MAX_VARIABLE_NUMBER limit (default 999).
     if force:
-        file_ids = [
-            r[0]
-            for r in conn.execute(
-                "SELECT id FROM project_files WHERE project_path = ?",
-                (project_str,),
-            ).fetchall()
-        ]
-        if file_ids:
-            placeholders = ",".join("?" * len(file_ids))
-            conn.execute(
-                f"DELETE FROM file_exports WHERE file_id IN ({placeholders})",  # noqa: S608
-                file_ids,
-            )
-            conn.execute(
-                f"DELETE FROM file_imports WHERE file_id IN ({placeholders})",  # noqa: S608
-                file_ids,
-            )
+        conn.execute(
+            "DELETE FROM file_exports WHERE file_id IN "
+            "(SELECT id FROM project_files WHERE project_path = ?)",
+            (project_str,),
+        )
+        conn.execute(
+            "DELETE FROM file_imports WHERE file_id IN "
+            "(SELECT id FROM project_files WHERE project_path = ?)",
+            (project_str,),
+        )
         conn.execute(
             "DELETE FROM project_files WHERE project_path = ?",
             (project_str,),
@@ -466,9 +632,17 @@ async def project_index(
         exports = _extract_exports(content, language)
         for exp in exports:
             conn.execute(
-                "INSERT OR IGNORE INTO file_exports (file_id, name, kind, line_number) "
-                "VALUES (?, ?, ?, ?)",
-                (file_id, exp["name"], exp["kind"], exp.get("line_number")),
+                "INSERT OR IGNORE INTO file_exports "
+                "(file_id, name, kind, line_number, signature, docstring) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    file_id,
+                    exp["name"],
+                    exp["kind"],
+                    exp.get("line_number"),
+                    exp.get("signature"),
+                    exp.get("docstring"),
+                ),
             )
 
         # Extract and store imports
@@ -521,9 +695,15 @@ async def project_query(
         params.append(f"%{path_pattern}%")
 
     if query:
-        # Search by role or file path containing query terms
-        conditions.append("(file_path LIKE ? OR role LIKE ?)")
-        params.extend([f"%{query}%", f"%{query}%"])
+        # Search by role, file path, or export name/signature/docstring
+        conditions.append(
+            "(file_path LIKE ? OR role LIKE ? OR id IN ("
+            "SELECT file_id FROM file_exports "
+            "WHERE name LIKE ? OR signature LIKE ? OR docstring LIKE ?"
+            "))"
+        )
+        like_term = f"%{query}%"
+        params.extend([like_term, like_term, like_term, like_term, like_term])
 
     where_clause = " AND ".join(conditions)
     rows = conn.execute(
@@ -538,10 +718,18 @@ async def project_query(
         file_id = r[0]
         # Get exports
         export_rows = conn.execute(
-            "SELECT name, kind FROM file_exports WHERE file_id = ?",
+            "SELECT name, kind, signature, docstring FROM file_exports WHERE file_id = ?",
             (file_id,),
         ).fetchall()
-        exports = [{"name": e[0], "kind": e[1]} for e in export_rows]
+        exports = [
+            {
+                "name": e[0],
+                "kind": e[1],
+                "signature": e[2],
+                "docstring": e[3],
+            }
+            for e in export_rows
+        ]
 
         files.append(
             {

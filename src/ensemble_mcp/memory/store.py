@@ -9,7 +9,9 @@ at ``~/.cache/ensemble-mcp/data.db``.
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +27,7 @@ from ..state.locks import get_connection
 logger = logging.getLogger(__name__)
 
 # Current schema version — bump when adding new migrations.
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 class VectorStore:
@@ -120,6 +122,8 @@ class VectorStore:
                 name TEXT NOT NULL,
                 kind TEXT NOT NULL,
                 line_number INTEGER,
+                signature TEXT,
+                docstring TEXT,
                 UNIQUE(file_id, name, kind)
             );
             CREATE INDEX IF NOT EXISTS idx_file_exports_file
@@ -221,6 +225,12 @@ class VectorStore:
         existing = self.conn.execute("SELECT MAX(version) FROM schema_version").fetchone()[0]
         if existing is None:
             existing = 0
+
+        if existing < 5:
+            with contextlib.suppress(sqlite3.OperationalError):
+                self.conn.execute("ALTER TABLE file_exports ADD COLUMN signature TEXT")
+            with contextlib.suppress(sqlite3.OperationalError):
+                self.conn.execute("ALTER TABLE file_exports ADD COLUMN docstring TEXT")
 
         if existing < SCHEMA_VERSION:
             self.conn.execute(
