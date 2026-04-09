@@ -25,7 +25,7 @@ from ..state.locks import get_connection
 logger = logging.getLogger(__name__)
 
 # Current schema version — bump when adding new migrations.
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 class VectorStore:
@@ -186,6 +186,22 @@ class VectorStore:
                 ON skill_usage_tracking(project);
             CREATE INDEX IF NOT EXISTS idx_skill_usage_last_matched
                 ON skill_usage_tracking(last_matched_at);
+
+            -- Skill File Cache (mtime-based, mirrors project_index pattern)
+            CREATE TABLE IF NOT EXISTS skill_file_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_path TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                name TEXT NOT NULL,
+                source_tool TEXT NOT NULL,
+                content TEXT NOT NULL,
+                embedding BLOB NOT NULL,
+                modified_at TEXT NOT NULL,
+                cached_at TEXT DEFAULT (datetime('now')),
+                UNIQUE(project_path, file_path)
+            );
+            CREATE INDEX IF NOT EXISTS idx_skill_cache_project
+                ON skill_file_cache(project_path);
 
             -- Session Checkpoints
             CREATE TABLE IF NOT EXISTS session_checkpoints (

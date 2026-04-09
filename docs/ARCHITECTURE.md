@@ -59,7 +59,7 @@ src/ensemble_mcp/
 ├── memory/
 │   ├── embeddings.py     # ONNX MiniLM-L6-v2, lazy load, embed()
 │   ├── similarity.py     # cosine_similarity(), search_similar(), pairwise_matrix()
-│   └── store.py          # VectorStore: 11-table schema, pattern CRUD
+│   └── store.py          # VectorStore: 12-table schema, pattern CRUD
 │
 ├── state/
 │   ├── lifecycle.py      # SessionState/StepState enums, transition functions
@@ -212,7 +212,7 @@ Brute-force search is sufficient for the expected scale (<10K vectors). No ANN i
 
 ## SQLite Schema
 
-All state lives in a single SQLite database (`~/.cache/ensemble-mcp/data.db`) with WAL mode enabled. The schema has 11 tables plus a version tracker:
+All state lives in a single SQLite database (`~/.cache/ensemble-mcp/data.db`) with WAL mode enabled. The schema has 12 tables plus a version tracker:
 
 ### Core Tables
 
@@ -237,6 +237,7 @@ All state lives in a single SQLite database (`~/.cache/ensemble-mcp/data.db`) wi
 | `skill_suggestions` | AI-generated skill proposals | `proposed_name`, `proposed_content`, `confidence`, `status` |
 | `skill_suggestion_patterns` | Junction: suggestion <-> patterns | `suggestion_id`, `pattern_id` |
 | `skill_usage_tracking` | Skill file usage metrics | `skill_path`, `project`, `match_count` |
+| `skill_file_cache` | Mtime-based cache for skill file content and embeddings | `project_path`, `file_path`, `name`, `source_tool`, `content`, `embedding` (BLOB), `modified_at`, `cached_at` |
 
 ### Infrastructure Tables
 
@@ -353,7 +354,7 @@ Tiers (`best`, `mid`, `cheapest`) are abstract — the consuming agent maps them
 
 `tools/skills.py` provides three capabilities:
 
-1. **Discovery**: Scans 5 known skill directories (`.ai/skills/`, `.claude/skills/`, `.cursor/rules/`, `.github/copilot-instructions/`, `.opencode/skills/`) for existing skill files
+1. **Discovery**: Scans 5 known skill directories (`.ai/skills/`, `.claude/skills/`, `.cursor/rules/`, `.github/copilot-instructions/`, `.opencode/skills/`) for existing skill files. Skill file content and embeddings are cached in SQLite with mtime-based invalidation; only changed files are re-read and re-embedded on subsequent calls
 2. **Suggestion**: Clusters stored patterns by embedding similarity (threshold >= 0.75) using single-linkage agglomerative clustering. Clusters with >= 3 members become skill suggestions
 3. **Generation**: Accepts/dismisses/defers suggestions. On accept, writes a Markdown skill file (zero-LLM generation from pattern content)
 

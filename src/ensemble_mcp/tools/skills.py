@@ -1,7 +1,9 @@
 """Skills tools: skills_discover, skills_suggest, skills_generate.
 
 Discovery scans tool-native skill locations (.ai/skills/, .claude/skills/, etc.),
-embeds content, and returns relevant skills via semantic search.
+embeds content, and returns relevant skills via semantic search. Skill file content
+and pre-computed embeddings are cached in SQLite using mtime-based invalidation
+(same pattern as ``project_index``).
 
 Suggestion clusters similar patterns by embedding similarity (>= 0.75 threshold)
 and proposes reusable skills from groups with >= min_cluster_size patterns.
@@ -12,7 +14,7 @@ Generation accepts/dismisses/defers suggestions and writes Markdown skill files.
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -34,10 +36,38 @@ from ..state.idempotency import check_idempotency, store_idempotency
 # ── Internal helpers ──────────────────────────────────────────────
 
 
-def _scan_skill_files(project_path: str) -> list[dict[str, str]]:
-    """Walk known skill directories and collect skill file metadata."""
-    project = Path(project_path)
-    found: list[dict[str, str]] = []
+def _scan_skill_files(
+    project_path: str,
+    conn: sqlite3.Connection,
+    model: EmbeddingModel,
+) -> list[dict[str, Any]]:
+    """Walk known skill directories, cache content and embeddings in SQLite.
+
+    Uses mtime-based incremental caching (same pattern as ``project_index``):
+    filesystem walk is always performed (cheap), but file reads and embedding
+    computation are skipped for unchanged files. Deleted files are pruned
+    from the cache.
+
+    Returns cached entries with keys: ``name``, ``path``, ``source_tool``,
+    ``content``, ``embedding`` (raw bytes).
+    """
+    project = Path(project_path).resolve()
+    if not project.is_dir():
+        raise ToolError(
+            code=ErrorCode.NOT_FOUND_PROJECT,
+            message=f"Project directory not found: {project_path}",
+            details={"project_path": project_path},
+        )
+
+    project_str = str(project)
+
+    # Load existing cache: {file_path: (id, modified_at)}
+    existing: dict[str, tuple[int, str]] = {}
+    for row in conn.execute(
+        "SELECT id, file_path, modified_at FROM skill_file_cache WHERE project_path = ?",
+        (project_str,),
+    ).fetchall():
+        existing[row[1]] = (row[0], row[2])
 
     for skill_dir in SKILL_SCAN_DIRECTORIES:
         full_dir = project / skill_dir
@@ -45,13 +75,34 @@ def _scan_skill_files(project_path: str) -> list[dict[str, str]]:
             continue
         for fp in full_dir.rglob("*"):
             if fp.is_file() and fp.suffix in (".md", ".txt", ".yaml", ".yml"):
+                rel = str(fp.relative_to(project))
+
+                # Get mtime as ISO string (same serialisation as project_index)
+                try:
+                    stat = fp.stat()
+                except OSError:
+                    continue
+                mtime = datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat()
+                size = stat.st_size
+
+                # Skip unchanged files
+                if rel in existing:
+                    _, old_mtime = existing[rel]
+                    if old_mtime == mtime:
+                        continue
+
+                # Skip files > 500KB to avoid excessive memory use
+                if size > 500_000:
+                    continue
+
+                # File is new or changed — read content and compute embedding
                 try:
                     content = fp.read_text(encoding="utf-8", errors="replace")
                 except OSError:
                     continue
-                # Determine which tool this skill belongs to
+
+                # Determine source tool
                 source_tool = "unknown"
-                rel = str(fp.relative_to(project))
                 if ".ai/skills" in rel:
                     source_tool = "opencode"
                 elif ".claude/skills" in rel:
@@ -61,15 +112,44 @@ def _scan_skill_files(project_path: str) -> list[dict[str, str]]:
                 elif ".github/copilot" in rel:
                     source_tool = "copilot"
 
-                found.append(
-                    {
-                        "name": fp.stem,
-                        "path": rel,
-                        "source_tool": source_tool,
-                        "content": content,
-                    }
+                embedding = model.embed(content[:500])
+                emb_blob = embedding.tobytes()
+
+                conn.execute(
+                    "INSERT OR REPLACE INTO skill_file_cache "
+                    "(project_path, file_path, name, source_tool, content, embedding, modified_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (project_str, rel, fp.stem, source_tool, content, emb_blob, mtime),
                 )
-    return found
+
+    # Remove cache entries for files that no longer exist on disk
+    for cached_path in existing:
+        full_fp = project / cached_path
+        if not full_fp.exists():
+            conn.execute(
+                "DELETE FROM skill_file_cache WHERE project_path = ? AND file_path = ?",
+                (project_str, cached_path),
+            )
+
+    conn.commit()
+
+    # Return all cached entries for this project
+    rows = conn.execute(
+        "SELECT name, file_path, source_tool, content, embedding "
+        "FROM skill_file_cache WHERE project_path = ?",
+        (project_str,),
+    ).fetchall()
+
+    return [
+        {
+            "name": r[0],
+            "path": r[1],
+            "source_tool": r[2],
+            "content": r[3],
+            "embedding": r[4],
+        }
+        for r in rows
+    ]
 
 
 def _track_skill_usage(
@@ -192,17 +272,17 @@ async def skills_discover(
     if cached is not None:
         return cached
 
-    skill_files = _scan_skill_files(project_path)
+    skill_files = _scan_skill_files(project_path, conn, model)
 
     detected: list[dict[str, Any]] = []
     snippets: list[dict[str, Any]] = []
 
     if query and skill_files:
-        # Semantic search mode
+        # Semantic search mode — use pre-computed embeddings from cache
         query_emb = model.embed(query)
-        scored: list[tuple[dict[str, str], float]] = []
+        scored: list[tuple[dict[str, Any], float]] = []
         for sf in skill_files:
-            content_emb = model.embed(sf["content"][:500])  # 128-token window
+            content_emb = np.frombuffer(sf["embedding"], dtype=np.float32)
             score = cosine_similarity(query_emb, content_emb)
             scored.append((sf, score))
 

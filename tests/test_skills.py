@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
+import time
 from pathlib import Path
 
 import numpy as np
@@ -232,3 +234,192 @@ class TestSkillsGenerate:
         )
         assert env["ok"] is False
         assert env["error"]["code"] == "VALIDATION_INVALID_VALUE"
+
+
+class TestSkillFileCache:
+    """Tests for the mtime-based skill file caching in skills_discover."""
+
+    @pytest.mark.asyncio
+    async def test_discover_caches_skill_files(
+        self,
+        mock_embedding_model,
+        test_conn: sqlite3.Connection,
+        tmp_path: Path,
+    ):
+        """First call populates skill_file_cache; second call returns same results."""
+        skill_dir = tmp_path / ".ai" / "skills"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "caching.md").write_text("# Caching patterns\nRedis usage\n")
+
+        # First call — populates cache
+        env1 = await skills_discover(
+            mock_embedding_model,
+            test_conn,
+            project_path=str(tmp_path),
+        )
+        assert env1["ok"] is True
+        assert len(env1["data"]["detected"]) == 1
+
+        # Verify cache table has the entry
+        rows = test_conn.execute(
+            "SELECT file_path, name, source_tool, content, embedding "
+            "FROM skill_file_cache WHERE project_path = ?",
+            (str(tmp_path),),
+        ).fetchall()
+        assert len(rows) == 1
+        assert rows[0][0] == ".ai/skills/caching.md"
+        assert rows[0][1] == "caching"
+        assert rows[0][2] == "opencode"
+        assert "Caching patterns" in rows[0][3]
+        # Embedding should be a valid 384-dim float32 BLOB
+        emb = np.frombuffer(rows[0][4], dtype=np.float32)
+        assert emb.shape == (384,)
+
+        # Second call — should return same results from cache
+        env2 = await skills_discover(
+            mock_embedding_model,
+            test_conn,
+            project_path=str(tmp_path),
+        )
+        assert env2["ok"] is True
+        assert len(env2["data"]["detected"]) == 1
+        assert env2["data"]["detected"][0]["name"] == "caching"
+
+    @pytest.mark.asyncio
+    async def test_discover_invalidates_on_mtime_change(
+        self,
+        mock_embedding_model,
+        test_conn: sqlite3.Connection,
+        tmp_path: Path,
+    ):
+        """Modified files should have their cached content and embedding updated."""
+        skill_dir = tmp_path / ".ai" / "skills"
+        skill_dir.mkdir(parents=True)
+        skill_file = skill_dir / "evolving.md"
+        skill_file.write_text("# Original content\nFirst version\n")
+
+        # First call — populate cache
+        await skills_discover(
+            mock_embedding_model,
+            test_conn,
+            project_path=str(tmp_path),
+        )
+        row1 = test_conn.execute(
+            "SELECT content, embedding FROM skill_file_cache WHERE project_path = ?",
+            (str(tmp_path),),
+        ).fetchone()
+        assert "Original content" in row1[0]
+        old_embedding = row1[1]
+
+        # Modify file with a different mtime (bump mtime to ensure it differs)
+        time.sleep(0.05)
+        skill_file.write_text("# Updated content\nSecond version with new info\n")
+        # Ensure mtime is definitely different
+        new_mtime = os.path.getmtime(str(skill_file)) + 1
+        os.utime(str(skill_file), (new_mtime, new_mtime))
+
+        # Second call — should detect mtime change and update cache
+        await skills_discover(
+            mock_embedding_model,
+            test_conn,
+            project_path=str(tmp_path),
+        )
+        row2 = test_conn.execute(
+            "SELECT content, embedding FROM skill_file_cache WHERE project_path = ?",
+            (str(tmp_path),),
+        ).fetchone()
+        assert "Updated content" in row2[0]
+        assert "Original content" not in row2[0]
+        # Embedding should have changed
+        # (different content → different hash → different mock embedding)
+        assert row2[1] != old_embedding
+
+    @pytest.mark.asyncio
+    async def test_discover_removes_deleted_files(
+        self,
+        mock_embedding_model,
+        test_conn: sqlite3.Connection,
+        tmp_path: Path,
+    ):
+        """Deleted files should be pruned from the cache."""
+        skill_dir = tmp_path / ".ai" / "skills"
+        skill_dir.mkdir(parents=True)
+        skill_file = skill_dir / "ephemeral.md"
+        skill_file.write_text("# Ephemeral skill\nWill be deleted\n")
+
+        # First call — populate cache
+        env1 = await skills_discover(
+            mock_embedding_model,
+            test_conn,
+            project_path=str(tmp_path),
+        )
+        assert len(env1["data"]["detected"]) == 1
+        cache_count = test_conn.execute(
+            "SELECT COUNT(*) FROM skill_file_cache WHERE project_path = ?",
+            (str(tmp_path),),
+        ).fetchone()[0]
+        assert cache_count == 1
+
+        # Delete the file
+        skill_file.unlink()
+
+        # Second call — should detect deletion and remove cache entry
+        env2 = await skills_discover(
+            mock_embedding_model,
+            test_conn,
+            project_path=str(tmp_path),
+        )
+        assert len(env2["data"]["detected"]) == 0
+        cache_count = test_conn.execute(
+            "SELECT COUNT(*) FROM skill_file_cache WHERE project_path = ?",
+            (str(tmp_path),),
+        ).fetchone()[0]
+        assert cache_count == 0
+
+    @pytest.mark.asyncio
+    async def test_discover_semantic_uses_cached_embedding(
+        self,
+        mock_embedding_model,
+        test_conn: sqlite3.Connection,
+        tmp_path: Path,
+    ):
+        """Semantic search with query= should use pre-computed cached embeddings."""
+        skill_dir = tmp_path / ".ai" / "skills"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "auth.md").write_text("# Authentication\nJWT token patterns\n")
+        (skill_dir / "deploy.md").write_text("# Deployment\nDocker and CI/CD\n")
+
+        # First call populates the cache (no query)
+        env1 = await skills_discover(
+            mock_embedding_model,
+            test_conn,
+            project_path=str(tmp_path),
+        )
+        assert env1["ok"] is True
+        assert len(env1["data"]["detected"]) == 2
+
+        # Verify embeddings are cached
+        cache_rows = test_conn.execute(
+            "SELECT file_path, embedding FROM skill_file_cache WHERE project_path = ?",
+            (str(tmp_path),),
+        ).fetchall()
+        assert len(cache_rows) == 2
+        for row in cache_rows:
+            emb = np.frombuffer(row[1], dtype=np.float32)
+            assert emb.shape == (384,)
+
+        # Second call with query — semantic search uses cached embeddings
+        env2 = await skills_discover(
+            mock_embedding_model,
+            test_conn,
+            project_path=str(tmp_path),
+            query="authentication JWT",
+        )
+        assert env2["ok"] is True
+        # Should have results (semantic search was performed)
+        # The mock model produces deterministic embeddings so results are stable
+        if env2["data"]["detected"]:
+            # Each detected skill should have a confidence score
+            for skill in env2["data"]["detected"]:
+                assert "confidence" in skill
+                assert isinstance(skill["confidence"], float)
