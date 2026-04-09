@@ -2,6 +2,20 @@
 
 > Extracted from `DESIGN-SPEC.md` for MCP server design and downstream implementation planning.
 
+## Implementation Status
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1.0 | Contract Foundation (envelope, errors, lifecycle, idempotency, security) | ✅ Complete |
+| Phase 1 | MCP Core (15 tools: patterns, drift, routing, skills, session, indexer, utility) | ✅ Complete |
+| Phase 2 | Metrics System (token tracking, cost calculation, session reports) | ❌ Not implemented |
+| Phase 3 | Session Parsers (OpenCode, Claude Code file parsers) | ❌ Not implemented |
+| Phase 4 | Auto-Installer (AI tool detection, MCP registration) | ✅ Complete |
+| Phase 5 | CLI Dashboard (terminal-based metrics display) | ❌ Not implemented |
+| Phase 6 | Package & Publish (PyPI, Docker, documentation) | ⚠️ Partially complete |
+
+> **Note:** This document is a historical design specification. It describes the full planned system including features that have not yet been implemented. See the status table above for what exists in the codebase today.
+
 ---
 
 ## 1. MCP Server Design
@@ -153,7 +167,7 @@ graph TB
 | MCP Framework | `mcp` (official Python SDK) | Standard MCP protocol implementation |
 | Embeddings | ONNX Runtime + MiniLM-L6-v2 | ~22MB model, no PyTorch (saves ~2.4GB) |
 | Vector Storage | SQLite + numpy cosine similarity | Zero external dependencies, portable |
-| Token & Cost Tracking | Direct usage ingestion + session parsers + `tiktoken` | Exact when usage is available; robust fallback when it is not |
+| Token & Cost Tracking | Direct usage ingestion + session parsers + `tokenizers` | Exact when usage is available; robust fallback when it is not |
 | Package Size | ~90MB (including ONNX + model) | Acceptable; PyTorch would be ~2.5GB |
 
 **Why not PyTorch/sentence-transformers?**
@@ -381,7 +395,7 @@ When `usage_raw` is unavailable, integrations should still send whatever is know
 
 - **Embeddings:** ONNX Runtime runs MiniLM-L6-v2 locally (CPU inference, ~5ms per embedding)
 - **Similarity:** numpy cosine similarity (pure math, no API)
-- **Token counting:** tiktoken (local BPE tokenizer, no API)
+- **Token counting:** tokenizers (local HuggingFace tokenizer, no API)
 - **Storage:** SQLite (local file database)
 - **Drift detection:** Cosine similarity between embeddings (local math)
 

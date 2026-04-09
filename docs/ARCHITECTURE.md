@@ -29,6 +29,7 @@ ensemble-mcp server  (server.py)
     |       +-- skills.py      (3 tools)
     |       +-- session.py     (2 tools)
     |       +-- indexer.py     (3 tools)
+    |       +-- mcp_tracking.py (call recording)
     |       +-- health / reset (2 tools, inline)
     |
     +-- Shared Infrastructure
@@ -38,6 +39,8 @@ ensemble-mcp server  (server.py)
             +-- state/          (lifecycle FSM + idempotency + locks)
             +-- security/       (redaction + trust boundaries)
             +-- config/         (layered settings)
+            +-- cli/            (startup banner)
+            +-- data/           (bundled agents + skill templates)
 ```
 
 ## Package Layout
@@ -76,10 +79,18 @@ src/ensemble_mcp/
 │   ├── routing.py        # model_recommend (7x4 agent-classification matrix)
 │   ├── skills.py         # skills_discover, skills_suggest, skills_generate
 │   ├── session.py        # session_save, session_load (optimistic versioning)
-│   └── indexer.py        # project_index, project_query, project_dependencies
+│   ├── indexer.py        # project_index, project_query, project_dependencies
+│   └── mcp_tracking.py   # MCP call recording for audit/tracking
 │
-└── installer/            # Auto-detect AI tools, register MCP server
-    └── setup.py          # Auto-detect AI tools, register MCP server
+├── installer/            # Auto-detect AI tools, register MCP server
+│   └── setup.py          # Auto-detect AI tools, register MCP server
+│
+├── cli/                  # CLI support modules
+│   └── banner.py         # Server startup banner
+│
+└── data/                 # Bundled agent and skill files
+    ├── agents/           # Agent definitions for supported AI tools
+    └── skills/           # Skill templates for supported AI tools
 ```
 
 ## Request Lifecycle
@@ -386,6 +397,10 @@ Every setting tracks which layer it came from via `source_map` for debugging.
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1.0 | Contract Foundation (config, errors, envelope, state, security) | Complete |
-| 1 | MCP Core (15 tools, server, tests) | Complete |
-| 4 | Auto-installer for AI tools | Complete |
+| 1.0 | Contract Foundation (config, errors, envelope, state, security) | ✅ Complete |
+| 1 | MCP Core (15 tools, server, tests) | ✅ Complete |
+| 2 | Metrics System (token tracking, cost calculation) | ❌ Not implemented |
+| 3 | Session Parsers (OpenCode, Claude Code) | ❌ Not implemented |
+| 4 | Auto-installer for AI tools | ✅ Complete |
+| 5 | CLI Dashboard | ❌ Not implemented |
+| 6 | Package & Publish | ⚠️ Partially complete (PyPI structure ready, not yet published) |

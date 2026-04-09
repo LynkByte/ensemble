@@ -1,8 +1,8 @@
 # ensemble-mcp
 
-A Python MCP (Model Context Protocol) server that provides **vector memory**, **token tracking**, **drift detection**, **model routing**, **skills discovery**, **session management**, and **codebase indexing** for AI-assisted development pipelines.
+A Python MCP (Model Context Protocol) server that provides **vector memory**, **drift detection**, **model routing**, **skills discovery**, **session management**, and **codebase indexing** for AI-assisted development pipelines.
 
-All intelligence is local -- zero LLM/API calls. Uses ONNX Runtime embeddings (~5ms), numpy cosine similarity, tiktoken counting, and SQLite storage.
+All intelligence is local — zero LLM/API calls. Uses ONNX Runtime embeddings (~5ms), numpy cosine similarity, and SQLite storage.
 
 ---
 
@@ -11,14 +11,12 @@ All intelligence is local -- zero LLM/API calls. Uses ONNX Runtime embeddings (~
 | Feature | What It Does |
 |---------|-------------|
 | **Pattern Memory** | Semantic vector search over stored pipeline patterns (MiniLM-L6-v2, 384-dim) |
-| **Token Tracking** | Per-agent cost breakdown with 3-tier source precedence (direct > parser > estimation) |
 | **Drift Detection** | Cosine similarity between task description and code changes |
 | **Model Routing** | Recommend model tier (best/mid/cheapest) per agent and task complexity |
 | **Skills Discovery** | Scan `.ai/skills/`, `.claude/skills/`, `.cursor/rules/` etc. with semantic search |
 | **Skill Intelligence** | Auto-detect recurring patterns and suggest converting them to reusable skills |
 | **Session Management** | Pipeline checkpoint save/load with optimistic versioning |
-| **Codebase Indexing** | File-level index with exports, imports, roles -- incremental via mtime |
-| **CLI Dashboard** | Terminal-based metrics display with cost breakdowns and trends |
+| **Codebase Indexing** | File-level index with exports, imports, roles — incremental via mtime |
 | **Auto-Installer** | Detect AI tools and register the MCP server in their configs |
 
 ## Quick Start
@@ -53,21 +51,14 @@ ensemble-mcp serve
 # Auto-detect AI tools and register the MCP server
 ensemble-mcp install
 
+# Remove MCP server registration from AI tool configs
+ensemble-mcp uninstall
+
 # Copy agent files to a project (no MCP registration needed)
 ensemble-mcp add-agents --tools opencode
 
 # Copy skill files to a project (no MCP registration needed)
 ensemble-mcp add-skills --tools opencode
-
-# Show terminal metrics dashboard
-ensemble-mcp dashboard
-
-# Backfill session tokens from AI tool files
-ensemble-mcp backfill
-
-# Watch AI tool session files and auto-trigger backfill
-pip install ensemble-mcp[watch]   # install optional dependency
-ensemble-mcp watch
 ```
 
 ## MCP Client Configuration
@@ -180,7 +171,7 @@ ensemble-mcp install --dry-run
 ensemble-mcp install --yes
 ```
 
-## 22 MCP Tools
+## 15 MCP Tools
 
 ### Patterns (semantic memory)
 
@@ -189,18 +180,6 @@ ensemble-mcp install --yes
 | `patterns_search` | Semantic search over stored patterns |
 | `patterns_store` | Store a new pattern with embedding |
 | `patterns_prune` | Remove old/unused patterns |
-
-### Metrics (token tracking)
-
-| Tool | Description |
-|------|-------------|
-| `metrics_start_session` | Start tracking a pipeline session |
-| `metrics_record_step` | Record per-agent token/cost usage |
-| `metrics_end_session` | Finalize session, compute totals |
-| `metrics_session_report` | Generate formatted session report |
-| `metrics_trend` | Cost/token trends over time |
-| `metrics_compare` | Compare two sessions |
-| `metrics_backfill` | Backfill steps with real token data from AI tool session files |
 
 ### Drift Detection
 
@@ -261,7 +240,7 @@ Every tool returns a standardized envelope:
 }
 ```
 
-Confidence indicators: `exact` (provider data), `partial` (mixed sources), `estimated` (tiktoken only).
+Confidence indicators: `exact` (direct data), `partial` (mixed sources), `estimated` (heuristic).
 
 ## Architecture
 
@@ -272,13 +251,12 @@ ensemble-mcp/
     config/               # Settings, defaults, model pricing
     contracts/            # Response envelope, error taxonomy
     memory/               # ONNX embeddings, SQLite vector store, cosine similarity
-    parsers/              # Session file parsers (2 active + 4 stubs)
-    watcher.py            # File watcher daemon for auto-backfill
     security/             # Secret redaction, trust boundaries
     state/                # Session/step lifecycle, idempotency, locks
-    tools/                # 22 MCP tool implementations
+    tools/                # 15 MCP tool implementations + call-recording utility
     installer/            # AI tool detection + MCP registration
-    cli/                  # Terminal dashboard
+    cli/                  # Startup banner
+    data/                 # Bundled agent and skill files
 ```
 
 ### Technology Stack
@@ -290,7 +268,7 @@ ensemble-mcp/
 | MCP Framework | `mcp` (official Python SDK) |
 | Embeddings | ONNX Runtime + MiniLM-L6-v2 (~22MB, 384-dim) |
 | Vector Storage | SQLite + numpy cosine similarity |
-| Token Counting | tiktoken (local BPE tokenizer) |
+| Tokenizer | HuggingFace `tokenizers` (for MiniLM input) |
 | Package Size | ~90MB (including ONNX + model) |
 
 ### Local Storage
@@ -348,14 +326,14 @@ docker run --rm -v ~/.cache/ensemble-mcp:/home/app/.cache/ensemble-mcp ensemble-
 
 ## Supported AI Tools
 
-| AI Tool | Config Format | Auto-Install | Session Parser |
-|---------|--------------|--------------|----------------|
-| OpenCode | JSON | Yes | Active (SQLite) |
-| Claude Code | JSON | Yes | Active (JSONL) |
-| GitHub Copilot (VS Code) | JSON | Yes | Stub (no local token data) |
-| Cursor | JSON | Yes | Stub (no local token data) |
-| Windsurf | JSON | Yes | Stub (encrypted protobuf) |
-| Devin CLI | JSON | Yes | Stub (cloud-only) |
+| AI Tool | Config Format | Auto-Install |
+|---------|--------------|--------------|
+| OpenCode | JSON | Yes |
+| Claude Code | JSON | Yes |
+| GitHub Copilot (VS Code) | JSON | Yes |
+| Cursor | JSON | Yes |
+| Windsurf | JSON | Yes |
+| Devin CLI | JSON | Yes |
 
 ## License
 

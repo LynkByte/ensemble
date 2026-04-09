@@ -2,10 +2,12 @@
 
 > Comprehensive system design for improving the Ensemble multi-agent orchestration system and building a companion Python MCP server.
 
-**Status:** Design Complete, Implementation Pending  
+**Status:** Design Complete, Partially Implemented  
 **Version:** 1.0  
 **Date:** 2026-03-30  
 **Authors:** Collaborative design between user and AI assistant
+
+> **Implementation note (2026-04-09):** Phases 1.0 (Contract Foundation), 1 (MCP Core — 15 tools), and 4 (Auto-Installer) are fully implemented. Phases 2 (Metrics System), 3 (Session Parsers), and 5 (CLI Dashboard) remain in design-only state. Phase 6 (Package & Publish) is partially complete (PyPI structure ready, CI/CD configured, not yet published).
 
 ---
 

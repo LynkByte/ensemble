@@ -2,7 +2,7 @@
 
 ## Overview
 
-Python MCP server (`ensemble-mcp`) providing vector memory, drift detection, model routing, skills discovery, session management, and codebase indexing. **Fully implemented** — 15 MCP tools across 7 subpackages, CLI with serve/install/add-agents/add-skills commands.
+Python MCP server (`ensemble-mcp`) providing vector memory, drift detection, model routing, skills discovery, session management, and codebase indexing. **Fully implemented** — 15 MCP tools across 9 subpackages, CLI with serve/install/uninstall/add-agents/add-skills commands.
 
 ## Commands
 
@@ -10,6 +10,7 @@ Python MCP server (`ensemble-mcp`) providing vector memory, drift detection, mod
 pip install -e .                  # editable install
 ensemble-mcp                      # run server (or: python -m ensemble_mcp)
 ensemble-mcp install              # auto-detect AI tools and register MCP
+ensemble-mcp uninstall            # remove MCP registration from AI tool configs
 ensemble-mcp add-agents           # copy agent files (no MCP registration)
 ensemble-mcp add-skills           # copy skill files (no MCP registration)
 python -m pytest tests/           # run tests
@@ -35,8 +36,10 @@ Entry point: `__main__.py` → `server.serve()` (stdio MCP server).
 | `memory/` | ONNX embeddings, SQLite vector store, cosine similarity |
 | `security/` | Secret redaction, trust boundary enforcement |
 | `state/` | Session/step lifecycle, idempotency, locks |
-| `tools/` | 15 MCP tool implementations (7 categories below) |
+| `tools/` | 15 MCP tool implementations + call-recording utility (7 categories below) |
 | `installer/` | Auto-detect AI tools, register MCP server |
+| `cli/` | Startup banner |
+| `data/` | Bundled agent and skill files |
 
 ### Tool categories (15 tools)
 

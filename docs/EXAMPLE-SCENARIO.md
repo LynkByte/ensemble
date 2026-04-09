@@ -76,7 +76,6 @@ Start with the migration, model, and auth scaffolding.
 
 | Tool Called | Purpose |
 |---|---|
-| `metrics_start_session` | Starts tracking this session — `task: "Laravel smart todo setup"`, `classification: "standard"` |
 | `model_recommend` | Agent asks which model to use — `agent: "scope"`, `task_classification: "standard"` → returns `tier: "mid"` (sonnet, not opus — saves cost) |
 | `patterns_search` | Searches for past patterns matching `"laravel project setup auth migration"` — empty on first project |
 | `project_index` | Indexes the fresh Laravel scaffold so the agent knows every file and class |
@@ -109,8 +108,6 @@ Schema::create('todos', function (Blueprint $table) {
 |---|---|
 | `drift_check` | Verifies changes match the task — `changed_files: ["migration", "Todo.php", "TodoCategorizer.php", ...]` → `verdict: "aligned"`, `score: 0.12` |
 | `patterns_store` | Saves the approach: `name: "laravel todo crud setup"`, `approach: "Breeze for auth, service class for business logic"` |
-| `metrics_record_step` | Records token usage: `agent: "craft"`, `input_tokens: 8200`, `output_tokens: 3400` |
-| `metrics_end_session` | Closes session with `status: "completed"` |
 
 ---
 
@@ -131,7 +128,6 @@ Build the full CRUD for todos:
 
 | Tool Called | Purpose |
 |---|---|
-| `metrics_start_session` | New tracking session — `classification: "standard"` |
 | `patterns_search` | Finds the pattern from Session 1 — agent learns the developer prefers service classes, so it injects `TodoCategorizer` into the controller via constructor injection |
 | `project_query` | `query: "TodoCategorizer"`, `file_types: ["php"]` — locates the service class instantly |
 | `project_dependencies` | `file_path: "app/Models/Todo.php"` — knows the model's relationships and casts |
@@ -289,50 +285,11 @@ public function test_store_detects_duplicates(): void
 
 ---
 
-## One Week Later: Cost Review
+## One Week Later: Looking Back
 
-The developer asks:
+After a week of building the SmartTodo app, the developer has accumulated several patterns in memory. When they start their next Laravel project, ensemble-mcp's pattern memory immediately pays dividends — the agent already knows their preferred architecture (service classes, Pest testing, etc.) and applies it from the first prompt.
 
-```
-How much have my AI sessions cost this week?
-```
-
-### What ensemble-mcp returns
-
-| Tool Called | Output |
-|---|---|
-| `metrics_trend(days=7)` | Aggregated cost data |
-
-```
-Last 7 days
-────────────────────────────────────────
-Sessions:         6
-Total input:      89,400 tokens
-Total output:     24,100 tokens
-Estimated cost:   $0.63
-Avg per session:  $0.11
-
-By agent:
-  scope  (planner)   $0.14  (22%)
-  craft  (coder)     $0.41  (65%)
-  lens   (reviewer)  $0.08  (13%)
-
-Top sessions by cost:
-  1. "Build todo CRUD"        $0.18
-  2. "Smart features"         $0.15
-  3. "API and tests"          $0.14
-  4. "Project scaffolding"    $0.09
-```
-
-The developer can also compare sessions:
-
-```
-Compare the CRUD session to the smart features session.
-```
-
-| Tool Called | Insight |
-|---|---|
-| `metrics_compare(session_id_a, session_id_b)` | Smart features used 40% more tokens but completed in fewer agent steps — pattern reuse from Session 1 reduced exploration time |
+> **Note:** Cost tracking and trend reporting are planned features (Metrics System — Phase 2). Once implemented, developers will be able to review per-session and per-agent cost breakdowns, compare sessions, and see cost trends over time.
 
 ---
 
@@ -392,7 +349,6 @@ A fast, accurate AI agent that:
 | Pattern memory | `patterns_search` / `patterns_store` | Agent reuses approaches that worked before |
 | Cost optimization | `model_recommend` | Cheapest viable model per task — ~60% savings vs always using opus |
 | Scope control | `drift_check` | Changes stay on-task, no silent scope creep |
-| Cost visibility | `metrics_trend` / `metrics_session_report` | Full token/cost audit trail |
 | Crash recovery | `session_save` / `session_load` | Resume mid-task after terminal close or crash |
 | Codebase awareness | `project_index` / `project_query` / `project_dependencies` | Agent navigates the codebase without re-exploring from scratch |
 | Learned skills | `skills_suggest` / `skills_generate` | Patterns crystallize into permanent project skills |

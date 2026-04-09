@@ -127,4 +127,4 @@ INDEXER_IGNORED_EXTENSIONS: set[str] = {
 
 # ── Server Metadata ───────────────────────────────────────────────
 SERVER_NAME = "ensemble-mcp"
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = "0.1.0a4"

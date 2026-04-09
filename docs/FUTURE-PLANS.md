@@ -423,7 +423,9 @@ The initial web dashboard uses **Alpine.js + Chart.js** for zero build tooling. 
 
 ---
 
-## 11. Skill Intelligence -- Auto-Detection & Pattern-to-Skill Graduation
+## 11. Skill Intelligence -- Auto-Detection & Pattern-to-Skill Graduation ✅ Completed
+
+> **Status:** Fully implemented in Phase 1. The three MCP tools (`skills_discover`, `skills_suggest`, `skills_generate`) are available, along with the `skill_suggestions`, `skill_suggestion_patterns`, `skill_usage_tracking`, and `skill_file_cache` SQLite tables. Clustering, stale detection, and zero-LLM skill file generation all work as designed below.
 
 ### 11.1 Overview
 
@@ -735,19 +737,22 @@ graph LR
     style SCL fill:#EC4899,color:#fff
 ```
 
-| Priority | Feature | Est. Effort | Depends On |
-|----------|---------|-------------|------------|
-| **High** | Web Dashboard v1 (read-only) | 3-4 days | Core MCP tools stable |
-| **High** | Skill Intelligence (auto-detect & pattern-to-skill graduation) | 5 days | Phase 1 patterns + skills tools stable |
-| **Medium** | Embedding Model Upgrade (chunking or model swap) | 1-2 days | Drift/skills accuracy feedback |
-| **Medium** | Report Export (CSV/PDF/JSON) | 2-3 days | Dashboard v1 |
-| **Medium** | Real-Time Live View | 2-3 days | Dashboard v1 |
-| **Medium** | Dashboard v2 (management UI) | 3-4 days | Dashboard v1 |
-| **Low** | Team Analytics | 5-7 days | Dashboard v2 + Export |
-| **Low** | CI/CD Integration | 3-4 days | Report Export |
-| **Low** | Advanced Codebase Indexing | 5-7 days | Phase 1 indexer stable |
-| **Low** | Plugin System | 3-5 days | Core MCP tools stable |
-| **Future** | Scaling (pluggable backends, enterprise support) | 10-20 days | Advanced indexing + team analytics |
+| Priority | Feature | Est. Effort | Depends On | Status |
+|----------|---------|-------------|------------|--------|
+| **High** | Metrics System (token tracking, session reports, cost calculation) | 3-4 days | Core MCP tools stable | ❌ Not started (Phase 2) |
+| **High** | Session Parsers (OpenCode, Claude Code) | 2-3 days | Metrics system | ❌ Not started (Phase 3) |
+| **High** | CLI Dashboard (terminal-based metrics display) | 2-3 days | Metrics system | ❌ Not started (Phase 5) |
+| **High** | Web Dashboard v1 (read-only) | 3-4 days | Metrics system stable | Not started |
+| **Done** | Skill Intelligence (auto-detect & pattern-to-skill graduation) | 5 days | Phase 1 patterns + skills tools stable | ✅ Complete |
+| **Medium** | Embedding Model Upgrade (chunking or model swap) | 1-2 days | Drift/skills accuracy feedback | Not started |
+| **Medium** | Report Export (CSV/PDF/JSON) | 2-3 days | Dashboard v1 | Not started |
+| **Medium** | Real-Time Live View | 2-3 days | Dashboard v1 | Not started |
+| **Medium** | Dashboard v2 (management UI) | 3-4 days | Dashboard v1 | Not started |
+| **Low** | Team Analytics | 5-7 days | Dashboard v2 + Export | Not started |
+| **Low** | CI/CD Integration | 3-4 days | Report Export | Not started |
+| **Low** | Advanced Codebase Indexing | 5-7 days | Phase 1 indexer stable | Not started |
+| **Low** | Plugin System | 3-5 days | Core MCP tools stable | Not started |
+| **Future** | Scaling (pluggable backends, enterprise support) | 10-20 days | Advanced indexing + team analytics | Not started |
 
 ---
 

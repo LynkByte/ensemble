@@ -49,7 +49,7 @@ These problems compound at scale. A team of 10 engineers running 10 pipelines/da
 | **Zero-LLM-Call architecture** | All intelligence runs locally (ONNX embeddings, SQLite). Near-zero marginal cost per user. No API keys required. |
 | **Cross-tool compatibility** | Works with 6+ AI tools via the open MCP protocol. Not locked to one IDE or vendor. |
 | **Memory that compounds** | Patterns learned in session 1 improve session 100. Teams build institutional AI knowledge. |
-| **Measurable cost savings** | Every metric carries a confidence indicator (`exact`, `partial`, `estimated`). Customers see real ROI. |
+| **Measurable cost savings** | Every metric carries a confidence indicator (`exact`, `partial`, `estimated`). Customers see real ROI. [Metrics system is a planned feature — Phase 2] |
 | **Zero-config installation** | Single command: `uvx ensemble-mcp`. No Docker, no cloud, no setup. |
 
 ### The Ask
@@ -95,7 +95,7 @@ These problems compound at scale. A team of 10 engineers running 10 pipelines/da
 |---------|----------|-----------------|-------------------------|-------------------|----------------|
 | Multi-agent pipeline | 7 specialized agents | Single agent | Proprietary pipeline | Proprietary agent | Single agent |
 | Cross-session memory | Vector memory (local) | None | None | Proprietary | None |
-| Cost tracking | Per-agent with confidence | None | None | None | None |
+| Cost tracking | Per-agent with confidence [planned] | None | None | None | None |
 | Drift detection | Cosine similarity scoring | None | None | Unknown | None |
 | Model routing | Task-aware tier recommendations | Fixed model | Fixed model | Fixed model | User-selected |
 | Codebase indexing | Local SQLite index | Per-session exploration | GitHub-level | Full repo context | Per-session |
@@ -169,9 +169,9 @@ To generate credible, reproducible numbers, run the following benchmark suite:
 
 | Metric | How to Measure | Tool |
 |--------|---------------|------|
-| Total tokens consumed | `metrics_session_report` from ensemble-mcp | Direct measurement |
-| Total cost (USD) | Computed from token counts + pricing table | ensemble-mcp |
-| Per-agent token breakdown | `metrics_record_step` per agent | ensemble-mcp |
+| Total tokens consumed | `metrics_session_report` from ensemble-mcp [planned feature] | Direct measurement |
+| Total cost (USD) | Computed from token counts + pricing table [planned feature] | ensemble-mcp |
+| Per-agent token breakdown | `metrics_record_step` per agent [planned feature] | ensemble-mcp |
 | Task completion (pass/fail) | Does the output compile, pass tests, and match the expected solution? | Manual review + CI |
 | Drift score | `drift_check` comparing task description to final diff | ensemble-mcp |
 | Wall-clock time | Session start to session end | Timestamp delta |
@@ -189,19 +189,16 @@ To generate credible, reproducible numbers, run the following benchmark suite:
 
 #### Running the Benchmarks
 
+> **Note:** The `metrics_*` commands below reference planned MCP tools (Metrics System — Phase 2). These are not CLI commands; they would be invoked via the MCP protocol by an AI tool agent. The `project_index` tool is available now.
+
 ```bash
-# 1. Index the target repo
-ensemble-mcp project_index --path /path/to/repo
+# 1. Index the target repo (available now via MCP tool)
+# project_index is called by the AI agent, not as a CLI command
 
-# 2. Start a metrics session
-ensemble-mcp metrics_start_session --task "Fix issue #123" --classification "standard"
-
-# 3. Run the pipeline (via your AI tool of choice)
-# ... each agent's step is recorded via metrics_record_step ...
-
-# 4. End session and get report
-ensemble-mcp metrics_end_session --session $SESSION_ID
-ensemble-mcp metrics_session_report --session $SESSION_ID
+# 2-4. Metrics workflow (planned feature — Phase 2)
+# Once implemented, metrics_start_session, metrics_record_step,
+# metrics_end_session, and metrics_session_report will be available
+# as MCP tools called by the AI agent during pipeline execution.
 ```
 
 ### 3.2 Token & Cost Savings

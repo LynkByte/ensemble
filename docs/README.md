@@ -6,9 +6,9 @@ title: Home
 
 > Multi-agent orchestration system with a companion Python MCP server for vector memory, drift detection, and codebase indexing.
 
-**Status:** Implementation Complete (Phases 1.0 through 5)
-**Version:** 1.0
-**Package:** `ensemble-mcp` -- 15 MCP tools across 7 subpackages
+**Status:** Phase 1.0 (Contract Foundation), Phase 1 (MCP Core), and Phase 4 (Auto-Installer) complete. Phases 2, 3, 5 deferred.  
+**Version:** 0.1.0a4  
+**Package:** `ensemble-mcp` -- 15 MCP tools across 9 subpackages
 
 ---
 
@@ -257,14 +257,15 @@ Mutating tool calls support `idempotency_key`. Replayed keys within a session re
 
 ## Implementation Phases
 
-| Phase | Duration | Deliverables |
-|-------|----------|-------------|
-| **1.0: Contract Foundation** | 1-2 days | Response envelope, error taxonomy, lifecycle state machine, idempotency |
-| **1: MCP Core** | 4-5 days | Patterns, drift, routing, codebase indexer tools |
-| **4: Auto-Installer** | 2-3 days | AI tool detection, agent copying, MCP registration |
-| **6: Package & Publish** | 2-3 days | PyPI publishing, Docker image, documentation |
-
-**Total estimated: 12-18 days**
+| Phase | Duration | Deliverables | Status |
+|-------|----------|-------------|--------|
+| **1.0: Contract Foundation** | 1-2 days | Response envelope, error taxonomy, lifecycle state machine, idempotency | ✅ Complete |
+| **1: MCP Core** | 4-5 days | Patterns, drift, routing, skills, codebase indexer tools | ✅ Complete |
+| **2: Metrics System** | 3-4 days | Token tracking, session reports, cost calculation | ❌ Not implemented |
+| **3: Session Parsers** | 2-3 days | OpenCode and Claude Code session file parsers | ❌ Not implemented |
+| **4: Auto-Installer** | 2-3 days | AI tool detection, agent copying, MCP registration | ✅ Complete |
+| **5: CLI Dashboard** | 2-3 days | Terminal-based metrics dashboard | ❌ Not implemented |
+| **6: Package & Publish** | 2-3 days | PyPI publishing, Docker image, documentation | ⚠️ Partially complete |
 
 ---
 
