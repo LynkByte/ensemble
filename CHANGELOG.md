@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `skill_file_cache` SQLite table for mtime-based caching of skill file content and pre-computed embeddings
 - `metrics_backfill` MCP tool — backfill session steps with real token data from OpenCode or Claude Code session files
 - `backfill` CLI command — `ensemble-mcp backfill [--session-id X] [--force] [--ai-tool opencode|claude-code]`
 - `reasoning_tokens` column on the `steps` table (schema v2 migration)
@@ -19,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Watcher engine (`watcher.py`) with debounced filesystem events (Claude Code via watchdog) and mtime polling (OpenCode SQLite WAL)
 
 ### Changed
+- `skills_discover` now uses cached embeddings from SQLite instead of re-reading files and recomputing on every call
+- `_scan_skill_files` refactored to use incremental mtime-based refresh (same pattern as `project_index`)
+- Schema version bumped from 3 to 4
 - Skill workflow (`ensemble-mcp-workflow.md`) now promotes `metrics_backfill` from optional to standard post-pipeline step
 - `parsers/__init__.py` expanded: `detect_ai_tool()` checks 6 tools (2 active + 4 stubs); `parse_latest_session()` dispatcher handles aliases (`github-copilot`, `github_copilot`, `codeium`)
 

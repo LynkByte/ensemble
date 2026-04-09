@@ -499,7 +499,10 @@ Scan tool-native skill locations and return relevant skills. Optionally filter b
 
 The `snippets` field is only present when a `query` is provided.
 
-**Possible errors:** None
+**Caching:** Skill file content and embeddings are cached in SQLite with mtime-based invalidation. The first call indexes skill files and computes embeddings; subsequent calls reuse cached data and only re-process files that have changed on disk. Deleted files are automatically cleaned up from the cache.
+
+**Possible errors:**
+- `NOT_FOUND_PROJECT` — project_path directory does not exist
 
 ---
 

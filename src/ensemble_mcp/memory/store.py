@@ -9,7 +9,9 @@ at ``~/.cache/ensemble-mcp/data.db``.
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +27,7 @@ from ..state.locks import get_connection
 logger = logging.getLogger(__name__)
 
 # Current schema version — bump when adding new migrations.
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 5
 
 
 class VectorStore:
@@ -120,6 +122,8 @@ class VectorStore:
                 name TEXT NOT NULL,
                 kind TEXT NOT NULL,
                 line_number INTEGER,
+                signature TEXT,
+                docstring TEXT,
                 UNIQUE(file_id, name, kind)
             );
             CREATE INDEX IF NOT EXISTS idx_file_exports_file
@@ -187,6 +191,22 @@ class VectorStore:
             CREATE INDEX IF NOT EXISTS idx_skill_usage_last_matched
                 ON skill_usage_tracking(last_matched_at);
 
+            -- Skill File Cache (mtime-based, mirrors project_index pattern)
+            CREATE TABLE IF NOT EXISTS skill_file_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_path TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                name TEXT NOT NULL,
+                source_tool TEXT NOT NULL,
+                content TEXT NOT NULL,
+                embedding BLOB NOT NULL,
+                modified_at TEXT NOT NULL,
+                cached_at TEXT DEFAULT (datetime('now')),
+                UNIQUE(project_path, file_path)
+            );
+            CREATE INDEX IF NOT EXISTS idx_skill_cache_project
+                ON skill_file_cache(project_path);
+
             -- Session Checkpoints
             CREATE TABLE IF NOT EXISTS session_checkpoints (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -205,6 +225,12 @@ class VectorStore:
         existing = self.conn.execute("SELECT MAX(version) FROM schema_version").fetchone()[0]
         if existing is None:
             existing = 0
+
+        if existing < 5:
+            with contextlib.suppress(sqlite3.OperationalError):
+                self.conn.execute("ALTER TABLE file_exports ADD COLUMN signature TEXT")
+            with contextlib.suppress(sqlite3.OperationalError):
+                self.conn.execute("ALTER TABLE file_exports ADD COLUMN docstring TEXT")
 
         if existing < SCHEMA_VERSION:
             self.conn.execute(
