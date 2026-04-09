@@ -14,9 +14,7 @@ title: Future Plans
 
 ### 1.1 Overview
 
-Phase 5 currently delivers a **CLI dashboard** (`ensemble-mcp dashboard`) for quick terminal-based metrics viewing. The web dashboard extends this with a **local-only browser interface** served on `localhost` for richer data visualization and deeper analysis.
-
-Both dashboards coexist — the CLI for quick checks, the web UI for deep dives.
+The web dashboard provides a **local-only browser interface** served on `localhost` for richer data visualization and deeper analysis of patterns, projects, and skills.
 
 ### 1.2 Architecture
 
@@ -175,7 +173,7 @@ Building on the read-only v1 dashboard, v2 adds write operations:
 
 ## 3. Real-Time Live View
 
-WebSocket-based live updates showing tokens and cost as a pipeline runs in real time.
+WebSocket-based live updates showing activity as a pipeline runs in real time.
 
 ```mermaid
 sequenceDiagram
@@ -184,9 +182,9 @@ sequenceDiagram
     participant WS as WebSocket Server
     participant BR as Browser
 
-    AI->>MCP: metrics_record_step(agent=scope, ...)
+    AI->>MCP: patterns_store(name=..., ...)
     MCP->>MCP: Write to SQLite
-    MCP->>WS: Emit "step_recorded" event
+    MCP->>WS: Emit "pattern_stored" event
     WS->>BR: Push update via WebSocket
     BR->>BR: Update charts in real time
 ```
@@ -195,7 +193,7 @@ sequenceDiagram
 |-----------|--------|
 | Server | `websockets` library or `aiohttp` WebSocket support |
 | Client | Native `WebSocket` API in browser |
-| Protocol | JSON messages with event types: `step_recorded`, `session_started`, `session_ended` |
+| Protocol | JSON messages with event types: `pattern_stored`, `pattern_pruned`, `project_indexed` |
 
 **Estimated effort:** 2-3 days on top of v1 dashboard.
 
@@ -739,7 +737,7 @@ graph LR
 
 | Priority | Feature | Est. Effort | Depends On |
 |----------|---------|-------------|------------|
-| **High** | Web Dashboard v1 (read-only) | 3-4 days | Phase 5 CLI dashboard |
+| **High** | Web Dashboard v1 (read-only) | 3-4 days | Core MCP tools stable |
 | **High** | Skill Intelligence (auto-detect & pattern-to-skill graduation) | 5 days | Phase 1 patterns + skills tools stable |
 | **Medium** | Embedding Model Upgrade (chunking or model swap) | 1-2 days | Drift/skills accuracy feedback |
 | **Medium** | Report Export (CSV/PDF/JSON) | 2-3 days | Dashboard v1 |

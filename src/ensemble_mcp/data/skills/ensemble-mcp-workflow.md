@@ -1,11 +1,11 @@
 ---
 name: ensemble-mcp-workflow
-description: Workflow instructions for invoking ensemble-mcp tools during AI agent pipelines. Load this skill to enable automatic memory, cost tracking, drift detection, model routing, and skills discovery.
+description: Workflow instructions for invoking ensemble-mcp tools during AI agent pipelines. Load this skill to enable automatic memory, drift detection, model routing, and skills discovery.
 ---
 
 # Ensemble MCP Workflow
 
-This skill tells you **when and how** to call ensemble-mcp tools during your work. These tools provide persistent memory, cost tracking, drift detection, smart model routing, codebase indexing, and skills discovery.
+This skill tells you **when and how** to call ensemble-mcp tools during your work. These tools provide persistent memory, drift detection, smart model routing, codebase indexing, and skills discovery.
 
 **Graceful degradation:** If any ensemble-mcp tool call fails or the tools are not available (no MCP server connected), skip that step silently and continue your work normally. Never let a missing tool block the pipeline.
 
@@ -15,13 +15,6 @@ This skill tells you **when and how** to call ensemble-mcp tools during your wor
 
 | Tool | When to Call | Required Parameters |
 |------|-------------|-------------------|
-| `metrics_start_session` | Start of every task | `task`, `classification` |
-| `metrics_record_step` | After each agent completes work | `session_id`, `agent` |
-| `metrics_end_session` | Task complete or failed | `session_id`, `status` |
-| `metrics_session_report` | When user asks about session cost | `session_id` |
-| `metrics_trend` | When user asks about cost over time | `days` (optional) |
-| `metrics_compare` | When user asks to compare sessions | `session_id_a`, `session_id_b` |
-| `metrics_backfill` | After session completes, to backfill real token data from AI tool files | *(none — defaults to latest session)* |
 | `patterns_search` | Before planning/implementing | `query` |
 | `patterns_store` | After successful task completion | `name`, `context`, `approach`, `outcome` |
 | `patterns_prune` | Periodic maintenance | *(none required)* |
@@ -47,19 +40,16 @@ When working within the multi-agent pipeline (Captain orchestrating Architect, E
 ### Pre-Pipeline (Captain, before Step 1)
 
 ```
-1. metrics_start_session(task=<user's request summary>, classification=<trivial|simple|standard|complex>)
-   → Save the returned session_id for all subsequent calls
-
-2. patterns_search(query=<user's request as natural language>)
+1. patterns_search(query=<user's request as natural language>)
    → Pass any relevant findings to the Architect as "Prior approaches"
 
-3. project_index(project_path=<project root>)
+2. project_index(project_path=<project root>)
    → Only needed once per project, or when force=true for refresh
 
-4. skills_discover(project_path=<project root>, query=<task-relevant keywords>)
+3. skills_discover(project_path=<project root>, query=<task-relevant keywords>)
    → Pass discovered skills to the Architect and Engineer
 
-5. model_recommend(agent="scope", task_classification=<trivial|simple|standard|complex>)
+4. model_recommend(agent="scope", task_classification=<trivial|simple|standard|complex>)
    → Use the returned tier (best/mid/cheapest) as a routing hint when invoking each agent
    → Call model_recommend before each subsequent agent invocation as well
    → If User Configuration defines model overrides, those take precedence
@@ -68,7 +58,7 @@ When working within the multi-agent pipeline (Captain orchestrating Architect, E
 ### Hooks Check (Pre-Pipeline)
 
 ```
-6. Check if .opencode/hooks.md exists in the project root
+5. Check if .opencode/hooks.md exists in the project root
    → If found, read it and execute any "pre-pipeline" hooks before Step 1
    → Execute "pre-step" hooks before each agent invocation
    → Execute "post-step" hooks after each agent returns
@@ -79,23 +69,16 @@ When working within the multi-agent pipeline (Captain orchestrating Architect, E
 ### User Configuration (Pre-Pipeline)
 
 ```
-7. Check for .opencode/team-config.json (project-level) or ~/.config/opencode/team-config.json (global)
+6. Check for .opencode/team-config.json (project-level) or ~/.config/opencode/team-config.json (global)
    → If found, load model tier mappings, per-agent overrides, and pipeline budget overrides
    → Config takes precedence over model_recommend suggestions and agent frontmatter defaults
    → If not found, use default agent frontmatter values
 ```
 
-### After Step 1: PLAN+EXPLORE (Captain)
-
-```
-5. metrics_record_step(session_id=<id>, agent="scope")
-   → Optional: include input_text/output_text for token estimation
-```
-
 ### After Step 2: IMPLEMENT (Captain)
 
 ```
-6. drift_check(
+7. drift_check(
        task_description=<original user request>,
        changed_files=<list of files the Engineer modified>,
        diff_summary=<brief summary of what changed>
@@ -104,33 +87,17 @@ When working within the multi-agent pipeline (Captain orchestrating Architect, E
      list flagged files, and ask whether to proceed or revert
    → If "aligned" or "minor_drift": proceed normally
 
-7. Also perform the prompt-based 3-point drift check:
+8. Also perform the prompt-based 3-point drift check:
    → Scope match: do changed files match the Architect's plan?
    → File relevance: are changes related to the task?
    → Scope creep: were unrequested features added?
    → These are soft warnings, logged in the pipeline report
-
-8. metrics_record_step(session_id=<id>, agent="craft")
 ```
-
-### After Steps 3+4: BUILD+TEST + REVIEW (Captain)
-
-For standard and complex tasks, steps 3 and 4 run in **parallel**:
-- Invoke @team-forge and @team-lens simultaneously
-- Inspector reviews the code BEFORE formatting (logical changes, not style)
-- Both must complete before proceeding to GIT
-
-```
-9. metrics_record_step(session_id=<id>, agent="forge")
-10. metrics_record_step(session_id=<id>, agent="lens")
-```
-
-For simple tasks, run Forge first, then Inspector (sequential).
 
 ### Post-Pipeline (Captain, after final step)
 
 ```
-10. patterns_store(
+9. patterns_store(
         name=<short descriptive name for the approach>,
         context=<what problem was being solved>,
         approach=<how it was solved>,
@@ -139,15 +106,7 @@ For simple tasks, run Forge first, then Inspector (sequential).
     → Only store on successful or partially successful completions
     → Do NOT store on complete failures (nothing useful to remember)
 
-11. metrics_end_session(session_id=<id>, status=<completed|failed|killed>)
-
-12. metrics_backfill(session_id=<id>)
-     → Backfill real token/cost data from AI tool session files
-     → Call AFTER metrics_end_session to allow the AI tool to flush data to disk
-     → This is a standard post-pipeline step (not optional)
-     → If it returns no matches, that's fine — the session still has estimated data
-
-13. session_save(session_id=<id>, state=<final pipeline state>)
+10. session_save(session_id=<id>, state=<final pipeline state>)
     → Only for standard/complex tasks
 ```
 
@@ -168,57 +127,48 @@ When working as a single agent (no pipeline, just one AI assistant), use a simpl
 ### Start of Task
 
 ```
-1. metrics_start_session(task=<what the user asked>, classification=<estimate>)
-2. patterns_search(query=<task description>)
+1. patterns_search(query=<task description>)
    → Use findings to inform your approach
-3. project_index(project_path=<project root>)
+2. project_index(project_path=<project root>)
    → If not already indexed
 ```
 
 ### During Work
 
 ```
-4. project_query(project_path=<root>, query=<what you're looking for>)
+3. project_query(project_path=<root>, query=<what you're looking for>)
    → Use instead of raw file searches when possible
-5. project_dependencies(project_path=<root>, file_path=<file>)
+4. project_dependencies(project_path=<root>, file_path=<file>)
    → Before making structural changes to understand import/export graph
-6. skills_discover(project_path=<root>, query=<relevant domain>)
+5. skills_discover(project_path=<root>, query=<relevant domain>)
    → Find and load project-specific skills
 ```
 
 ### After Implementation
 
 ```
-7. drift_check(task_description=<original request>, changed_files=[...], diff_summary="...")
+6. drift_check(task_description=<original request>, changed_files=[...], diff_summary="...")
    → Verify you stayed on task
 ```
 
 ### End of Task
 
 ```
-8. patterns_store(name=..., context=..., approach=..., outcome=...)
+7. patterns_store(name=..., context=..., approach=..., outcome=...)
     → On success, save for future recall
-9. metrics_end_session(session_id=<id>, status="completed")
-10. metrics_backfill(session_id=<id>)
-    → Backfill real token data from AI tool session files
-    → Call after metrics_end_session so the AI tool has flushed data to disk
 ```
 
 ### On Demand (when user asks)
 
 ```
-- "How much did that cost?" → metrics_session_report(session_id=<id>)
-- "What's my spend this week?" → metrics_trend(days=7)
-- "Compare those two sessions" → metrics_compare(session_id_a=..., session_id_b=...)
 - "Any skill suggestions?" → skills_suggest(project_path=<root>)
-- "Backfill real token data" → metrics_backfill(session_id="sess_xxx") or metrics_backfill() for latest
 ```
 
 ---
 
 ## Agent Name Mapping
 
-When calling `metrics_record_step` or `model_recommend`, use these agent names:
+When calling `model_recommend`, use these agent names:
 
 | Pipeline Agent | ensemble-mcp agent name |
 |---------------|------------------------|
@@ -234,7 +184,7 @@ When calling `metrics_record_step` or `model_recommend`, use these agent names:
 
 ## Classification Guide
 
-When calling `metrics_start_session`, classify the task:
+When classifying tasks:
 
 | Classification | When to use |
 |---------------|------------|
@@ -260,12 +210,3 @@ When calling `metrics_start_session`, classify the task:
 - **task_description**: Use the user's original request, not your rephrasing
 - **changed_files**: Full relative paths of all files modified
 - **diff_summary**: 1-3 sentences summarizing what the changes do (not a git diff)
-
-### metrics_record_step — token tracking
-
-Priority order for token data (use the first available):
-1. Direct fields: `input_tokens`, `output_tokens`, `cache_read_tokens`, etc.
-2. Raw provider payload: `usage_raw` (Anthropic or OpenAI format, auto-detected)
-3. Text estimation: `input_text`, `output_text` (tiktoken fallback)
-
-If you have none of these, call the tool with just `session_id` and `agent` — it will record the step without token data.

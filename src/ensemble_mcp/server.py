@@ -1,6 +1,6 @@
 """MCP server setup and tool registration.
 
-Registers all 22 tools with the MCP protocol and runs the stdio server.
+Registers all 15 tools with the MCP protocol and runs the stdio server.
 """
 
 from __future__ import annotations
@@ -21,7 +21,6 @@ from .security.trust import require_confirmation
 from .tools import (
     drift,
     indexer,
-    metrics,
     patterns,
     routing,
     session,
@@ -84,158 +83,6 @@ TOOL_DEFINITIONS: list[Tool] = [
             "properties": {
                 "max_age_days": {"type": "integer", "default": 90},
                 "min_score": {"type": "number", "default": 0.3},
-                "idempotency_key": {"type": "string"},
-            },
-        },
-    ),
-    # ── Metrics ──
-    Tool(
-        name="metrics_start_session",
-        description="Start tracking a pipeline session. Returns a session_id.",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "task": {"type": "string", "description": "Task description"},
-                "classification": {
-                    "type": "string",
-                    "description": "trivial/simple/standard/complex",
-                },
-                "ai_tool": {"type": "string", "description": "opencode/claude-code/copilot/etc"},
-                "project": {"type": "string", "description": "Project path"},
-                "idempotency_key": {"type": "string"},
-            },
-            "required": ["task", "classification"],
-        },
-    ),
-    Tool(
-        name="metrics_record_step",
-        description=(
-            "Record per-agent token/cost usage for a pipeline step. "
-            "Supports 3-tier source precedence: "
-            "direct fields > usage_raw payload > tiktoken estimation."
-        ),
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "session_id": {"type": "string"},
-                "agent": {"type": "string", "description": "Agent name (ensemble/scope/craft/etc)"},
-                "input_tokens": {"type": "integer"},
-                "output_tokens": {"type": "integer"},
-                "cache_read_tokens": {"type": "integer"},
-                "cache_write_tokens": {"type": "integer"},
-                "web_search_requests": {"type": "integer"},
-                "cached_tokens": {"type": "integer"},
-                "usage_raw": {
-                    "type": "object",
-                    "description": (
-                        "Raw provider/runtime usage payload (Anthropic or OpenAI format). "
-                        "Auto-detected. Overridden by explicit token fields."
-                    ),
-                },
-                "provider": {
-                    "type": "string",
-                    "description": (
-                        "Provider hint: 'anthropic' or 'openai'. Auto-detected if omitted."
-                    ),
-                },
-                "model": {"type": "string"},
-                "source": {
-                    "type": "string",
-                    "description": (
-                        "Source label: live_response_usage/session_parser/estimator/hybrid"
-                    ),
-                },
-                "confidence": {
-                    "type": "string",
-                    "description": "Confidence: exact/partial/estimated",
-                },
-                "input_text": {
-                    "type": "string",
-                    "description": (
-                        "Input text for tiktoken estimation fallback (when no token counts)."
-                    ),
-                },
-                "output_text": {
-                    "type": "string",
-                    "description": (
-                        "Output text for tiktoken estimation fallback (when no token counts)."
-                    ),
-                },
-                "duration_ms": {"type": "integer"},
-                "idempotency_key": {"type": "string"},
-            },
-            "required": ["session_id", "agent"],
-        },
-    ),
-    Tool(
-        name="metrics_end_session",
-        description="Finalize a session, compute totals.",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "session_id": {"type": "string"},
-                "status": {"type": "string", "default": "completed"},
-                "idempotency_key": {"type": "string"},
-            },
-            "required": ["session_id"],
-        },
-    ),
-    Tool(
-        name="metrics_session_report",
-        description="Generate a formatted session report with per-agent breakdown.",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "session_id": {"type": "string"},
-            },
-            "required": ["session_id"],
-        },
-    ),
-    Tool(
-        name="metrics_trend",
-        description="Cost/token trends over the last N days.",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "days": {"type": "integer", "default": 30},
-            },
-        },
-    ),
-    Tool(
-        name="metrics_compare",
-        description="Compare two sessions side by side.",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "session_id_a": {"type": "string"},
-                "session_id_b": {"type": "string"},
-            },
-            "required": ["session_id_a", "session_id_b"],
-        },
-    ),
-    Tool(
-        name="metrics_backfill",
-        description=(
-            "Backfill step records with real token data from AI tool session files. "
-            "Reads actual usage from OpenCode or Claude Code and retroactively "
-            "updates steps that were recorded with zero or estimated tokens."
-        ),
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "session_id": {
-                    "type": "string",
-                    "description": "Session to backfill. Defaults to the most recent session.",
-                },
-                "force": {
-                    "type": "boolean",
-                    "default": False,
-                    "description": "Overwrite steps that already have real token data.",
-                },
-                "ai_tool": {
-                    "type": "string",
-                    "description": "Override AI tool detection: 'opencode' or 'claude-code'.",
-                },
                 "idempotency_key": {"type": "string"},
             },
         },
@@ -427,22 +274,6 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]
         case "patterns_prune":
             return cast(dict[str, Any], await patterns.patterns_prune(store, **arguments))
 
-        # Metrics
-        case "metrics_start_session":
-            return cast(dict[str, Any], await metrics.metrics_start_session(conn, **arguments))
-        case "metrics_record_step":
-            return cast(dict[str, Any], await metrics.metrics_record_step(conn, **arguments))
-        case "metrics_end_session":
-            return cast(dict[str, Any], await metrics.metrics_end_session(conn, **arguments))
-        case "metrics_session_report":
-            return cast(dict[str, Any], await metrics.metrics_session_report(conn, **arguments))
-        case "metrics_trend":
-            return cast(dict[str, Any], await metrics.metrics_trend(conn, **arguments))
-        case "metrics_compare":
-            return cast(dict[str, Any], await metrics.metrics_compare(conn, **arguments))
-        case "metrics_backfill":
-            return cast(dict[str, Any], await metrics.metrics_backfill(conn, **arguments))
-
         # Drift
         case "drift_check":
             return cast(dict[str, Any], await drift.drift_check(model, conn, **arguments))
@@ -526,9 +357,7 @@ async def _reset(store: VectorStore, *, confirm: bool = False, **_: Any) -> dict
     # Drop all data
     tables = [
         "patterns",
-        "steps",
         "mcp_calls",
-        "sessions",
         "file_exports",
         "file_imports",
         "project_files",

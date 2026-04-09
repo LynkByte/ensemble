@@ -125,39 +125,6 @@ INDEXER_IGNORED_EXTENSIONS: set[str] = {
     ".lock",
 }
 
-# ── Parser Paths ──────────────────────────────────────────────────
-OPENCODE_DB_PATH = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
-CLAUDE_PROJECTS_DIR = Path.home() / ".claude" / "projects"
-
-# Stub parser paths — tools detected but not yet parsable for token data
-CURSOR_AI_TRACKING_DB = Path.home() / ".cursor" / "ai-tracking" / "ai-code-tracking.db"
-CURSOR_CONFIG_DIR = Path.home() / ".config" / "Cursor"
-COPILOT_CHAT_DIR = (
-    Path.home() / ".config" / "Code" / "User" / "globalStorage" / "github.copilot-chat"
-)
-COPILOT_STATE_DB = Path.home() / ".config" / "Code" / "User" / "globalStorage" / "state.vscdb"
-WINDSURF_CASCADE_DIR = Path.home() / ".codeium" / "windsurf" / "cascade"
-WINDSURF_CONFIG_DIR = Path.home() / ".config" / "Windsurf"
-DEVIN_CONFIG_DIR = Path.home() / ".config" / "cognition"
-
-# ── Watcher Defaults ──────────────────────────────────────────────
-DEFAULT_WATCH_DEBOUNCE_SECONDS = 5
-DEFAULT_WATCH_POLL_INTERVAL_SECONDS = 10
-
 # ── Server Metadata ───────────────────────────────────────────────
 SERVER_NAME = "ensemble-mcp"
 SERVER_VERSION = "0.1.0"
-
-# ── Confidence Levels ─────────────────────────────────────────────
-CONFIDENCE_EXACT = "exact"
-CONFIDENCE_PARTIAL = "partial"
-CONFIDENCE_ESTIMATED = "estimated"
-
-# ── Source Labels ─────────────────────────────────────────────────
-SOURCE_SQLITE = "sqlite"
-SOURCE_LIVE_RESPONSE = "live_response_usage"
-SOURCE_PARSER = "session_parser"
-SOURCE_ESTIMATOR = "estimator"
-SOURCE_HYBRID = "hybrid"
-SOURCE_LOCAL = "local"
-SOURCE_BACKFILL = "backfill"

@@ -4,11 +4,11 @@ title: Home
 
 # Ensemble
 
-> Multi-agent orchestration system with a companion Python MCP server for vector memory, cost tracking, drift detection, and codebase indexing.
+> Multi-agent orchestration system with a companion Python MCP server for vector memory, drift detection, and codebase indexing.
 
 **Status:** Implementation Complete (Phases 1.0 through 5)
 **Version:** 1.0
-**Package:** `ensemble-mcp` -- 22 MCP tools across 9 subpackages
+**Package:** `ensemble-mcp` -- 15 MCP tools across 7 subpackages
 
 ---
 
@@ -25,7 +25,6 @@ Ensemble is a **7-agent pipeline** for AI-assisted software engineering. Each ag
 The current orchestration system works well but lacks:
 
 - **Memory** -- no learning from past pipelines; same mistakes repeat
-- **Cost visibility** -- no unified cross-tool token/cost tracking with confidence metadata
 - **Drift detection** -- agents can silently deviate from the plan
 - **Smart routing** -- model assignment is static, not task-aware
 - **Codebase indexing** -- Scope re-explores from scratch every run, wasting tokens on repeat visits
@@ -35,7 +34,7 @@ The current orchestration system works well but lacks:
 
 ## The Solution
 
-`ensemble-mcp` -- a Python MCP server providing vector memory, hybrid token/cost tracking, drift detection, model routing, codebase indexing, and metrics. Distributed via `uvx` for zero-hassle cross-platform installation. Works with any MCP-compatible AI tool.
+`ensemble-mcp` -- a Python MCP server providing vector memory, drift detection, model routing, codebase indexing, and skills discovery. Distributed via `uvx` for zero-hassle cross-platform installation. Works with any MCP-compatible AI tool.
 
 ---
 
@@ -43,9 +42,6 @@ The current orchestration system works well but lacks:
 
 ### Vector Memory
 Semantic pattern search using ONNX Runtime + MiniLM-L6-v2 embeddings. Stores learned patterns from past pipelines in SQLite. Returns top-K matches by cosine similarity instead of dumping the full patterns file into context.
-
-### Token & Cost Tracking
-Hybrid approach with source-precedence: direct runtime usage (exact) > session file parsers (exact/partial) > tiktoken estimation (fallback). Every metric carries a confidence indicator: `exact`, `partial`, or `estimated`.
 
 ### Drift Detection
 Cosine similarity between task description embeddings and diff content embeddings. Returns a 0-1 drift score with specific flags for unexpected file changes, unrelated modifications, and scope creep.
@@ -79,7 +75,6 @@ graph TB
 
         subgraph "Tools Layer"
             T1[patterns.py<br/>search / store / prune]
-            T2[metrics.py<br/>sessions / steps / reports]
             T3[drift.py<br/>scope checking]
             T4[routing.py<br/>model recommendations]
             T5[skills.py<br/>discovery + intelligence]
@@ -93,7 +88,7 @@ graph TB
             M3[similarity.py<br/>Cosine Similarity]
         end
 
-        SRV --> T1 & T2 & T3 & T4 & T5 & T6 & T7
+        SRV --> T1 & T3 & T4 & T5 & T6 & T7
         T1 --> M2
         T3 --> M1 & M3
         M2 --> M1 & M3
@@ -178,25 +173,17 @@ Zero-hassle: `uvx` auto-downloads Python if not installed. Works on Mac, Linux, 
 
 ---
 
-## MCP Tools (22 total)
+## MCP Tools (15 total)
 
 All tools return a standardized envelope: `{ ok, data, error, meta: { duration_ms, source, confidence } }`.
 
 ```mermaid
 mindmap
-    root((ensemble-mcp<br/>22 Tools))
+    root((ensemble-mcp<br/>15 Tools))
         Patterns
             patterns_search
             patterns_store
             patterns_prune
-        Metrics
-            metrics_start_session
-            metrics_record_step
-            metrics_end_session
-            metrics_session_report
-            metrics_trend
-            metrics_compare
-            metrics_backfill
         Drift
             drift_check
         Routing
@@ -220,7 +207,6 @@ mindmap
 | Category | Tools | Description |
 |----------|-------|-------------|
 | **Patterns** | `patterns_search`, `patterns_store`, `patterns_prune` | Semantic pattern memory -- store, search, and prune learned patterns |
-| **Metrics** | `metrics_start_session`, `metrics_record_step`, `metrics_end_session`, `metrics_session_report`, `metrics_trend`, `metrics_compare`, `metrics_backfill` | Per-agent token/cost tracking with confidence indicators |
 | **Drift** | `drift_check` | Cosine similarity between task and changes, returns 0-1 score |
 | **Routing** | `model_recommend` | Recommend model tier based on agent + task classification |
 | **Skills** | `skills_discover`, `skills_suggest`, `skills_generate` | Cross-tool skill discovery, auto-suggestion from recurring patterns, stale skill detection |
@@ -252,7 +238,6 @@ mindmap
 | MCP Framework | `mcp` (official SDK) | Standard MCP protocol implementation |
 | Embeddings | ONNX Runtime + MiniLM-L6-v2 | ~22MB model, no PyTorch (~2.4GB saved) |
 | Vector Storage | SQLite + numpy | Zero external deps, <1ms search over <10K vectors |
-| Token Counting | tiktoken | Local BPE tokenizer, ~85-95% accurate fallback |
 | Package Size | ~90MB total | Including ONNX runtime + model |
 
 ---
@@ -260,13 +245,10 @@ mindmap
 ## Design Principles
 
 ### Zero-LLM-Call
-The MCP server makes **zero LLM/API calls**. All intelligence is local: ONNX embeddings (~5ms), numpy cosine similarity, tiktoken counting, SQLite storage. No API keys required, no additional cost, works offline.
+The MCP server makes **zero LLM/API calls**. All intelligence is local: ONNX embeddings (~5ms), numpy cosine similarity, SQLite storage. No API keys required, no additional cost, works offline.
 
 ### Contract-First API
 All tools return a normalized envelope with `ok`, `data`, `error`, and `meta` (including `confidence` and `source`). Error responses use a structured taxonomy (`VALIDATION_*`, `NOT_FOUND_*`, `CONFLICT_*`, `TIMEOUT_*`) with retry guidance.
-
-### Hybrid Token Tracking
-Source-precedence model: direct runtime usage (exact) > session file parsers (exact/partial) > tiktoken estimation (fallback). Every metric carries accuracy indicators so users always know how trustworthy the numbers are.
 
 ### Idempotent Operations
 Mutating tool calls support `idempotency_key`. Replayed keys within a session return the previously committed result instead of applying changes twice.
@@ -279,13 +261,10 @@ Mutating tool calls support `idempotency_key`. Replayed keys within a session re
 |-------|----------|-------------|
 | **1.0: Contract Foundation** | 1-2 days | Response envelope, error taxonomy, lifecycle state machine, idempotency |
 | **1: MCP Core** | 4-5 days | Patterns, drift, routing, codebase indexer tools |
-| **2: Metrics System** | 3-4 days | Token tracking, session reports, cost calculation |
-| **3: Session Parsers** | 2-3 days | OpenCode + Claude Code session file parsers |
 | **4: Auto-Installer** | 2-3 days | AI tool detection, agent copying, MCP registration |
-| **5: CLI + Web Dashboard** | 5-7 days | Terminal dashboard + local web UI (Alpine.js + Chart.js) |
 | **6: Package & Publish** | 2-3 days | PyPI publishing, Docker image, documentation |
 
-**Total estimated: 22-30 days**
+**Total estimated: 12-18 days**
 
 ---
 

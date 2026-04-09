@@ -41,7 +41,6 @@ This installs the `ensemble-mcp` CLI command and all runtime dependencies:
 | `mcp>=1.0` | MCP protocol server |
 | `onnxruntime>=1.17` | ONNX model inference for embeddings |
 | `numpy>=1.26` | Vector math (cosine similarity) |
-| `tiktoken>=0.6` | Token counting |
 | `tokenizers>=0.15` | HuggingFace tokenizer for MiniLM |
 
 ## Running the Server
@@ -63,7 +62,7 @@ On first startup, ensemble-mcp will:
 1. Create `~/.cache/ensemble-mcp/` directory
 2. Download the ONNX MiniLM-L6-v2 model (~22 MB) to `~/.cache/ensemble-mcp/models/`
 3. Create the SQLite database at `~/.cache/ensemble-mcp/data.db` with WAL mode enabled
-4. Initialize all 12 tables and indexes
+4. Initialize all 11 tables and indexes
 
 The model download is a one-time operation. Subsequent starts are fast (~50ms).
 
@@ -207,56 +206,6 @@ ensemble-mcp add-skills --tools opencode
 ```
 
 These commands do **not** touch MCP config files — they only copy agent/skill files. They also do not require the AI tool to be installed, so you can pre-seed files before setting up the tool.
-
-### Backfilling Session Metrics
-
-If you have existing sessions with estimated token data, you can backfill them with real token usage from OpenCode or Claude Code session files:
-
-```bash
-# Backfill all sessions
-ensemble-mcp backfill
-
-# Backfill a specific session
-ensemble-mcp backfill --session-id <session-id>
-
-# Force re-backfill sessions that already have exact data
-ensemble-mcp backfill --force
-
-# Target a specific AI tool's session files
-ensemble-mcp backfill --ai-tool opencode
-ensemble-mcp backfill --ai-tool claude-code
-```
-
-### Automatic Backfill (File Watcher)
-
-The `watch` command monitors AI tool session files and automatically triggers backfill when changes are detected:
-
-```bash
-# Install the optional watchdog dependency
-pip install ensemble-mcp[watch]
-
-# Start the watcher (blocks until Ctrl+C)
-ensemble-mcp watch
-
-# Customize debounce and poll intervals
-ensemble-mcp watch --debounce 10 --poll-interval 30
-
-# Watch a specific AI tool only
-ensemble-mcp watch --ai-tool opencode
-ensemble-mcp watch --ai-tool claude-code
-```
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--debounce` | 5 | Seconds to wait after last change before triggering backfill |
-| `--poll-interval` | 10 | Seconds between mtime polls for OpenCode DB |
-| `--ai-tool` | auto | Override tool detection: `opencode` or `claude-code` |
-| `--db-path` | default | Override the ensemble-mcp database path |
-
-**How it works:**
-- **Claude Code**: Uses `watchdog` filesystem events on `~/.claude/projects/` for `.jsonl` changes
-- **OpenCode**: Polls the SQLite DB modification time (WAL mode makes inotify unreliable)
-- Both strategies debounce rapid changes to prevent repeated backfills during burst writes
 
 | Flag | Description |
 |------|-------------|
