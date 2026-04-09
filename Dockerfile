@@ -13,7 +13,7 @@ FROM python:3.11-slim
 
 LABEL maintainer="Sanjaya De Silva <sanjaya@example.com>"
 LABEL org.opencontainers.image.title="ensemble-mcp"
-LABEL org.opencontainers.image.description="MCP server for vector memory, token tracking, drift detection, model routing, skills discovery, session management, and codebase indexing."
+LABEL org.opencontainers.image.description="MCP server for vector memory, drift detection, model routing, skills discovery, session management, and codebase indexing."
 LABEL org.opencontainers.image.version="0.1.0"
 LABEL org.opencontainers.image.source="https://github.com/LynkByte/ensemble"
 LABEL org.opencontainers.image.licenses="MIT"

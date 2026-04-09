@@ -22,20 +22,15 @@ If ensemble-mcp tools are available, use them at these points during your analys
 
 ### Pre-Scan
 
-1. **Start tracking**: Call `metrics_start_session` with:
-   - `task`: "bug hunt" or a description of the scan focus
-   - `classification`: "standard"
-   - Save the returned `session_id` for subsequent calls
-
-2. **Search for known issues**: Call `patterns_search` with:
+1. **Search for known issues**: Call `patterns_search` with:
    - `query`: the scan focus or area being analyzed
    - Use findings to prioritize areas with known historical issues
 
-3. **Index the codebase**: Call `project_index` with:
+2. **Index the codebase**: Call `project_index` with:
    - `project_path`: the project root
    - Only needed on first run per project
 
-4. **Discover skills**: Call `skills_discover` with:
+3. **Discover skills**: Call `skills_discover` with:
    - `project_path`: the project root
    - `query`: "security bugs code quality"
    - Load discovered skills for domain-specific analysis
@@ -53,10 +48,6 @@ If ensemble-mcp tools are available, use them at these points during your analys
    - `approach`: how the issue was found
    - `outcome`: severity and recommendation
    - Only store significant/recurring findings, not every minor issue
-
-2. **End the session**: Call `metrics_end_session` with:
-   - `session_id`: from pre-scan
-   - `status`: "completed"
 
 ---
 

@@ -98,50 +98,8 @@ def test_conn(tmp_db: Path) -> Generator[sqlite3.Connection, None, None]:
             match_count INTEGER DEFAULT 0
         );
 
-        CREATE TABLE IF NOT EXISTS sessions (
-            id TEXT PRIMARY KEY,
-            task TEXT NOT NULL,
-            classification TEXT NOT NULL,
-            ai_tool TEXT,
-            project TEXT,
-            state TEXT DEFAULT 'pending',
-            started_at TEXT DEFAULT (datetime('now')),
-            ended_at TEXT,
-            status TEXT,
-            total_input_tokens INTEGER DEFAULT 0,
-            total_output_tokens INTEGER DEFAULT 0,
-            total_cached_tokens INTEGER DEFAULT 0,
-            total_cost_usd REAL DEFAULT 0,
-            report_json TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS steps (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT NOT NULL REFERENCES sessions(id),
-            agent TEXT NOT NULL,
-            model TEXT,
-            model_canonical_name TEXT,
-            state TEXT DEFAULT 'pending',
-            input_tokens INTEGER DEFAULT 0,
-            output_tokens INTEGER DEFAULT 0,
-            cache_read_tokens INTEGER DEFAULT 0,
-            cache_write_tokens INTEGER DEFAULT 0,
-            web_search_requests INTEGER DEFAULT 0,
-            cached_tokens INTEGER DEFAULT 0,
-            cost_usd REAL DEFAULT 0,
-            pricing_version TEXT,
-            source TEXT DEFAULT 'estimator',
-            duration_ms INTEGER,
-            unknown_model_cost INTEGER DEFAULT 0,
-            accuracy TEXT DEFAULT 'estimated',
-            reasoning_tokens INTEGER DEFAULT 0,
-            started_at TEXT DEFAULT (datetime('now')),
-            ended_at TEXT
-        );
-
         CREATE TABLE IF NOT EXISTS mcp_calls (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT REFERENCES sessions(id),
             tool_name TEXT NOT NULL,
             input_bytes INTEGER DEFAULT 0,
             output_bytes INTEGER DEFAULT 0,

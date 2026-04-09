@@ -4,7 +4,7 @@ Technical architecture of **ensemble-mcp** — the local MCP server powering the
 
 ## Design Principles
 
-1. **Zero-LLM-Call Principle**: The server makes no LLM or external API calls. All intelligence is local: ONNX Runtime embeddings (~5ms), numpy cosine similarity, tiktoken counting, SQLite storage.
+1. **Zero-LLM-Call Principle**: The server makes no LLM or external API calls. All intelligence is local: ONNX Runtime embeddings (~5ms), numpy cosine similarity, SQLite storage.
 
 2. **Single-Binary Simplicity**: One Python package, one SQLite database, one ONNX model. No Redis, no Postgres, no message queues.
 
@@ -24,7 +24,6 @@ ensemble-mcp server  (server.py)
     +-- Tool Dispatch (match on tool name)
     |       |
     |       +-- patterns.py    (3 tools)
-    |       +-- metrics.py     (7 tools)
     |       +-- drift.py       (1 tool)
     |       +-- routing.py     (1 tool)
     |       +-- skills.py      (3 tools)
@@ -38,7 +37,7 @@ ensemble-mcp server  (server.py)
             +-- contracts/      (response envelope + error taxonomy)
             +-- state/          (lifecycle FSM + idempotency + locks)
             +-- security/       (redaction + trust boundaries)
-            +-- config/         (layered settings + pricing tables)
+            +-- config/         (layered settings)
 ```
 
 ## Package Layout
@@ -51,7 +50,6 @@ src/ensemble_mcp/
 │
 ├── config/
 │   ├── defaults.py       # All constants and default values
-│   ├── pricing.py        # Model pricing table (7 models), calculate_cost()
 │   └── settings.py       # Layered config loader (TOML + env vars)
 │
 ├── contracts/
@@ -61,7 +59,7 @@ src/ensemble_mcp/
 ├── memory/
 │   ├── embeddings.py     # ONNX MiniLM-L6-v2, lazy load, embed()
 │   ├── similarity.py     # cosine_similarity(), search_similar(), pairwise_matrix()
-│   └── store.py          # VectorStore: 12-table schema, pattern CRUD
+│   └── store.py          # VectorStore: 11-table schema, pattern CRUD
 │
 ├── state/
 │   ├── lifecycle.py      # SessionState/StepState enums, transition functions
@@ -74,25 +72,13 @@ src/ensemble_mcp/
 │
 ├── tools/
 │   ├── patterns.py       # patterns_search, patterns_store, patterns_prune
-│   ├── metrics.py        # 7 metrics tools (start/record/end/report/trend/compare/backfill)
 │   ├── drift.py          # drift_check
 │   ├── routing.py        # model_recommend (7x4 agent-classification matrix)
 │   ├── skills.py         # skills_discover, skills_suggest, skills_generate
 │   ├── session.py        # session_save, session_load (optimistic versioning)
 │   └── indexer.py        # project_index, project_query, project_dependencies
 │
-├── parsers/              # Phase 3 — session file parsers
-│   ├── __init__.py       # ParsedStep/ParsedSession types, detect_ai_tool(), dispatcher
-│   ├── opencode.py       # OpenCode SQLite parser (~/.local/share/opencode/opencode.db)
-│   ├── claude_code.py    # Claude Code JSONL parser (~/.claude/projects/) + subagents
-│   ├── cursor.py         # Stub — Cursor (no local token data)
-│   ├── copilot.py        # Stub — GitHub Copilot (no local token data)
-│   ├── windsurf.py       # Stub — Windsurf (encrypted protobuf)
-│   └── devin.py          # Stub — Devin CLI (cloud-only)
-│
-├── watcher.py            # File watcher daemon for auto-backfill
-│
-└── installer/            # Phase 4 (not yet implemented)
+└── installer/            # Auto-detect AI tools, register MCP server
     └── setup.py          # Auto-detect AI tools, register MCP server
 ```
 
@@ -226,7 +212,7 @@ Brute-force search is sufficient for the expected scale (<10K vectors). No ANN i
 
 ## SQLite Schema
 
-All state lives in a single SQLite database (`~/.cache/ensemble-mcp/data.db`) with WAL mode enabled. The schema has 12 tables plus a version tracker:
+All state lives in a single SQLite database (`~/.cache/ensemble-mcp/data.db`) with WAL mode enabled. The schema has 11 tables plus a version tracker:
 
 ### Core Tables
 
@@ -234,8 +220,6 @@ All state lives in a single SQLite database (`~/.cache/ensemble-mcp/data.db`) wi
 |---|---|---|
 | `schema_version` | Forward-only migration tracking | `version`, `applied_at` |
 | `patterns` | Stored patterns with embeddings | `name`, `context`, `approach`, `outcome`, `embedding` (BLOB), `match_count` |
-| `sessions` | Pipeline session tracking | `id`, `task`, `classification`, `state`, `total_cost_usd` |
-| `steps` | Per-agent step metrics | `session_id`, `agent`, `model`, `input_tokens`, `output_tokens`, `cost_usd` |
 | `mcp_calls` | MCP call tracking | `tool_name`, `input_bytes`, `output_bytes`, `duration_ms` |
 
 ### Indexer Tables
@@ -281,8 +265,8 @@ pending ──> running ──> completed
                    └──> killed
 ```
 
-- `pending -> running`: Automatic on `metrics_start_session`
-- `running -> completed|failed|killed`: Via `metrics_end_session`
+- `pending -> running`: Automatic on session creation
+- `running -> completed|failed|killed`: Via session update
 - Terminal states have no outgoing transitions
 
 ### Step Lifecycle
@@ -354,22 +338,6 @@ Destructive operations (`reset`) require explicit `confirm=true`.
 
 Tiers (`best`, `mid`, `cheapest`) are abstract — the consuming agent maps them to specific models. Unknown agent/classification pairs default to `mid`.
 
-## Pricing Table
-
-`config/pricing.py` stores per-model costs in USD per 1M tokens:
-
-| Model | Input | Cached Input | Output |
-|---|---|---|---|
-| claude-opus-4 | $15.00 | $1.50 | $75.00 |
-| claude-sonnet-4 | $3.00 | $0.30 | $15.00 |
-| claude-haiku-3.5 | $0.80 | $0.08 | $4.00 |
-| gpt-4o | $2.50 | $1.25 | $10.00 |
-| gpt-4o-mini | $0.15 | $0.075 | $0.60 |
-| gpt-5-mini | $0.20 | $0.10 | $0.80 |
-| o1 | $15.00 | $7.50 | $60.00 |
-
-Pricing carries a `PRICING_VERSION` (`2026-03`) for reproducible historical reports. Unknown models fall back to `claude-sonnet-4` pricing with an `unknown_model` flag.
-
 ## Codebase Indexer
 
 `tools/indexer.py` builds a file-level codebase index:
@@ -418,7 +386,5 @@ Every setting tracks which layer it came from via `source_map` for debugging.
 | Phase | Scope | Status |
 |---|---|---|
 | 1.0 | Contract Foundation (config, errors, envelope, state, security) | Complete |
-| 1 | MCP Core (22 tools, server, tests) | Complete |
-| 2 | Metrics system (7 tools, pricing, reports) | Complete |
-| 3 | Session file parsers (OpenCode, Claude Code + 4 stubs) | Complete |
+| 1 | MCP Core (15 tools, server, tests) | Complete |
 | 4 | Auto-installer for AI tools | Complete |

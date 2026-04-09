@@ -25,15 +25,14 @@ from ..state.locks import get_connection
 logger = logging.getLogger(__name__)
 
 # Current schema version — bump when adding new migrations.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class VectorStore:
-    """SQLite-backed storage for patterns, sessions, and all server state.
+    """SQLite-backed storage for patterns and all server state.
 
     Manages:
     - Pattern embeddings (384-dim float32 BLOBs)
-    - Sessions and steps
     - MCP call tracking
     - Codebase file index
     - Skill suggestions and usage tracking
@@ -84,67 +83,15 @@ class VectorStore:
             CREATE INDEX IF NOT EXISTS idx_patterns_created
                 ON patterns(created_at);
 
-            -- Sessions
-            CREATE TABLE IF NOT EXISTS sessions (
-                id TEXT PRIMARY KEY,
-                task TEXT NOT NULL,
-                classification TEXT NOT NULL,
-                ai_tool TEXT,
-                project TEXT,
-                state TEXT DEFAULT 'pending',
-                started_at TEXT DEFAULT (datetime('now')),
-                ended_at TEXT,
-                status TEXT,
-                total_input_tokens INTEGER DEFAULT 0,
-                total_output_tokens INTEGER DEFAULT 0,
-                total_cached_tokens INTEGER DEFAULT 0,
-                total_cost_usd REAL DEFAULT 0,
-                report_json TEXT
-            );
-            CREATE INDEX IF NOT EXISTS idx_sessions_project
-                ON sessions(project);
-            CREATE INDEX IF NOT EXISTS idx_sessions_started
-                ON sessions(started_at);
-
-            -- Steps
-            CREATE TABLE IF NOT EXISTS steps (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id TEXT NOT NULL REFERENCES sessions(id),
-                agent TEXT NOT NULL,
-                model TEXT,
-                model_canonical_name TEXT,
-                state TEXT DEFAULT 'pending',
-                input_tokens INTEGER DEFAULT 0,
-                output_tokens INTEGER DEFAULT 0,
-                cache_read_tokens INTEGER DEFAULT 0,
-                cache_write_tokens INTEGER DEFAULT 0,
-                web_search_requests INTEGER DEFAULT 0,
-                cached_tokens INTEGER DEFAULT 0,
-                cost_usd REAL DEFAULT 0,
-                pricing_version TEXT,
-                source TEXT DEFAULT 'estimator',
-                duration_ms INTEGER,
-                unknown_model_cost INTEGER DEFAULT 0,
-                accuracy TEXT DEFAULT 'estimated',
-                reasoning_tokens INTEGER DEFAULT 0,
-                started_at TEXT DEFAULT (datetime('now')),
-                ended_at TEXT
-            );
-            CREATE INDEX IF NOT EXISTS idx_steps_session
-                ON steps(session_id);
-
             -- MCP Calls
             CREATE TABLE IF NOT EXISTS mcp_calls (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id TEXT REFERENCES sessions(id),
                 tool_name TEXT NOT NULL,
                 input_bytes INTEGER DEFAULT 0,
                 output_bytes INTEGER DEFAULT 0,
                 duration_ms INTEGER,
                 called_at TEXT DEFAULT (datetime('now'))
             );
-            CREATE INDEX IF NOT EXISTS idx_mcp_calls_session
-                ON mcp_calls(session_id);
 
             -- Project Files (Codebase Index)
             CREATE TABLE IF NOT EXISTS project_files (
@@ -258,14 +205,6 @@ class VectorStore:
         existing = self.conn.execute("SELECT MAX(version) FROM schema_version").fetchone()[0]
         if existing is None:
             existing = 0
-
-        # v2: add reasoning_tokens column to steps table
-        if existing < 2:
-            # Check whether the column already exists (fresh DBs have it
-            # from the CREATE TABLE above; only upgraded DBs need ALTER).
-            cols = {row[1] for row in self.conn.execute("PRAGMA table_info(steps)").fetchall()}
-            if "reasoning_tokens" not in cols:
-                self.conn.execute("ALTER TABLE steps ADD COLUMN reasoning_tokens INTEGER DEFAULT 0")
 
         if existing < SCHEMA_VERSION:
             self.conn.execute(

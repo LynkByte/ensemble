@@ -287,7 +287,6 @@ After the pipeline completes (or stops due to failure), provide a concise summar
 - Critical issues found by inspector (if any)
 - Efficiency: `Pipeline: X/Y steps | Z invocations (budget: N) | useful-work: A, validation: B, overhead: C`
 - If the task was classified as standard/complex but only touched 1-2 files with no design needed, note: "Retrospective: task could have been classified as [simpler level]."
-- If ensemble-mcp metrics are available, include: `Cost: $X.XX | Tokens: Xk in / Xk out` (from `metrics_session_report`)
 - Final status: **SUCCESS** / **PARTIAL** / **FAILED**
 
 ## Hooks
@@ -390,27 +389,20 @@ If ensemble-mcp tools are available (check by calling `health`), use them at the
 
 ### Pre-Pipeline (after classification, before Step 1)
 
-1. **Start tracking**: Call `metrics_start_session` with:
-   - `task`: the user's request (1-2 sentences)
-   - `classification`: your task classification (trivial/simple/standard/complex)
-   - `ai_tool`: "opencode" (or whichever tool is running)
-   - `project`: the project root path
-   - Save the returned `session_id` -- you will need it for all subsequent calls
-
-2. **Search for prior approaches**: Call `patterns_search` with:
+1. **Search for prior approaches**: Call `patterns_search` with:
    - `query`: the user's request as natural language
    - If results are returned, pass relevant findings to the Architect as "Prior approaches that worked for similar tasks"
 
-3. **Index the codebase**: Call `project_index` with:
+2. **Index the codebase**: Call `project_index` with:
    - `project_path`: the project root
    - Only needed on first run per project or if `force: true` is needed
 
-4. **Discover skills**: Call `skills_discover` with:
+3. **Discover skills**: Call `skills_discover` with:
    - `project_path`: the project root
    - `query`: task-relevant keywords
    - Pass discovered skills to the Architect and Engineer
 
-5. **Get model routing recommendations**: Call `model_recommend` with:
+4. **Get model routing recommendations**: Call `model_recommend` with:
    - `agent`: the ensemble-mcp agent name for the first subagent (e.g., `"scope"`)
    - `task_classification`: your task classification
    - Use the returned `tier` (best/mid/cheapest) as a routing hint when invoking each agent
@@ -426,19 +418,6 @@ When `model_recommend` is not available, apply these routing heuristics:
 - **Boilerplate/scaffolding tasks:** Craft can use a cheaper model
 - **Validation agents** (Forge, Inspector): mid-tier is sufficient for all task types
 - **Shipping** (Shipper): cheapest tier is always sufficient
-
-### After Each Step
-
-After each subagent completes, call `metrics_record_step` with:
-- `session_id`: from step 1
-- `agent`: the ensemble-mcp agent name for this subagent:
-  - Architect → `"scope"`
-  - Engineer → `"craft"`
-  - Forge → `"forge"`
-  - Inspector → `"lens"`
-  - Shipper → `"signal"`
-
-Optionally include `input_text` and/or `output_text` (the compressed summary) for token estimation.
 
 ### After Step 2 (IMPLEMENT)
 
@@ -463,26 +442,13 @@ Call `drift_check` with:
    - `outcome`: result summary
    - `project`: project path (optional, for project-scoped recall)
 
-2. **End the session**: Call `metrics_end_session` with:
-   - `session_id`: from pre-pipeline
-   - `status`: "completed" / "failed" / "killed"
-
-3. **Backfill real token data** (standard step — always run): Call `metrics_backfill` with:
-   - `session_id`: from pre-pipeline (or omit to backfill the latest session)
-   - Parses AI tool session files to replace estimated token counts with actual usage data
-   - This step is critical for accurate cost tracking — estimated counts can be 20-40% off
-
-4. **Save checkpoint** (standard/complex only): Call `session_save` with:
-   - `session_id`: from pre-pipeline
+2. **Save checkpoint** (standard/complex only): Call `session_save` with:
+   - `session_id`: a unique identifier for this pipeline run
    - `state`: final pipeline state (steps completed, files changed, status)
 
 ### On-Demand (user asks)
 
-- "How much did that cost?" → `metrics_session_report(session_id=<id>)`
-- "What's my spend this week?" → `metrics_trend(days=7)`
-- "Compare those two sessions" → `metrics_compare(session_id_a=..., session_id_b=...)`
 - "Any skill suggestions?" → `skills_suggest(project_path=<root>)`
-- "Backfill real token data" → `metrics_backfill(session_id=<id>)` or `metrics_backfill()` for latest
 
 ## Resume Protocol
 
