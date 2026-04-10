@@ -2,7 +2,7 @@
 
 ## Overview
 
-Python MCP server (`ensemble-mcp`) providing vector memory, drift detection, model routing, skills discovery, session management, and codebase indexing. **Fully implemented** — 15 MCP tools across 9 subpackages, CLI with serve/install/uninstall/add-agents/add-skills commands.
+Python MCP server (`ensemble-mcp`) providing vector memory, drift detection, model routing, skills discovery, session management, codebase indexing, and a local web dashboard. **Fully implemented** — 15 MCP tools across 10 subpackages, CLI with serve/install/uninstall/add-agents/add-skills/web commands.
 
 ## Commands
 
@@ -13,6 +13,9 @@ ensemble-mcp install              # auto-detect AI tools and register MCP
 ensemble-mcp uninstall            # remove MCP registration from AI tool configs
 ensemble-mcp add-agents           # copy agent files (no MCP registration)
 ensemble-mcp add-skills           # copy skill files (no MCP registration)
+ensemble-mcp web                  # launch web dashboard at localhost:8787
+ensemble-mcp web --port 9000      # custom port
+ensemble-mcp web --no-open        # start without auto-opening browser
 python -m pytest tests/           # run tests
 ruff check src/ tests/            # lint
 ruff format src/ tests/           # format
@@ -38,6 +41,7 @@ Entry point: `__main__.py` → `server.serve()` (stdio MCP server).
 | `state/` | Session/step lifecycle, idempotency, locks |
 | `tools/` | 15 MCP tool implementations + call-recording utility (7 categories below) |
 | `installer/` | Auto-detect AI tools, register MCP server |
+| `dashboard/` | Web dashboard: aiohttp server, JSON API, Alpine.js SPA |
 | `cli/` | Startup banner |
 | `data/` | Bundled agent and skill files |
 

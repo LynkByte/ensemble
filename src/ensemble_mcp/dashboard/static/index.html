@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ensemble-mcp Dashboard</title>
+    <script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2/dist/tailwind.min.css" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen" x-data="dashboard()" x-init="init()">
+
+    <!-- Navigation -->
+    <nav class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex items-center justify-between h-14">
+                <div class="flex items-center space-x-2">
+                    <span class="text-green-400 font-bold text-lg">ensemble-mcp</span>
+                    <span class="text-gray-500 text-sm" x-text="'v' + version"></span>
+                </div>
+                <div class="flex space-x-1">
+                    <template x-for="p in pages" :key="p.id">
+                        <button
+                            @click="navigate(p.id)"
+                            :class="page === p.id
+                                ? 'bg-gray-700 text-white'
+                                : 'text-gray-400 hover:text-white hover:bg-gray-700'"
+                            class="px-3 py-2 rounded text-sm font-medium transition-colors"
+                            x-text="p.label">
+                        </button>
+                    </template>
+                </div>
+                <div class="text-gray-500 text-xs">
+                    <span x-show="loading" class="text-yellow-400">Loading...</span>
+                    <span x-show="!loading && lastFetch" x-text="'Updated ' + timeAgo(lastFetch)"></span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main content area -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+
+        <!-- Overview Page -->
+        <div x-show="page === 'overview'" x-cloak>
+            <h1 class="text-2xl font-bold mb-6">Overview</h1>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+                <div class="card">
+                    <div class="text-3xl font-bold text-green-400" x-text="summary.pattern_count || 0"></div>
+                    <div class="text-gray-400 text-sm mt-1">Patterns</div>
+                </div>
+                <div class="card">
+                    <div class="text-3xl font-bold text-blue-400" x-text="summary.pending_skills || 0"></div>
+                    <div class="text-gray-400 text-sm mt-1">Pending Skills</div>
+                </div>
+                <div class="card">
+                    <div class="text-3xl font-bold text-purple-400" x-text="summary.active_skills || 0"></div>
+                    <div class="text-gray-400 text-sm mt-1">Active Skills</div>
+                </div>
+                <div class="card">
+                    <div class="text-3xl font-bold text-yellow-400" x-text="summary.project_count || 0"></div>
+                    <div class="text-gray-400 text-sm mt-1">Projects</div>
+                </div>
+                <div class="card">
+                    <div class="text-3xl font-bold text-orange-400" x-text="summary.drift_checks_30d || 0"></div>
+                    <div class="text-gray-400 text-sm mt-1">Drift Checks (30d)</div>
+                </div>
+                <div class="card">
+                    <div class="text-3xl font-bold text-pink-400" x-text="summary.session_count || 0"></div>
+                    <div class="text-gray-400 text-sm mt-1">Sessions</div>
+                </div>
+            </div>
+
+            <!-- Drift Trend Chart -->
+            <div class="card mb-8" x-show="driftData.length > 0">
+                <h2 class="text-lg font-semibold mb-4">Drift Score Trend</h2>
+                <div class="chart-container">
+                    <canvas id="driftChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card">
+                <h2 class="text-lg font-semibold mb-4">Recent Activity</h2>
+                <div x-show="summary.recent_activity && summary.recent_activity.length > 0">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-gray-400 border-b border-gray-700">
+                                <th class="text-left py-2">Tool</th>
+                                <th class="text-left py-2">When</th>
+                                <th class="text-right py-2">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="a in summary.recent_activity" :key="a.called_at">
+                                <tr class="border-b border-gray-800 hover:bg-gray-800">
+                                    <td class="py-2">
+                                        <span class="tool-badge" x-text="a.tool_name"></span>
+                                    </td>
+                                    <td class="py-2 text-gray-400" x-text="formatDate(a.called_at)"></td>
+                                    <td class="py-2 text-right text-gray-400" x-text="a.duration_ms + 'ms'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                <div x-show="!summary.recent_activity || summary.recent_activity.length === 0" class="text-gray-500 text-center py-8">
+                    No activity recorded yet. Use ensemble-mcp tools to generate data.
+                </div>
+            </div>
+        </div>
+
+        <!-- Patterns Page -->
+        <div x-show="page === 'patterns'" x-cloak>
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-2xl font-bold">Patterns</h1>
+                <div class="text-gray-400 text-sm" x-text="'Total: ' + patternsTotal"></div>
+            </div>
+
+            <!-- Filters -->
+            <div class="flex gap-4 mb-4">
+                <input type="text" x-model="patternFilter"
+                    @input.debounce.300ms="loadPatterns()"
+                    placeholder="Filter by project..."
+                    class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-green-400 focus:outline-none">
+            </div>
+
+            <!-- Patterns Table -->
+            <div class="card overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700">
+                            <th class="text-left py-2">Name</th>
+                            <th class="text-left py-2">Project</th>
+                            <th class="text-right py-2">Matches</th>
+                            <th class="text-left py-2">Last Matched</th>
+                            <th class="text-left py-2">Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="p in patterns" :key="p.id">
+                            <tr class="border-b border-gray-800 hover:bg-gray-800 cursor-pointer"
+                                @click="expandedPattern = expandedPattern === p.id ? null : p.id">
+                                <td class="py-2 font-medium" x-text="p.name"></td>
+                                <td class="py-2 text-gray-400" x-text="p.project || 'global'"></td>
+                                <td class="py-2 text-right">
+                                    <span class="text-green-400" x-text="p.match_count"></span>
+                                </td>
+                                <td class="py-2 text-gray-400" x-text="p.last_matched_at ? formatDate(p.last_matched_at) : 'never'"></td>
+                                <td class="py-2 text-gray-400" x-text="formatDate(p.created_at)"></td>
+                            </tr>
+                            <tr x-show="expandedPattern === p.id" class="bg-gray-800">
+                                <td colspan="5" class="py-4 px-4">
+                                    <div class="space-y-3">
+                                        <div>
+                                            <span class="text-gray-400 text-xs uppercase">Context</span>
+                                            <p class="mt-1" x-text="p.context"></p>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 text-xs uppercase">Approach</span>
+                                            <p class="mt-1" x-text="p.approach"></p>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 text-xs uppercase">Outcome</span>
+                                            <p class="mt-1" x-text="p.outcome"></p>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <div x-show="patterns.length === 0" class="text-gray-500 text-center py-8">
+                    No patterns stored yet.
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="flex justify-between items-center mt-4" x-show="patternsTotal > 50">
+                <button @click="patternOffset = Math.max(0, patternOffset - 50); loadPatterns()"
+                    :disabled="patternOffset === 0"
+                    class="btn" :class="patternOffset === 0 ? 'opacity-50' : ''">
+                    Previous
+                </button>
+                <span class="text-gray-400 text-sm" x-text="(patternOffset + 1) + '-' + Math.min(patternOffset + 50, patternsTotal) + ' of ' + patternsTotal"></span>
+                <button @click="patternOffset += 50; loadPatterns()"
+                    :disabled="patternOffset + 50 >= patternsTotal"
+                    class="btn" :class="patternOffset + 50 >= patternsTotal ? 'opacity-50' : ''">
+                    Next
+                </button>
+            </div>
+        </div>
+
+        <!-- Skills Page -->
+        <div x-show="page === 'skills'" x-cloak>
+            <h1 class="text-2xl font-bold mb-6">Skills</h1>
+
+            <!-- Tabs -->
+            <div class="flex space-x-1 mb-6 border-b border-gray-700">
+                <button @click="skillsTab = 'suggestions'"
+                    :class="skillsTab === 'suggestions' ? 'border-b-2 border-green-400 text-white' : 'text-gray-400'"
+                    class="px-4 py-2 text-sm font-medium">
+                    Suggestions
+                    <span class="ml-1 text-xs bg-gray-700 rounded-full px-2 py-0.5"
+                        x-text="skillSuggestions.length"></span>
+                </button>
+                <button @click="skillsTab = 'tracked'"
+                    :class="skillsTab === 'tracked' ? 'border-b-2 border-blue-400 text-white' : 'text-gray-400'"
+                    class="px-4 py-2 text-sm font-medium">
+                    Active
+                    <span class="ml-1 text-xs bg-gray-700 rounded-full px-2 py-0.5"
+                        x-text="skillTracked.length"></span>
+                </button>
+                <button @click="skillsTab = 'stale'"
+                    :class="skillsTab === 'stale' ? 'border-b-2 border-yellow-400 text-white' : 'text-gray-400'"
+                    class="px-4 py-2 text-sm font-medium">
+                    Stale
+                    <span class="ml-1 text-xs bg-gray-700 rounded-full px-2 py-0.5"
+                        x-text="staleSkills.length"></span>
+                </button>
+            </div>
+
+            <!-- Suggestions Tab -->
+            <div x-show="skillsTab === 'suggestions'" class="card">
+                <template x-for="s in skillSuggestions" :key="s.id">
+                    <div class="border-b border-gray-700 py-4 last:border-0">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="font-medium" x-text="s.proposed_name"></span>
+                                <span class="ml-2 text-xs px-2 py-0.5 rounded"
+                                    :class="s.status === 'pending' ? 'bg-yellow-900 text-yellow-300' :
+                                            s.status === 'accepted' ? 'bg-green-900 text-green-300' :
+                                            s.status === 'dismissed' ? 'bg-red-900 text-red-300' :
+                                            'bg-gray-700 text-gray-300'"
+                                    x-text="s.status"></span>
+                            </div>
+                            <div class="text-sm text-gray-400">
+                                Confidence: <span class="text-white" x-text="(s.confidence * 100).toFixed(0) + '%'"></span>
+                            </div>
+                        </div>
+                        <div class="text-gray-400 text-sm mt-1" x-text="'Theme: ' + s.theme"></div>
+                        <div class="text-gray-500 text-xs mt-1" x-text="'Project: ' + s.project + ' | Created: ' + formatDate(s.created_at)"></div>
+                    </div>
+                </template>
+                <div x-show="skillSuggestions.length === 0" class="text-gray-500 text-center py-8">
+                    No skill suggestions yet.
+                </div>
+            </div>
+
+            <!-- Tracked Tab -->
+            <div x-show="skillsTab === 'tracked'" class="card">
+                <table class="w-full text-sm" x-show="skillTracked.length > 0">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700">
+                            <th class="text-left py-2">Skill Path</th>
+                            <th class="text-left py-2">Project</th>
+                            <th class="text-right py-2">Matches</th>
+                            <th class="text-left py-2">Last Matched</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="t in skillTracked" :key="t.skill_path + t.project">
+                            <tr class="border-b border-gray-800 hover:bg-gray-800">
+                                <td class="py-2 font-mono text-sm" x-text="t.skill_path"></td>
+                                <td class="py-2 text-gray-400" x-text="t.project"></td>
+                                <td class="py-2 text-right text-green-400" x-text="t.match_count"></td>
+                                <td class="py-2 text-gray-400" x-text="t.last_matched_at ? formatDate(t.last_matched_at) : 'never'"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <div x-show="skillTracked.length === 0" class="text-gray-500 text-center py-8">
+                    No tracked skills yet.
+                </div>
+            </div>
+
+            <!-- Stale Tab -->
+            <div x-show="skillsTab === 'stale'" class="card">
+                <table class="w-full text-sm" x-show="staleSkills.length > 0">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700">
+                            <th class="text-left py-2">Skill Path</th>
+                            <th class="text-left py-2">Project</th>
+                            <th class="text-right py-2">Matches</th>
+                            <th class="text-left py-2">Last Matched</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="s in staleSkills" :key="s.skill_path + s.project">
+                            <tr class="border-b border-gray-800 hover:bg-gray-800">
+                                <td class="py-2 font-mono text-sm text-yellow-400" x-text="s.skill_path"></td>
+                                <td class="py-2 text-gray-400" x-text="s.project"></td>
+                                <td class="py-2 text-right" x-text="s.match_count"></td>
+                                <td class="py-2 text-gray-400" x-text="s.last_matched_at ? formatDate(s.last_matched_at) : 'never'"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <div x-show="staleSkills.length === 0" class="text-gray-500 text-center py-8">
+                    No stale skills detected.
+                </div>
+            </div>
+        </div>
+
+        <!-- Projects Page -->
+        <div x-show="page === 'projects'" x-cloak>
+            <h1 class="text-2xl font-bold mb-6">Indexed Projects</h1>
+
+            <!-- Project List -->
+            <div class="card" x-show="!selectedProject">
+                <table class="w-full text-sm" x-show="projects.length > 0">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700">
+                            <th class="text-left py-2">Project Path</th>
+                            <th class="text-right py-2">Files</th>
+                            <th class="text-right py-2">Languages</th>
+                            <th class="text-left py-2">Last Indexed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="p in projects" :key="p.project_path">
+                            <tr class="border-b border-gray-800 hover:bg-gray-800 cursor-pointer"
+                                @click="loadProjectDetail(p.project_path)">
+                                <td class="py-2 font-mono text-sm text-blue-400" x-text="p.project_path"></td>
+                                <td class="py-2 text-right" x-text="p.file_count"></td>
+                                <td class="py-2 text-right" x-text="p.language_count"></td>
+                                <td class="py-2 text-gray-400" x-text="formatDate(p.last_indexed)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <div x-show="projects.length === 0" class="text-gray-500 text-center py-8">
+                    No projects indexed yet. Use <code>project_index</code> to index a project.
+                </div>
+            </div>
+
+            <!-- Project Detail -->
+            <div x-show="selectedProject" x-cloak>
+                <button @click="selectedProject = null" class="btn mb-4">&larr; Back to projects</button>
+                <div class="card mb-4">
+                    <h2 class="text-lg font-semibold mb-2 font-mono" x-text="projectDetail.project_path"></h2>
+                    <div class="flex gap-6 text-sm text-gray-400">
+                        <span>Files: <span class="text-white" x-text="projectDetail.total_files"></span></span>
+                        <span>Exports: <span class="text-white" x-text="projectDetail.total_exports"></span></span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="card">
+                        <h3 class="text-sm font-semibold text-gray-400 mb-3">Language Breakdown</h3>
+                        <div class="chart-container-sm">
+                            <canvas id="langChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3 class="text-sm font-semibold text-gray-400 mb-3">File Roles</h3>
+                        <div class="chart-container-sm">
+                            <canvas id="roleChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="card mt-4" x-show="projectDetail.exports_by_kind && projectDetail.exports_by_kind.length > 0">
+                    <h3 class="text-sm font-semibold text-gray-400 mb-3">Exports by Kind</h3>
+                    <div class="flex flex-wrap gap-3">
+                        <template x-for="e in projectDetail.exports_by_kind" :key="e.kind">
+                            <div class="bg-gray-800 rounded px-3 py-2">
+                                <span class="text-white font-medium" x-text="e.count"></span>
+                                <span class="text-gray-400 text-sm ml-1" x-text="e.kind"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drift Page -->
+        <div x-show="page === 'drift'" x-cloak>
+            <h1 class="text-2xl font-bold mb-6">Drift History</h1>
+
+            <div class="card overflow-x-auto">
+                <table class="w-full text-sm" x-show="driftData.length > 0">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700">
+                            <th class="text-left py-2">Task</th>
+                            <th class="text-right py-2">Score</th>
+                            <th class="text-left py-2">Verdict</th>
+                            <th class="text-right py-2">Files Changed</th>
+                            <th class="text-left py-2">Flags</th>
+                            <th class="text-left py-2">When</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="d in driftData" :key="d.id">
+                            <tr class="border-b border-gray-800 hover:bg-gray-800">
+                                <td class="py-2 max-w-xs truncate" x-text="d.task_description"></td>
+                                <td class="py-2 text-right">
+                                    <span :class="d.score < 0.3 ? 'text-green-400' : d.score < 0.6 ? 'text-yellow-400' : 'text-red-400'"
+                                        x-text="d.score.toFixed(3)"></span>
+                                </td>
+                                <td class="py-2">
+                                    <span class="text-xs px-2 py-0.5 rounded"
+                                        :class="d.verdict === 'aligned' ? 'bg-green-900 text-green-300' :
+                                                d.verdict === 'minor_drift' ? 'bg-yellow-900 text-yellow-300' :
+                                                'bg-red-900 text-red-300'"
+                                        x-text="d.verdict"></span>
+                                </td>
+                                <td class="py-2 text-right text-gray-400" x-text="d.changed_files.length"></td>
+                                <td class="py-2 text-gray-400">
+                                    <span x-show="d.flags.length > 0" class="text-yellow-400 text-xs" x-text="d.flags.length + ' flag(s)'"></span>
+                                    <span x-show="d.flags.length === 0" class="text-gray-600">none</span>
+                                </td>
+                                <td class="py-2 text-gray-400" x-text="formatDate(d.created_at)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <div x-show="driftData.length === 0" class="text-gray-500 text-center py-8">
+                    No drift checks recorded yet.
+                </div>
+            </div>
+        </div>
+
+        <!-- Sessions Page -->
+        <div x-show="page === 'sessions'" x-cloak>
+            <h1 class="text-2xl font-bold mb-6">Sessions</h1>
+
+            <!-- Session List -->
+            <div class="card" x-show="!selectedSession">
+                <table class="w-full text-sm" x-show="sessions.length > 0">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700">
+                            <th class="text-left py-2">Session ID</th>
+                            <th class="text-left py-2">Status</th>
+                            <th class="text-right py-2">Version</th>
+                            <th class="text-left py-2">Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="s in sessions" :key="s.session_id">
+                            <tr class="border-b border-gray-800 hover:bg-gray-800 cursor-pointer"
+                                @click="loadSessionDetail(s.session_id)">
+                                <td class="py-2 font-mono text-sm text-blue-400" x-text="s.session_id"></td>
+                                <td class="py-2">
+                                    <span class="text-xs px-2 py-0.5 rounded"
+                                        :class="s.status === 'completed' ? 'bg-green-900 text-green-300' :
+                                                s.status === 'running' ? 'bg-blue-900 text-blue-300' :
+                                                s.status === 'failed' ? 'bg-red-900 text-red-300' :
+                                                s.status === 'pending' ? 'bg-yellow-900 text-yellow-300' :
+                                                'bg-gray-700 text-gray-300'"
+                                        x-text="s.status"></span>
+                                </td>
+                                <td class="py-2 text-right text-gray-400" x-text="'v' + s.version"></td>
+                                <td class="py-2 text-gray-400" x-text="formatDate(s.created_at)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <div x-show="sessions.length === 0" class="text-gray-500 text-center py-8">
+                    No sessions recorded yet.
+                </div>
+            </div>
+
+            <!-- Session Detail -->
+            <div x-show="selectedSession" x-cloak>
+                <button @click="selectedSession = null" class="btn mb-4">&larr; Back to sessions</button>
+                <div class="card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold font-mono" x-text="sessionDetail.session_id"></h2>
+                        <span class="text-sm text-gray-400" x-text="'Version ' + sessionDetail.version"></span>
+                    </div>
+                    <div class="text-sm text-gray-400 mb-4" x-text="'Created: ' + formatDate(sessionDetail.created_at)"></div>
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-400 mb-2">State</h3>
+                        <pre class="bg-gray-800 rounded p-4 overflow-x-auto text-sm text-gray-300" x-text="JSON.stringify(sessionDetail.state, null, 2)"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

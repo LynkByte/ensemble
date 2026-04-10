@@ -125,6 +125,10 @@ INDEXER_IGNORED_EXTENSIONS: set[str] = {
     ".lock",
 }
 
+# ── Dashboard ─────────────────────────────────────────────────────
+DASHBOARD_DEFAULT_PORT = 8787
+DASHBOARD_HOST = "127.0.0.1"
+
 # ── Server Metadata ───────────────────────────────────────────────
 SERVER_NAME = "ensemble-mcp"
 SERVER_VERSION = "0.1.0a4"

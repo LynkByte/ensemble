@@ -18,6 +18,7 @@ All intelligence is local — zero LLM/API calls. Uses ONNX Runtime embeddings (
 | **Session Management** | Pipeline checkpoint save/load with optimistic versioning |
 | **Codebase Indexing** | File-level index with exports, imports, roles — incremental via mtime |
 | **Auto-Installer** | Detect AI tools and register the MCP server in their configs |
+| **Web Dashboard** | Local browser UI at `localhost:8787` for visualizing patterns, skills, projects, drift, and sessions |
 
 ## Quick Start
 
@@ -60,6 +61,52 @@ ensemble-mcp add-agents --tools opencode
 # Copy skill files to a project (no MCP registration needed)
 ensemble-mcp add-skills --tools opencode
 ```
+
+### Web Dashboard
+
+A local-only browser dashboard for visualizing patterns, skills, projects, drift history, and sessions.
+
+```bash
+# Start the dashboard (opens browser to http://localhost:8787)
+ensemble-mcp web
+
+# Custom port
+ensemble-mcp web --port 9000
+
+# Start without auto-opening the browser
+ensemble-mcp web --no-open
+```
+
+The dashboard reads directly from the same SQLite database the MCP server writes to (WAL mode, no contention). It binds to `127.0.0.1` only — never exposed to the network, no authentication needed.
+
+#### Dashboard Pages
+
+| Page | What It Shows |
+|------|--------------|
+| **Overview** | Summary cards (patterns, skills, projects, drift checks), drift score trend chart, recent activity |
+| **Patterns** | All stored patterns with match counts, project filtering, search |
+| **Skills** | Pending skill suggestions with confidence scores, stale skill detection |
+| **Projects** | Indexed projects with language breakdown pie charts, file role bar charts, export counts |
+| **Drift** | Drift check history with scores, verdicts, flagged files, project filtering |
+| **Sessions** | Session list with lifecycle status, click-through to step-by-step detail |
+
+#### API Endpoints
+
+All endpoints return the standard `ok/data/error/meta` envelope:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/summary` | Aggregate counts and recent activity |
+| `GET /api/patterns` | Paginated pattern list (filter by `project`) |
+| `GET /api/patterns/:id` | Single pattern detail with embedding metadata |
+| `GET /api/skills` | Skill suggestions (filter by `project`, `status`) |
+| `GET /api/skills/stale` | Skills not matched within threshold days |
+| `GET /api/projects` | Indexed projects with file/export counts |
+| `GET /api/projects/:path` | Project detail with language and role breakdown |
+| `GET /api/drift` | Drift history (filter by `project`, `from`, `to`) |
+| `GET /api/sessions` | Paginated session list (filter by `project`, `status`) |
+| `GET /api/sessions/:id` | Session detail with steps |
+| `GET /api/health` | Server health, version, DB size |
 
 ## MCP Client Configuration
 
@@ -255,6 +302,7 @@ ensemble-mcp/
     state/                # Session/step lifecycle, idempotency, locks
     tools/                # 15 MCP tool implementations + call-recording utility
     installer/            # AI tool detection + MCP registration
+    dashboard/            # Web dashboard (aiohttp server, JSON API, SPA frontend)
     cli/                  # Startup banner
     data/                 # Bundled agent and skill files
 ```

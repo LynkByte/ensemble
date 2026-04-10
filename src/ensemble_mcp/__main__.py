@@ -1,7 +1,8 @@
 """Entry point: python -m ensemble_mcp.
 
-Provides five subcommands:
+Provides six subcommands:
   - ``serve`` (default): Start the MCP server on stdio.
+  - ``web``: Start the local web dashboard.
   - ``install``: Detect AI tools and register ensemble-mcp in their configs.
   - ``uninstall``: Remove ensemble-mcp registration from AI tool configs.
   - ``add-agents``: Copy bundled agent files to tool-specific directories.
@@ -27,6 +28,24 @@ def main() -> None:
     subparsers.add_parser(
         "serve",
         help="Start the MCP server (default when no command is given).",
+    )
+
+    # ── web ───────────────────────────────────────────────────────
+    web_parser = subparsers.add_parser(
+        "web",
+        help="Start the local web dashboard.",
+    )
+    web_parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="Port to bind on (default: 8787).",
+    )
+    web_parser.add_argument(
+        "--no-open",
+        action="store_true",
+        default=False,
+        help="Don't auto-open browser.",
     )
 
     # ── install ───────────────────────────────────────────────────
@@ -220,6 +239,8 @@ def main() -> None:
     # Default to serve when no subcommand is given
     if args.command is None or args.command == "serve":
         _run_serve()
+    elif args.command == "web":
+        _run_web(args)
     elif args.command == "install":
         _run_install(args)
     elif args.command == "uninstall":
@@ -238,6 +259,16 @@ def _run_serve() -> None:
     from ensemble_mcp.server import serve
 
     serve()
+
+
+def _run_web(args: argparse.Namespace) -> None:
+    """Start the web dashboard."""
+    from ensemble_mcp.config.defaults import DASHBOARD_DEFAULT_PORT
+    from ensemble_mcp.dashboard import start_dashboard
+
+    port = args.port if args.port is not None else DASHBOARD_DEFAULT_PORT
+    open_browser = not args.no_open
+    start_dashboard(port=port, open_browser=open_browser)
 
 
 def _run_install(args: argparse.Namespace) -> None:

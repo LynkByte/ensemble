@@ -364,6 +364,7 @@ async def _reset(store: VectorStore, *, confirm: bool = False, **_: Any) -> dict
         "skill_suggestion_patterns",
         "skill_suggestions",
         "skill_usage_tracking",
+        "drift_history",
         "session_checkpoints",
         "idempotency_keys",
     ]

@@ -1,0 +1,132 @@
+/**
+ * ensemble-mcp Dashboard — Custom styles
+ * Supplements Tailwind CSS with dashboard-specific components.
+ */
+
+/* Hide Alpine.js elements until initialized */
+[x-cloak] {
+    display: none !important;
+}
+
+/* Card component */
+.card {
+    background-color: #1F2937;
+    border: 1px solid #374151;
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+}
+
+/* Button component */
+.btn {
+    background-color: #374151;
+    color: #D1D5DB;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 0.15s;
+    cursor: pointer;
+    border: 1px solid #4B5563;
+}
+
+.btn:hover {
+    background-color: #4B5563;
+    color: #F3F4F6;
+}
+
+.btn:disabled {
+    cursor: not-allowed;
+}
+
+/* Tool badge in activity feed */
+.tool-badge {
+    display: inline-block;
+    background-color: #374151;
+    border: 1px solid #4B5563;
+    border-radius: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: #10B981;
+}
+
+/* Chart containers */
+.chart-container {
+    position: relative;
+    height: 250px;
+    width: 100%;
+}
+
+.chart-container-sm {
+    position: relative;
+    height: 200px;
+    width: 100%;
+}
+
+/* Table improvements */
+table {
+    border-collapse: collapse;
+}
+
+th {
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+}
+
+/* Truncation for long text */
+.max-w-xs {
+    max-width: 20rem;
+}
+
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1F2937;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #4B5563;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #6B7280;
+}
+
+/* Pre block for JSON display */
+pre {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+/* Focus styles for inputs */
+input:focus {
+    outline: none;
+    border-color: #10B981;
+    box-shadow: 0 0 0 1px #10B981;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .chart-container {
+        height: 180px;
+    }
+
+    .chart-container-sm {
+        height: 150px;
+    }
+}

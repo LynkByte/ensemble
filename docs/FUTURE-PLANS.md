@@ -10,9 +10,11 @@ title: Future Plans
 
 ---
 
-## 1. Web Dashboard
+## 1. Web Dashboard ✅ Completed
 
 ### 1.1 Overview
+
+> **Status:** Fully implemented. The dashboard is available via `ensemble-mcp web` and serves a read-only SPA at `localhost:8787` with pages for Overview, Patterns, Skills, Projects, Drift, and Sessions. A `drift_history` table was added (schema v6) to persist drift check results for trend visualization.
 
 The web dashboard provides a **local-only browser interface** served on `localhost` for richer data visualization and deeper analysis of patterns, projects, and skills.
 
@@ -751,7 +753,7 @@ graph LR
 
 | Priority | Feature | Est. Effort | Depends On | Status |
 |----------|---------|-------------|------------|--------|
-| **High** | Web Dashboard v1 (read-only: patterns, skills, projects, drift) | 3-4 days | Core MCP tools stable | Not started |
+| **Done** | Web Dashboard v1 (read-only: patterns, skills, projects, drift) | 3-4 days | Core MCP tools stable | ✅ Complete |
 | **Done** | Skill Intelligence (auto-detect & pattern-to-skill graduation) | 5 days | Phase 1 patterns + skills tools stable | ✅ Complete |
 | **Medium** | Embedding Model Upgrade (chunking or model swap) | 1-2 days | Drift/skills accuracy feedback | Not started |
 | **Medium** | Report Export (patterns, skills, drift, projects as CSV/PDF/JSON) | 2-3 days | Dashboard v1 | Not started |

@@ -6,6 +6,7 @@ embedding to detect scope drift. Returns a 0-1 score with flags and verdict.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from typing import Any
 
@@ -29,6 +30,7 @@ async def drift_check(
     task_description: str,
     changed_files: list[str],
     diff_summary: str,
+    project: str | None = None,
     idempotency_key: str | None = None,
 ) -> dict[str, Any]:
     """Check if code changes drift from the original task.
@@ -74,5 +76,47 @@ async def drift_check(
         "flags": flags,
         "verdict": verdict,
     }
+
+    # Persist drift result for dashboard history
+    _persist_drift_history(
+        conn,
+        task_description=task_description,
+        changed_files=changed_files,
+        score=round(drift_score, 3),
+        similarity=round(similarity, 3),
+        verdict=verdict,
+        flags=flags,
+        project=project,
+    )
+
     store_idempotency(conn, idempotency_key, result)
     return result
+
+
+def _persist_drift_history(
+    conn: sqlite3.Connection,
+    *,
+    task_description: str,
+    changed_files: list[str],
+    score: float,
+    similarity: float,
+    verdict: str,
+    flags: list[str],
+    project: str | None,
+) -> None:
+    """Write a drift check result to the drift_history table."""
+    conn.execute(
+        "INSERT INTO drift_history "
+        "(task_description, changed_files, score, similarity, verdict, flags, project) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            task_description,
+            json.dumps(changed_files),
+            score,
+            similarity,
+            verdict,
+            json.dumps(flags),
+            project,
+        ),
+    )
+    conn.commit()
