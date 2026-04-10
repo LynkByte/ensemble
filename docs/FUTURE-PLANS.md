@@ -6,7 +6,7 @@ title: Future Plans
 
 > Features planned for post-Phase 6 development. These are documented for visibility and to guide architectural decisions in the current implementation so we don't paint ourselves into a corner.
 
-**Last updated:** 2026-04-03
+**Last updated:** 2026-04-10
 
 ---
 
@@ -78,42 +78,47 @@ All endpoints return the standard `ok/data/error/meta` envelope from Section 5.1
 | Endpoint | Method | Query Params | Returns |
 |----------|--------|-------------|---------|
 | `/` | GET | — | Dashboard SPA (HTML) |
-| `/api/summary` | GET | `project?` | Today/week/month aggregates: sessions, cost, tokens |
-| `/api/sessions` | GET | `project?`, `from?`, `to?`, `classification?`, `status?`, `limit?`, `offset?` | Paginated session list |
-| `/api/sessions/:id` | GET | — | Single session detail with steps and MCP calls |
-| `/api/trends` | GET | `days?=30`, `project?` | Daily cost/token time series |
-| `/api/agents` | GET | `days?=30`, `project?` | Cost and token breakdown by agent |
-| `/api/patterns` | GET | `project?` | All stored patterns with match stats |
-| `/api/projects` | GET | — | Indexed projects with file counts and languages |
+| `/api/summary` | GET | `project?` | Aggregate counts: patterns, skills, indexed projects, recent drift checks |
+| `/api/patterns` | GET | `project?`, `limit?`, `offset?` | All stored patterns with match counts, last matched date |
+| `/api/patterns/:id` | GET | — | Single pattern detail with embedding metadata |
+| `/api/skills` | GET | `project?`, `status?` | Skill suggestions queue and active skills |
+| `/api/skills/stale` | GET | `threshold_days?=60` | Skills not matched within threshold |
+| `/api/projects` | GET | — | Indexed projects with file counts, languages, and export counts |
+| `/api/projects/:path` | GET | — | Single project detail: files, language breakdown, exports |
+| `/api/drift` | GET | `project?`, `from?`, `to?`, `limit?` | Drift check history with scores and flagged files |
+| `/api/sessions` | GET | `project?`, `status?`, `limit?`, `offset?` | Paginated session list with lifecycle status |
+| `/api/sessions/:id` | GET | — | Single session detail with steps and idempotency keys |
 | `/api/health` | GET | — | Server health, version, DB size, counts |
 
 ### 1.6 Dashboard Pages (v1 — Read-Only)
 
 #### Overview Page
-- Summary cards: today / this week / this month (sessions, cost, tokens)
-- Cost trend line chart (last 30 days)
-- Token trend line chart (last 30 days)
-- Accuracy breakdown (exact / partial / estimated sessions)
-
-#### Sessions Page
-- Filterable table: date range, project, classification, status
-- Click-through to session detail view
-- Per-session detail: agent-by-agent breakdown table, MCP tool calls, drift flags
-- Confidence indicator per session (`exact` / `partial` / `estimated`)
-
-#### Agents Page
-- Cost share by agent (donut chart)
-- Token usage by agent over time (stacked area chart)
-- Average cost per agent per task classification (grouped bar chart)
+- Summary cards: pattern count, skill count (active + pending suggestions), indexed projects, recent drift checks
+- Drift score trend line chart (last 30 days)
+- Recent activity feed: latest pattern stores, skill suggestions, project indexes
+- Session lifecycle summary (pending / running / completed / failed)
 
 #### Patterns Page
 - All stored patterns with match count and last matched date
-- Filter by project
+- Filter by project scope
 - Usage heatmap: which patterns are actively being matched
+- Search patterns by name or context (semantic and text)
+
+#### Skills Page
+- Pending skill suggestions queue with confidence scores and source patterns
+- Active skills with match counts and last matched date
+- Stale skill detection: skills not matched within the configurable threshold
+- Accept / Dismiss / Defer actions for pending suggestions
 
 #### Projects Page (from codebase indexer)
 - List of indexed projects with file counts and last indexed time
 - Per-project: language breakdown (pie chart), file role distribution (bar chart)
+- Export counts: functions, classes, and other symbols per project
+
+#### Sessions Page
+- Filterable table: project, status (pending/running/completed/failed/killed)
+- Click-through to session detail view
+- Per-session detail: step-by-step breakdown, drift flags, idempotency keys
 
 ### 1.7 Project Structure Addition
 
@@ -162,10 +167,10 @@ Building on the read-only v1 dashboard, v2 adds write operations:
 | Feature | Description |
 |---------|-------------|
 | Pattern management | Prune, delete, or edit patterns from the browser |
-| Session management | Archive or delete old sessions |
-| Settings editor | Edit `team-config.json` with a form UI and validation |
+| Skill management | Accept, dismiss, or defer skill suggestions; delete stale skills |
+| Settings editor | Edit `config.toml` with a form UI and validation |
 | Data reset | Trigger `reset` tool from the dashboard with confirmation dialog |
-| Index management | Force re-index a project, view index health |
+| Index management | Force re-index a project, view index health, clear stale indexes |
 
 **Prerequisite:** v1 dashboard must be stable and the API contract proven before adding mutations.
 
@@ -193,7 +198,7 @@ sequenceDiagram
 |-----------|--------|
 | Server | `websockets` library or `aiohttp` WebSocket support |
 | Client | Native `WebSocket` API in browser |
-| Protocol | JSON messages with event types: `pattern_stored`, `pattern_pruned`, `project_indexed` |
+| Protocol | JSON messages with event types: `pattern_stored`, `pattern_pruned`, `project_indexed`, `skill_suggested`, `drift_checked`, `session_started`, `session_completed` |
 
 **Estimated effort:** 2-3 days on top of v1 dashboard.
 
@@ -201,7 +206,7 @@ sequenceDiagram
 
 ## 4. Team Analytics
 
-Aggregate usage data across multiple developers for team-level cost visibility.
+Aggregate data across multiple developers for team-level pattern sharing, skill adoption, and project coverage visibility.
 
 ### Approaches Under Consideration
 
@@ -214,11 +219,11 @@ Aggregate usage data across multiple developers for team-level cost visibility.
 **Likely approach:** Export + aggregate for v1 (lowest friction), central API for v2 (if demand exists).
 
 ### What Team Analytics Would Show
-- Total team spend per day/week/month
-- Cost per developer (anonymizable)
-- Most expensive task classifications across the team
-- Model mix and routing effectiveness
-- Pattern sharing: which patterns are useful across multiple developers
+- Shared patterns across developers: which patterns are useful across multiple team members
+- Skill adoption rates: which generated skills are actively used vs. dismissed or stale
+- Indexed project coverage: which team projects are indexed and how thoroughly
+- Drift check frequency and score distribution across the team
+- Model routing recommendations: which routing choices are most common
 
 ---
 
@@ -235,8 +240,10 @@ Generate downloadable reports from the dashboard or CLI.
 CLI integration:
 
 ```bash
-ensemble-mcp export --format csv --days 30 --output report.csv
-ensemble-mcp export --format pdf --session sess_abc123 --output session-report.pdf
+ensemble-mcp export patterns --format csv --project /my/project --output patterns.csv
+ensemble-mcp export skills --format json --output skills-report.json
+ensemble-mcp export drift --format csv --days 30 --output drift-history.csv
+ensemble-mcp export projects --format pdf --output index-summary.pdf
 ```
 
 ---
@@ -373,33 +380,38 @@ async def my_custom_check(project_path: str) -> dict:
 
 ## 9. CI/CD Integration
 
-Export session metrics in formats compatible with CI pipelines.
+Export session and drift data in formats compatible with CI pipelines.
 
 | Feature | Description |
 |---------|-------------|
 | **JUnit XML export** | Session results as test suite results for CI dashboards |
 | **GitHub Actions annotations** | Drift warnings as PR annotations |
-| **Cost budget enforcement** | Fail CI if pipeline cost exceeds a threshold |
-| **Metrics webhook** | POST session report to a URL on completion |
+| **Drift threshold enforcement** | Fail CI if drift score exceeds a configurable threshold |
+| **Pattern coverage check** | Warn if a project has no stored patterns (no institutional knowledge captured) |
+| **Metrics webhook** | POST session/drift report to a URL on completion |
 
-### Example: Cost Budget in CI
+### Example: Drift Threshold in CI
 
 ```yaml
 # .github/workflows/ensemble.yml
-- name: Check pipeline cost
+- name: Check drift score
   run: |
-    COST=$(ensemble-mcp export --format json --session $SESSION_ID | jq '.total_cost_usd')
-    if (( $(echo "$COST > 5.00" | bc -l) )); then
-      echo "::error::Pipeline cost $COST exceeds $5.00 budget"
+    DRIFT=$(ensemble-mcp export drift --format json --last 1 | jq '.drift_score')
+    if (( $(echo "$DRIFT > 0.7" | bc -l) )); then
+      echo "::error::Drift score $DRIFT exceeds 0.7 threshold — changes may be off-task"
       exit 1
     fi
+
+- name: Export drift annotations
+  run: |
+    ensemble-mcp export drift --format annotations --output annotations.json
 ```
 
 ---
 
 ## 10. Frontend Migration Path
 
-The initial web dashboard uses **Alpine.js + Chart.js** for zero build tooling. If the dashboard grows beyond read-only analytics, a migration to a more capable framework may be warranted.
+The initial web dashboard uses **Alpine.js + Chart.js** for zero build tooling. If the dashboard grows beyond read-only data browsing, a migration to a more capable framework may be warranted.
 
 ### Decision Criteria for Migration
 
@@ -739,14 +751,14 @@ graph LR
 
 | Priority | Feature | Est. Effort | Depends On | Status |
 |----------|---------|-------------|------------|--------|
-| **High** | Web Dashboard v1 (read-only) | 3-4 days | Core MCP tools stable | Not started |
+| **High** | Web Dashboard v1 (read-only: patterns, skills, projects, drift) | 3-4 days | Core MCP tools stable | Not started |
 | **Done** | Skill Intelligence (auto-detect & pattern-to-skill graduation) | 5 days | Phase 1 patterns + skills tools stable | ✅ Complete |
 | **Medium** | Embedding Model Upgrade (chunking or model swap) | 1-2 days | Drift/skills accuracy feedback | Not started |
-| **Medium** | Report Export (CSV/PDF/JSON) | 2-3 days | Dashboard v1 | Not started |
+| **Medium** | Report Export (patterns, skills, drift, projects as CSV/PDF/JSON) | 2-3 days | Dashboard v1 | Not started |
 | **Medium** | Real-Time Live View | 2-3 days | Dashboard v1 | Not started |
-| **Medium** | Dashboard v2 (management UI) | 3-4 days | Dashboard v1 | Not started |
-| **Low** | Team Analytics | 5-7 days | Dashboard v2 + Export | Not started |
-| **Low** | CI/CD Integration | 3-4 days | Report Export | Not started |
+| **Medium** | Dashboard v2 (pattern/skill/index management UI) | 3-4 days | Dashboard v1 | Not started |
+| **Low** | Team Analytics (shared patterns, skill adoption, project coverage) | 5-7 days | Dashboard v2 + Export | Not started |
+| **Low** | CI/CD Integration (drift thresholds, JUnit XML, annotations) | 3-4 days | Report Export | Not started |
 | **Low** | Advanced Codebase Indexing | 5-7 days | Phase 1 indexer stable | Not started |
 | **Low** | Plugin System | 3-5 days | Core MCP tools stable | Not started |
 | **Future** | Scaling (pluggable backends, enterprise support) | 10-20 days | Advanced indexing + team analytics | Not started |
