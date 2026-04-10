@@ -74,7 +74,6 @@ Initial release with all 15 MCP tools across 3 implementation phases.
 - **Indexer tools**: `project_index` (incremental mtime-based), `project_query`, `project_dependencies`
 - **Utility tools**: `health`, `reset`
 - Layered configuration: defaults > global TOML > project TOML > env vars
-- Model pricing table (7 models: Claude Opus 4/Sonnet 4/Haiku 3.5, GPT-4o/4o-mini/5-mini, o1)
 - MCP server with stdio transport and 15 tool definitions
 
 #### Phase 4: Auto-Installer

@@ -546,9 +546,9 @@ graph TB
 | **Task classification** | Trivial / Simple / Standard / Complex |
 | **Run type** | Baseline (single-agent) / Ensemble |
 | **Run number** | (1 of 3) |
-| **Total input tokens** | |
-| **Total output tokens** | |
-| **Total cost (USD)** | |
+| **Total input tokens** | *(manual estimate — no automatic tracking)* |
+| **Total output tokens** | *(manual estimate — no automatic tracking)* |
+| **Total cost (USD)** | *(manual estimate — no automatic tracking)* |
 | **Per-agent breakdown** | Scope: / Craft: / Proof: / Lens: / Signal: |
 | **Drift score** | |
 | **Task completed?** | Yes / No / Partial |

@@ -16,7 +16,7 @@ title: Home
 
 Ensemble is a **7-agent pipeline** for AI-assisted software engineering. Each agent has a dedicated role -- planning, implementation, formatting, review, and git operations -- orchestrated by a central captain agent.
 
-**`ensemble-mcp`** is the companion **Python MCP server** that enhances the pipeline with persistent memory, cost visibility, drift detection, smart model routing, and codebase indexing. It works with any MCP-compatible AI tool.
+**`ensemble-mcp`** is the companion **Python MCP server** that enhances the pipeline with persistent memory, drift detection, smart model routing, and codebase indexing. It works with any MCP-compatible AI tool.
 
 ---
 

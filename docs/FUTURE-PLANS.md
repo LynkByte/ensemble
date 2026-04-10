@@ -867,7 +867,7 @@ ANN libraries and their performance at scale:
 | No partitioning | **Table partitioning** by date range or project |
 | No query optimization | **Materialized views** for dashboard aggregations |
 
-For analytics-heavy workloads (trends, cost reports across millions of sessions), **ClickHouse** or **TimescaleDB** would outperform PostgreSQL.
+For analytics-heavy workloads (trends, pattern usage reports across millions of sessions), **ClickHouse** or **TimescaleDB** would outperform PostgreSQL.
 
 #### Tier 4: Architecture Shift (for 10M+ files)
 

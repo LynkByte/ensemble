@@ -248,7 +248,7 @@ Confidence indicators: `exact` (direct data), `partial` (mixed sources), `estima
 ensemble-mcp/
   src/ensemble_mcp/
     server.py             # MCP server + tool registration
-    config/               # Settings, defaults, model pricing
+    config/               # Settings, defaults
     contracts/            # Response envelope, error taxonomy
     memory/               # ONNX embeddings, SQLite vector store, cosine similarity
     security/             # Secret redaction, trust boundaries

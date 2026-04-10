@@ -154,7 +154,7 @@ graph TB
 | MCP Framework | `mcp` (official Python SDK) | Standard MCP protocol implementation |
 | Embeddings | ONNX Runtime + MiniLM-L6-v2 | ~22MB model, no PyTorch (saves ~2.4GB) |
 | Vector Storage | SQLite + numpy cosine similarity | Zero external dependencies, portable |
-| Token Counting | `tokenizers` (HuggingFace) | Local tokenizer for ONNX model, no API |
+| Tokenization | `tokenizers` (HuggingFace) | Local tokenizer for ONNX model input, no API |
 | Package Size | ~90MB (including ONNX + model) | Acceptable; PyTorch would be ~2.5GB |
 
 **Why not PyTorch/sentence-transformers?**
