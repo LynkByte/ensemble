@@ -280,7 +280,7 @@ MiniLM-L6-v2 has a hard limit of **128 input tokens** (~80-100 words). Text beyo
 - Skill file content in `skills_discover` (100-500 words)
 - Future semantic code search (function bodies, docstrings)
 
-See Section 6.2.1 of [Phase 1 Design Spec](archive/DESIGN-SPEC-PHASE-01.md) for the full impact analysis.
+See Section 6.2.1 of [Phase 1 Design Spec](DESIGN-SPEC-PHASE-01.md) for the full impact analysis.
 
 ### 7.2 Short-Term: Chunking Strategy
 

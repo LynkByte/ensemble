@@ -229,5 +229,5 @@ Ordered by impact-to-effort ratio:
 
 To keep this file concise, the detailed design sections were split into dedicated files:
 
-- [MCP Server Design and Implementation Details](archive/DESIGN-SPEC-PHASE-01.md) *(archived — contains historical design including features that were not implemented)*
+- [MCP Server Design and Implementation Details](DESIGN-SPEC-PHASE-01.md)
 - [Prompt-Level Improvements (Archival Reference)](references/DESIGN-SPEC-PHASE-01.md)

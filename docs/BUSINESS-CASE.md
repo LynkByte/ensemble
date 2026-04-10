@@ -35,7 +35,7 @@ AI-assisted software engineering is exploding — but current single-agent workf
 - **Static routing** — the same expensive model is used for trivial and complex tasks alike
 - **Redundant exploration** — codebase analysis repeats from scratch every run
 
-These problems compound at scale. A team of 10 engineers running 10 pipelines/day each wastes an estimated **16.2M tokens/month** on redundant pattern reading alone (see [Phase 1 Design Spec §3.5](archive/DESIGN-SPEC-PHASE-01.md)).
+These problems compound at scale. A team of 10 engineers running 10 pipelines/day each wastes an estimated **16.2M tokens/month** on redundant pattern reading alone (see [Phase 1 Design Spec §3.5](DESIGN-SPEC-PHASE-01.md)).
 
 ### The Solution
 
@@ -198,7 +198,7 @@ To generate credible, reproducible numbers, run the following benchmark suite:
 
 #### Existing Estimates (from Design Spec)
 
-These estimates are derived from the [Phase 1 Design Specification §3.2-3.5](archive/DESIGN-SPEC-PHASE-01.md):
+These estimates are derived from the [Phase 1 Design Specification §3.2-3.5](DESIGN-SPEC-PHASE-01.md):
 
 **Per-Pipeline Cost (Standard Feature Implementation):**
 
@@ -504,7 +504,7 @@ graph TB
 
 | Milestone | Target Date | Status | Evidence |
 |-----------|-----------|--------|----------|
-| Design specification complete | 2026-03-30 | Done | [DESIGN-SPEC.md](DESIGN-SPEC.md), [Phase 1 Spec](archive/DESIGN-SPEC-PHASE-01.md) |
+| Design specification complete | 2026-03-30 | Done | [DESIGN-SPEC.md](DESIGN-SPEC.md), [Phase 1 Spec](DESIGN-SPEC-PHASE-01.md) |
 | Phase 1 implementation complete | 2026-04-10 | In Progress | — |
 | First benchmark suite run | *[TBD]* | Not Started | — |
 | Token savings validated on 5+ repos | *[TBD]* | Not Started | — |
@@ -576,7 +576,7 @@ graph TB
 | Document | What It Contains |
 |----------|-----------------|
 | [Design Specification](DESIGN-SPEC.md) | Executive summary, system analysis, improvement priorities |
-| [Phase 1: MCP Server Design](archive/DESIGN-SPEC-PHASE-01.md) | Historical design spec (tool APIs, schemas, cost analysis, break-even calculations) |
+| [Phase 1: MCP Server Design](DESIGN-SPEC-PHASE-01.md) | Design spec (tool APIs, schemas, cost analysis, break-even calculations) |
 | [Future Plans](FUTURE-PLANS.md) | Web dashboard, team analytics, CI/CD integration, plugin system, scaling roadmap |
 | [Agent Reference](references/README.md) | Pipeline overview and per-agent documentation |
 

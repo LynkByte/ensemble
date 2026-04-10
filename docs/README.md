@@ -270,5 +270,5 @@ Mutating tool calls support `idempotency_key`. Replayed keys within a session re
 
 - [Design Specification](DESIGN-SPEC.md) -- Executive summary, current system analysis, improvement priorities
 - [Phase 1: Prompt-Level Improvements](references/DESIGN-SPEC-PHASE-01.md) -- Archival reference for prompt-only enhancements (pattern memory protocol, parallel execution, drift detection, hooks, user config)
-- [Phase 1: MCP Server Design](archive/DESIGN-SPEC-PHASE-01.md) -- Historical design spec (tool APIs, schemas, architecture decisions, risk assessment)
+- [Phase 1: MCP Server Design](DESIGN-SPEC-PHASE-01.md) -- Design spec (tool APIs, schemas, architecture decisions, risk assessment)
 - [Future Plans](FUTURE-PLANS.md) -- Web dashboard, real-time live view, team analytics, report export, CI/CD integration, plugin system, and advanced indexing

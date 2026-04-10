@@ -21,7 +21,6 @@
 
 `ensemble-mcp` is a Python MCP (Model Context Protocol) server that provides:
 - **Vector memory** for semantic pattern search
-- **Token tracking** with per-agent cost breakdown
 - **Drift detection** via embedding similarity
 - **Model routing** recommendations
 - **Skills discovery** for project-specific knowledge
@@ -107,7 +106,6 @@ graph TB
 
         subgraph "Tools Layer"
             T1[patterns.py<br/>search / store / prune]
-            T2[metrics.py<br/>sessions / steps / reports]
             T3[drift.py<br/>scope checking]
             T4[routing.py<br/>model recommendations]
             T5[skills.py<br/>discovery + intelligence]
@@ -121,22 +119,14 @@ graph TB
             M3[similarity.py<br/>Cosine Similarity]
         end
 
-        subgraph "Parsers Layer"
-            P1[opencode.py<br/>Session DB Parser]
-            P2[claude_code.py<br/>Session JSON Parser]
-        end
-
         subgraph "Config"
             C1[settings.py]
-            C2[pricing.py<br/>Model Cost Tables]
         end
 
-        SRV --> T1 & T2 & T3 & T4 & T5 & T6 & T7
+        SRV --> T1 & T3 & T4 & T5 & T6 & T7
         T1 --> M2
         T3 --> M1 & M3
         M2 --> M1 & M3
-        T2 --> P1 & P2
-        T2 --> C2
         T4 --> C1
         T7 --> DB
     end
@@ -164,7 +154,7 @@ graph TB
 | MCP Framework | `mcp` (official Python SDK) | Standard MCP protocol implementation |
 | Embeddings | ONNX Runtime + MiniLM-L6-v2 | ~22MB model, no PyTorch (saves ~2.4GB) |
 | Vector Storage | SQLite + numpy cosine similarity | Zero external dependencies, portable |
-| Token & Cost Tracking | Direct usage ingestion + session parsers + `tokenizers` | Exact when usage is available; robust fallback when it is not |
+| Token Counting | `tokenizers` (HuggingFace) | Local tokenizer for ONNX model, no API |
 | Package Size | ~90MB (including ONNX + model) | Acceptable; PyTorch would be ~2.5GB |
 
 **Why not PyTorch/sentence-transformers?**
@@ -194,7 +184,6 @@ ensemble-mcp/
         __init__.py
         settings.py          # Configuration management
         defaults.py          # Default limits, thresholds, feature toggles
-        pricing.py           # Model pricing tables
       contracts/
         __init__.py
         envelope.py          # Standard tool response/error envelope
@@ -207,7 +196,6 @@ ensemble-mcp/
       tools/
         __init__.py
         patterns.py          # patterns_search, patterns_store, patterns_prune
-        metrics.py           # metrics_start_session, metrics_record_step, metrics_backfill, etc.
         drift.py             # drift_check
         routing.py           # model_recommend
         skills.py            # skills_discover, skills_suggest, skills_generate
@@ -218,10 +206,6 @@ ensemble-mcp/
         store.py             # SQLite-backed vector store
         embeddings.py        # ONNX Runtime embedding generation
         similarity.py        # Cosine similarity search
-      parsers/
-        __init__.py
-        opencode.py          # Parse OpenCode session files
-        claude_code.py       # Parse Claude Code session files
       security/
         __init__.py
         redaction.py         # Secret/PII redaction before persistence
@@ -231,14 +215,12 @@ ensemble-mcp/
         setup.py             # Auto-detect AI tools, copy agents, register MCP
   tests/
     test_patterns.py
-    test_metrics.py
     test_drift.py
     test_embeddings.py
-    test_parsers.py
     test_indexer.py
 ```
 
-### 1.4 MCP Tools (22 total)
+### 1.4 MCP Tools (15 total)
 
 ### Tool Response Contract (applies to all tools)
 
@@ -247,25 +229,17 @@ All tools return the standardized envelope from Section 1.1.1.
 - Success: `ok=true`, populated `data`, `error=null`
 - Failure: `ok=false`, `data=null`, structured `error`
 - `meta.confidence`: `exact | partial | estimated`
-- `meta.source`: local component that produced the result (`sqlite`, `parser`, `estimator`, `hybrid`)
+- `meta.source`: local component that produced the result (`sqlite`, `onnx`, `filesystem`)
 
 #### Tool Taxonomy
 
 ```mermaid
 mindmap
-    root((ensemble-mcp<br/>22 Tools))
+    root((ensemble-mcp<br/>15 Tools))
         Patterns
             patterns_search
             patterns_store
             patterns_prune
-        Metrics
-            metrics_start_session
-            metrics_record_step
-            metrics_end_session
-            metrics_session_report
-            metrics_trend
-            metrics_compare
-            metrics_backfill
         Drift
             drift_check
         Routing
@@ -293,27 +267,6 @@ mindmap
 | `patterns_search` | `query: str, top_k: int = 3, project: str?, idempotency_key?: str` | `envelope<{matches: [{name, context, approach, outcome, score}]}>` | Semantic search over stored patterns |
 | `patterns_store` | `name, context, approach, outcome, project: str?, idempotency_key?: str` | `envelope<{id, stored: true}>` | Store a new pattern with embedding |
 | `patterns_prune` | `max_age_days: int = 90, min_score: float = 0.3, idempotency_key?: str` | `envelope<{pruned: int, remaining: int}>` | Remove old/low-relevance patterns |
-
-#### Metrics (7 tools)
-
-| Tool | Input | Output | Description |
-|------|-------|--------|-------------|
-| `metrics_start_session` | `task, classification, ai_tool, idempotency_key?: str` | `envelope<{session_id, state}>` | Start tracking a pipeline session |
-| `metrics_record_step` | `session_id, agent, input_tokens?, output_tokens?, cache_read_tokens?, cache_write_tokens?, web_search_requests?, cached_tokens?, usage_raw?, provider?, model?, source?, confidence?, pricing_version?, duration_ms?, idempotency_key?: str` | `envelope<{recorded: true, step_id, confidence, source}>` | Record per-agent token and cost usage using best available source |
-| `metrics_end_session` | `session_id, status, idempotency_key?: str` | `envelope<{session_id, total_cost, state}>` | Finalize session, compute totals |
-| `metrics_session_report` | `session_id` | `envelope<{report: str, confidence}>` | Generate formatted session report |
-| `metrics_trend` | `days: int = 30` | `envelope<{daily_costs, avg_tokens, trend, confidence}>` | Cost/token trends over time |
-| `metrics_compare` | `session_id_a, session_id_b` | `envelope<{diff, confidence}>` | Compare two sessions |
-| `metrics_backfill` | `session_id?, force?: bool, ai_tool?: str, idempotency_key?: str` | `envelope<{backfilled: int, skipped: int, errors: int, details: []}>` | Backfill session steps with real token data from AI tool session files |
-
-`metrics_record_step` precedence rules:
-1. Use `usage_raw` (provider/runtime usage payload) when present.
-2. Otherwise use parsed session-file usage.
-3. Otherwise estimate from text with `tiktoken`.
-
-This makes direct response usage optional per client integration while keeping cross-tool support reliable.
-
-When `usage_raw` is unavailable, integrations should still send whatever is known (`model`, `duration_ms`, partial token fields). The server fills missing values via parser/estimator and returns the resulting `confidence`.
 
 #### Drift (1 tool)
 
@@ -392,7 +345,7 @@ When `usage_raw` is unavailable, integrations should still send whatever is know
 
 - **Embeddings:** ONNX Runtime runs MiniLM-L6-v2 locally (CPU inference, ~5ms per embedding)
 - **Similarity:** numpy cosine similarity (pure math, no API)
-- **Token counting:** tokenizers (local HuggingFace tokenizer, no API)
+- **Tokenization:** `tokenizers` (HuggingFace library for ONNX model tokenization, no API)
 - **Storage:** SQLite (local file database)
 - **Drift detection:** Cosine similarity between embeddings (local math)
 
@@ -492,109 +445,6 @@ BGE-small or GTE-small are the most likely upgrade path — same 384 dimensions 
 | Pinecone/Weaviate | Cloud | High (API, account, cost) | Variable |
 
 For pattern memory with <10K entries, brute-force cosine similarity is perfectly adequate. Adding a vector DB would be premature optimization.
-
-### 2.4 Token Tracking: Hybrid Approach
-
-**Decision:** Source-precedence hybrid with accuracy indicators.
-
-Primary design goal: handle multi-tool environments where some clients expose exact usage in real time and others do not.
-
-#### 2.4.1 Source Precedence
-
-For each step/session metric, use the highest-confidence source available:
-
-1. **Direct response usage (Exact)** — usage counters delivered from runtime/provider response payloads.
-2. **AI tool session parsers (Exact/Partial)** — reconstructed usage from local session files/DB.
-3. **Tokenizer estimation (Estimated)** — `tiktoken` fallback on text when exact usage is unavailable.
-
-`source` values returned in metrics metadata:
-- `live_response_usage`
-- `session_parser`
-- `estimator`
-- `hybrid`
-
-`confidence` values:
-- `exact` — provider counters or complete parser reconstruction
-- `partial` — mixed exact + estimated values
-- `estimated` — tokenizer-only approximation
-
-#### 2.4.2 Direct Response Usage Availability
-
-Not all AI tools expose usage payloads to MCP integrations the same way. The design therefore treats direct usage as an **optional high-quality input**, not a mandatory dependency.
-
-- If available: ingest directly via `metrics_record_step.usage_raw`
-- If unavailable: parser and/or estimator paths continue to work without breaking the pipeline
-
-#### Token Data Flow
-
-```mermaid
-flowchart LR
-    subgraph "Source 1: Direct Runtime Usage (Exact)"
-        R1["usage_raw from client/runtime"]
-    end
-
-    subgraph "Source 2: AI Tool Session Files (Exact/Partial)"
-        S1A["OpenCode<br/>~/.local/share/opencode/sessions/*.db"]
-        S1B["Claude Code<br/>~/.claude/projects/*/sessions/"]
-    end
-
-    subgraph "Source 3: Estimation (Fallback)"
-        S3["tiktoken<br/>count tokens in text<br/>~85-95% accurate"]
-    end
-
-    R1 --> AGG[Metrics Aggregator]
-    S1A --> P1[opencode.py parser]
-    S1B --> P2[claude_code.py parser]
-
-    P1 --> AGG
-    P2 --> AGG
-    S3 --> AGG
-
-    AGG --> R{Accuracy?}
-    R -->|Usage payloads/parser complete| E1["● exact"]
-    R -->|Mixed sources| E2["◐ partial"]
-    R -->|Tokenizer only| E3["○ estimated"]
-
-    E1 --> RPT[Session Report]
-    E2 --> RPT
-    E3 --> RPT
-
-    style E1 fill:#10B981,color:#fff
-    style E2 fill:#F59E0B,color:#000
-    style E3 fill:#EF4444,color:#fff
-```
-
-| Source | Method | Accuracy | When Available |
-|--------|--------|----------|----------------|
-| **Direct runtime usage** | Ingest provider/runtime usage payload (`usage_raw`) from client integration | Exact | Tool-dependent |
-| **AI tool session files** | Parse SQLite/JSON from `~/.local/share/opencode/sessions/` or `~/.claude/projects/` | Exact or Partial | OpenCode, Claude Code |
-| **tiktoken estimation** | Count tokens in text flowing through context | Estimated (~85-95% accurate) | Always (fallback) |
-
-**Accuracy indicators in reports:**
-- `●` exact — from direct runtime usage and/or complete parser data
-- `◐` partial — mix of exact and estimated
-- `○` estimated — tiktoken estimation only
-
-#### 2.4.3 Cost Calculation Model
-
-Cost is computed from usage components, not only input/output tokens:
-
-- input tokens
-- output tokens
-- cache read tokens
-- cache write tokens
-- web search requests (if provider/tool exposes this)
-
-If model pricing is unknown:
-- use configured fallback pricing tier
-- mark `unknown_model_cost=true`
-- degrade confidence to at most `partial`
-
-All computed rows retain:
-- `pricing_version`
-- `model_canonical_name`
-- `source`
-- `confidence`
 
 ### 2.5 Parallel Execution: Conservative
 
@@ -718,11 +568,11 @@ All computed rows retain:
 **Source classes:**
 - `local_state` — SQLite/session state generated by ensemble-mcp
 - `client_input` — MCP tool arguments from AI clients
-- `filesystem_scan` — project files, skill files, and parser inputs
+- `filesystem_scan` — project files and skill files
 
 **Policy:**
 - Persisted text is redacted before storage (common secret patterns)
-- Parser failures never crash tool calls; return partial data with `confidence=partial`
+- Scan/index failures never crash tool calls; return partial data with `confidence=partial`
 - Destructive operations (`reset`) require explicit confirmation and are always audited
 
 ### 2.12 Schema Migration and Concurrency (New)
@@ -802,13 +652,7 @@ stateDiagram-v2
 | gpt-5-mini | $0.20 | $0.10 | $0.80 |
 | o1 | $15.00 | $7.50 | $60.00 |
 
-*Prices as of early 2026. The MCP server stores these in `config/pricing.py` and can be updated.*
-
-Implementation notes for pricing parity:
-- Track cache **read** and cache **write** token costs separately when provider data exposes both.
-- Include per-request server tool costs (for example, web search requests) when exposed.
-- Use `pricing_version` on every computed row so historical reports remain reproducible after pricing table updates.
-- If model pricing is missing, compute with fallback tier and set `unknown_model_cost=true`.
+*Prices as of early 2026. These are reference values for cost estimation.*
 
 ### 3.2 Typical Pipeline Token Usage (Current System)
 
@@ -861,9 +705,9 @@ At 10 pipeline runs/day, 30 days/month:
 | **Net token difference** | | | **540,000 fewer** |
 | Monthly cost (patterns only) | $15.75 | $7.65 | **$8.10/dev** |
 
-With all MCP features (metrics, drift, routing, indexing), estimated monthly savings: **$12-18/developer** (indexing adds ~$4-6/dev savings from reduced Scope exploration).
+With all MCP features (drift, routing, indexing), estimated monthly savings: **$12-18/developer** (indexing adds ~$4-6/dev savings from reduced Scope exploration).
 
-Projection caveat: these are directional estimates. Actual cost depends on model mix, cache hit behavior, tool call profile, and whether direct usage payloads are available from the active client integration.
+Projection caveat: these are directional estimates. Actual cost depends on model mix, cache hit behavior, and tool call profile.
 
 ---
 
@@ -880,20 +724,11 @@ gantt
     section Phase 1
     MCP Core (patterns, drift, routing, indexer) :p1, 2026-04-01, 5d
 
-    section Phase 2
-    Metrics & Token Tracking     :p2, after p1, 4d
-
-    section Phase 3
-    Session File Parsers         :p3, after p2, 3d
-
     section Phase 4
-    Auto-Installer               :p4, after p3, 3d
-
-    section Phase 5
-    CLI Dashboard                :p5, after p4, 3d
+    Auto-Installer               :p4, after p1, 3d
 
     section Phase 6
-    Package & Publish            :p6, after p5, 3d
+    Package & Publish            :p6, after p4, 3d
 ```
 
 ### 4.0 Phase 1 Contract Foundation (Recommended Pre-Phase)
@@ -912,19 +747,11 @@ Estimated: 1-2 days. This reduces rework across every later phase.
 
 ```mermaid
 graph LR
-    P1[Phase 1<br/>MCP Core + Indexer<br/>4-5 days] --> P2[Phase 2<br/>Metrics System<br/>3-4 days]
-    P2 --> P3[Phase 3<br/>Session Parsers<br/>2-3 days]
-    P1 --> P4[Phase 4<br/>Auto-Installer<br/>2-3 days]
-    P2 --> P5[Phase 5<br/>CLI Dashboard<br/>2-3 days]
-    P3 --> P5
+    P1[Phase 1<br/>MCP Core + Indexer<br/>4-5 days] --> P4[Phase 4<br/>Auto-Installer<br/>2-3 days]
     P4 --> P6[Phase 6<br/>Package & Publish<br/>2-3 days]
-    P5 --> P6
 
     style P1 fill:#10B981,color:#fff
-    style P2 fill:#10B981,color:#fff
-    style P3 fill:#10B981,color:#fff
     style P4 fill:#F97316,color:#fff
-    style P5 fill:#F97316,color:#fff
     style P6 fill:#EC4899,color:#fff
 ```
 
@@ -934,13 +761,10 @@ graph LR
 |-------|----------|-------------|
 | **Phase 1.0: Contract Foundation** | 1-2 days | Response envelope, error taxonomy, lifecycle state machine, idempotency, migration scaffold |
 | **Phase 1: MCP Core** | 4-5 days | Python project scaffold, patterns tools, drift tool, routing tool, codebase indexer (all using standardized envelope) |
-| **Phase 2: Metrics System** | 3-4 days | Token tracking, session reports, cost calculation |
-| **Phase 3: Session Parsers** | 2-3 days | OpenCode session file parser, Claude Code parser |
 | **Phase 4: Auto-Installer** | 2-3 days | AI tool detection, agent copying, MCP registration |
-| **Phase 5: CLI Dashboard** | 2-3 days | Terminal-based metrics dashboard |
 | **Phase 6: Package & Publish** | 2-3 days | PyPI publishing, Docker image, documentation |
 
-**Total estimated timeline: 18-23 days**
+**Total estimated timeline: 12-15 days**
 
 ### 4.2 Phase 1 Detailed Steps
 
@@ -955,7 +779,7 @@ graph LR
        "mcp>=1.0",
        "onnxruntime>=1.17",
        "numpy>=1.26",
-       "tiktoken>=0.6",
+       "tokenizers>=0.15",
    ]
 
    [project.scripts]
@@ -975,24 +799,7 @@ graph LR
 14. Implement `server.py` — MCP server with tool registration
 15. Write tests for all tools (including indexer), plus contract/lifecycle/idempotency tests
 
-### 4.3 Phase 2 Detailed Steps
-
-1. Implement `config/pricing.py` — model pricing table
-2. Implement `tools/metrics.py` — session tracking, step recording
-3. Implement session report generation (ASCII table format)
-4. Implement `metrics_trend` — daily cost/token aggregation
-5. Implement `metrics_compare` — session diff
-6. Write tests for metrics tools
-
-### 4.4 Phase 3 Detailed Steps
-
-1. Implement `parsers/opencode.py` — parse `~/.local/share/opencode/sessions/*.db`
-2. Implement `parsers/claude_code.py` — parse `~/.claude/projects/*/sessions/`
-3. Add parser auto-detection (which AI tool is running)
-4. Integrate parsers with metrics for exact token counts
-5. Write tests with fixture data
-
-### 4.5 Phase 4 Detailed Steps
+### 4.3 Phase 4 Detailed Steps
 
 1. Implement AI tool detection (check for config files/directories)
 2. Implement agent file copying (from package to project)
@@ -1000,15 +807,7 @@ graph LR
 4. Create `ensemble-mcp install` CLI command
 5. Test on all supported platforms
 
-### 4.6 Phase 5 Detailed Steps
-
-1. Design CLI dashboard layout (terminal width detection)
-2. Implement real-time session display
-3. Implement historical trends view
-4. Implement cost breakdown charts (ASCII)
-5. Add `ensemble-mcp dashboard` CLI command
-
-### 4.7 Phase 6 Detailed Steps
+### 4.4 Phase 6 Detailed Steps
 
 1. Final testing on Mac, Linux, Windows
 2. Create `Dockerfile` for containerized deployment
@@ -1155,47 +954,15 @@ The MCP server uses a single SQLite database at `~/.cache/ensemble-mcp/data.db`.
 
 ```mermaid
 erDiagram
-    SESSIONS ||--o{ STEPS : contains
-    SESSIONS ||--o{ MCP_CALLS : tracks
+    MCP_CALLS
     PROJECT_FILES ||--o{ FILE_EXPORTS : has
     PROJECT_FILES ||--o{ FILE_IMPORTS : has
     PATTERNS ||--o{ SKILL_SUGGESTIONS : "clustered into"
     SKILL_SUGGESTIONS ||--o{ SKILL_SUGGESTION_PATTERNS : contains
 
-    SESSIONS {
-        text id PK "UUID"
-        text task
-        text classification "trivial/simple/standard/complex"
-        text ai_tool "opencode/claude-code/copilot/etc"
-        text project
-        text started_at
-        text ended_at
-        text status "success/partial/failed"
-        int total_input_tokens
-        int total_output_tokens
-        int total_cached_tokens
-        real total_cost_usd
-        text report_json
-    }
-
-    STEPS {
-        int id PK
-        text session_id FK
-        text agent "ensemble/scope/craft/etc"
-        text model
-        int input_tokens
-        int output_tokens
-        int cached_tokens
-        real cost_usd
-        int duration_ms
-        text accuracy "exact/partial/estimated"
-        text started_at
-        text ended_at
-    }
-
     MCP_CALLS {
         int id PK
-        text session_id FK
+        text session_id
         text tool_name
         int input_bytes
         int output_bytes
@@ -1291,65 +1058,12 @@ CREATE INDEX idx_patterns_project ON patterns(project);
 CREATE INDEX idx_patterns_created ON patterns(created_at);
 ```
 
-#### Sessions Table
-
-```sql
-CREATE TABLE sessions (
-    id TEXT PRIMARY KEY,             -- UUID
-    task TEXT NOT NULL,
-    classification TEXT NOT NULL,    -- trivial/simple/standard/complex
-    ai_tool TEXT,                    -- opencode/claude-code/copilot/cursor/etc
-    project TEXT,
-    started_at TEXT DEFAULT (datetime('now')),
-    ended_at TEXT,
-    status TEXT,                     -- success/partial/failed
-    total_input_tokens INTEGER DEFAULT 0,
-    total_output_tokens INTEGER DEFAULT 0,
-    total_cached_tokens INTEGER DEFAULT 0,
-    total_cost_usd REAL DEFAULT 0,
-    report_json TEXT                 -- full report as JSON
-);
-
-CREATE INDEX idx_sessions_project ON sessions(project);
-CREATE INDEX idx_sessions_started ON sessions(started_at);
-```
-
-`sessions.total_*` fields are cumulative for the session and should support resume semantics (continuing the same `session_id` appends usage instead of resetting totals).
-
-#### Steps Table
-
-```sql
-CREATE TABLE steps (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL REFERENCES sessions(id),
-    agent TEXT NOT NULL,             -- ensemble/scope/craft/proof/lens/signal
-    model TEXT,                      -- actual model used
-    model_canonical_name TEXT,       -- normalized model identifier used for pricing lookup
-    input_tokens INTEGER DEFAULT 0,
-    output_tokens INTEGER DEFAULT 0,
-    cache_read_tokens INTEGER DEFAULT 0,
-    cache_write_tokens INTEGER DEFAULT 0,
-    web_search_requests INTEGER DEFAULT 0,
-    cached_tokens INTEGER DEFAULT 0,
-    cost_usd REAL DEFAULT 0,
-    pricing_version TEXT,            -- pricing table version used for this row
-    source TEXT DEFAULT 'estimator', -- live_response_usage/session_parser/estimator/hybrid
-    duration_ms INTEGER,
-    unknown_model_cost INTEGER DEFAULT 0,  -- boolean 0/1
-    accuracy TEXT DEFAULT 'estimated',  -- exact/partial/estimated
-    started_at TEXT DEFAULT (datetime('now')),
-    ended_at TEXT
-);
-
-CREATE INDEX idx_steps_session ON steps(session_id);
-```
-
 #### MCP Calls Table
 
 ```sql
 CREATE TABLE mcp_calls (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT REFERENCES sessions(id),
+    session_id TEXT,                 -- optional session context
     tool_name TEXT NOT NULL,
     input_bytes INTEGER DEFAULT 0,
     output_bytes INTEGER DEFAULT 0,
@@ -1481,96 +1195,6 @@ Used before MCP server is available. Stored at `.opencode/patterns.md`:
 - **Approach:** Use `pest --parallel` with `RefreshDatabase` trait, not `DatabaseTransactions`
 - **Outcome:** Success — test time reduced from 2min to 35sec
 - **Date:** 2026-03-20
-```
-
-### 6.3 Session Report Format
-
-#### In-Tool Report (Ensemble's final output)
-
-```
-╔══════════════════════════════════════════════════════════════╗
-║                    SESSION REPORT                            ║
-║  Task: Add user profile settings page                        ║
-║  Classification: STANDARD  │  Status: SUCCESS                ║
-╠══════════════════════════════════════════════════════════════╣
-║                                                              ║
-║  AGENT BREAKDOWN                                    ◐ partial║
-║  ┌──────────┬──────────┬──────────┬────────┬────────┐       ║
-║  │ Agent    │ In Tkns  │ Out Tkns │ Cached │ Cost   │       ║
-║  ├──────────┼──────────┼──────────┼────────┼────────┤       ║
-║  │ Ensemble │   8,234  │   2,891  │  1,200 │ $0.337 │       ║
-║  │ Scope   │  11,567  │   2,234  │  3,400 │ $0.336 │       ║
-║  │ Craft   │   9,823  │   3,567  │  2,100 │ $0.412 │       ║
-║  │ Proof    │   5,891  │   1,234  │    890 │ $0.036 │       ║
-║  │ Lens    │   7,456  │     891  │  1,100 │ $0.035 │       ║
-║  │ Signal   │   1,923  │     456  │    300 │ $0.001 │       ║
-║  ├──────────┼──────────┼──────────┼────────┼────────┤       ║
-║  │ TOTAL    │  44,894  │  11,273  │  8,990 │ $1.157 │       ║
-║  └──────────┴──────────┴──────────┴────────┴────────┘       ║
-║                                                              ║
-║  MCP TOOL CALLS                                              ║
-║  ┌────────────────────┬───────┬─────────┐                   ║
-║  │ Tool               │ Calls │ Tokens  │                   ║
-║  ├────────────────────┼───────┼─────────┤                   ║
-║  │ patterns_search    │     2 │     340 │                   ║
-║  │ drift_check        │     1 │     180 │                   ║
-║  │ model_recommend    │     3 │     120 │                   ║
-║  │ metrics_record_step│     6 │     240 │                   ║
-║  ├────────────────────┼───────┼─────────┤                   ║
-║  │ TOTAL              │    12 │     880 │                   ║
-║  └────────────────────┴───────┴─────────┘                   ║
-║                                                              ║
-║  SAVINGS ANALYSIS                                            ║
-║  • Pattern memory saved ~3,000 tokens (semantic search       ║
-║    vs reading full patterns file)                            ║
-║  • Cached tokens saved: $0.122 (8,990 tokens at cache rate)  ║
-║                                                              ║
-║  CUMULATIVE (this project)                                   ║
-║  • Sessions: 47  │  Total cost: $52.34  │  Avg: $1.11/run   ║
-║  • Trend: ↓ 8% cost reduction over last 7 days              ║
-║                                                              ║
-║  Accuracy: ◐ partial (MCP exact + tiktoken estimated)        ║
-╚══════════════════════════════════════════════════════════════╝
-```
-
-**Accuracy indicators:**
-- `●` exact — all data from AI tool session files
-- `◐` partial — mix of exact (MCP calls) and estimated (agent tokens)
-- `○` estimated — all data from tiktoken estimation
-
-#### CLI Dashboard Format
-
-```
-$ ensemble-mcp dashboard
-
-  Ensemble MCP - Dashboard
-  ═══════════════════════════
-
-  Today: 8 sessions │ $9.42 │ 378K tokens
-  Week:  42 sessions │ $48.67 │ 1.94M tokens
-  Month: 156 sessions │ $178.23 │ 7.1M tokens
-
-  Cost by Agent (today)
-  ┌──────────┬────────┬───────┐
-  │ Agent    │ Cost   │ Share │
-  ├──────────┼────────┼───────┤
-  │ Craft    │ $3.78  │  40%  │
-  │ Scope   │ $2.84  │  30%  │
-  │ Ensemble │ $2.10  │  22%  │
-  │ Proof    │ $0.52  │   6%  │
-  │ Lens    │ $0.14  │   1%  │
-  │ Signal   │ $0.04  │  <1%  │
-  └──────────┴────────┴───────┘
-
-  Recent Sessions
-  ┌────┬────────────────────────┬──────────┬────────┬────────┐
-  │ #  │ Task                   │ Class    │ Cost   │ Status │
-  ├────┼────────────────────────┼──────────┼────────┼────────┤
-  │ 8  │ Fix login redirect bug │ simple   │ $0.82  │ ✓      │
-  │ 7  │ Add profile settings   │ standard │ $1.16  │ ✓      │
-  │ 6  │ Refactor auth service  │ complex  │ $2.34  │ ✓      │
-  │ 5  │ Update README          │ trivial  │ $0.12  │ ✓      │
-  └────┴────────────────────────┴──────────┴────────┴────────┘
 ```
 
 ---
@@ -1800,105 +1424,7 @@ class VectorStore:
         return pruned
 ```
 
-### 7.4 Token Estimation
-
-```python
-# tools/metrics.py (token estimation helper)
-
-import tiktoken
-
-# Use cl100k_base (GPT-4/Claude compatible) for estimation
-_encoder = None
-
-def _get_encoder():
-    global _encoder
-    if _encoder is None:
-        _encoder = tiktoken.get_encoding("cl100k_base")
-    return _encoder
-
-def estimate_tokens(text: str) -> int:
-    """Estimate token count for a text string. ~85-95% accurate across models."""
-    return len(_get_encoder().encode(text))
-
-def calculate_cost(
-    input_tokens: int,
-    output_tokens: int,
-    cached_tokens: int,
-    model: str,
-) -> float:
-    """Calculate cost in USD for a given token usage."""
-    pricing = MODEL_PRICING.get(model, MODEL_PRICING["claude-sonnet-4"])
-
-    input_cost = (input_tokens - cached_tokens) * pricing["input"] / 1_000_000
-    cached_cost = cached_tokens * pricing["cached_input"] / 1_000_000
-    output_cost = output_tokens * pricing["output"] / 1_000_000
-
-    return input_cost + cached_cost + output_cost
-
-MODEL_PRICING = {
-    "claude-opus-4": {"input": 15.0, "cached_input": 1.5, "output": 75.0},
-    "claude-sonnet-4": {"input": 3.0, "cached_input": 0.30, "output": 15.0},
-    "claude-haiku-3.5": {"input": 0.80, "cached_input": 0.08, "output": 4.0},
-    "gpt-4o": {"input": 2.50, "cached_input": 1.25, "output": 10.0},
-    "gpt-4o-mini": {"input": 0.15, "cached_input": 0.075, "output": 0.60},
-    "gpt-5-mini": {"input": 0.20, "cached_input": 0.10, "output": 0.80},
-    "o1": {"input": 15.0, "cached_input": 7.50, "output": 60.0},
-}
-```
-
-### 7.5 Session File Parser (OpenCode)
-
-```python
-# parsers/opencode.py
-
-import sqlite3
-import json
-from pathlib import Path
-from typing import Optional
-
-# OpenCode stores session data in SQLite
-OPENCODE_SESSIONS_DIR = Path.home() / ".local" / "share" / "opencode" / "sessions"
-
-def find_latest_session() -> Optional[Path]:
-    """Find the most recent OpenCode session database."""
-    if not OPENCODE_SESSIONS_DIR.exists():
-        return None
-
-    db_files = sorted(OPENCODE_SESSIONS_DIR.glob("*.db"), key=lambda p: p.stat().st_mtime, reverse=True)
-    return db_files[0] if db_files else None
-
-def parse_session(db_path: Path) -> dict:
-    """Parse an OpenCode session database for token usage."""
-    conn = sqlite3.connect(str(db_path))
-    conn.row_factory = sqlite3.Row
-
-    # Query message history for token usage
-    # (exact schema depends on OpenCode version)
-    try:
-        rows = conn.execute("""
-            SELECT role, model, input_tokens, output_tokens, cache_read_tokens
-            FROM messages
-            ORDER BY created_at
-        """).fetchall()
-    except sqlite3.OperationalError:
-        # Schema mismatch — return empty
-        return {"found": False, "reason": "schema_mismatch"}
-
-    steps = []
-    for row in rows:
-        steps.append({
-            "role": row["role"],
-            "model": row["model"],
-            "input_tokens": row["input_tokens"] or 0,
-            "output_tokens": row["output_tokens"] or 0,
-            "cached_tokens": row["cache_read_tokens"] or 0,
-        })
-
-    conn.close()
-    return {"found": True, "accuracy": "exact", "steps": steps}
-```
-
-### 7.6 MCP Server Entry Point
+### 7.4 MCP Server Entry Point
 
 ```python
 # server.py
@@ -1907,7 +1433,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
-from .tools import patterns, metrics, drift, routing, skills, session, indexer
+from .tools import patterns, drift, routing, skills, session, indexer
 from .memory.store import VectorStore
 
 app = Server("ensemble-mcp")
@@ -2008,7 +1534,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### 7.7 Drift Detection Implementation
+### 7.5 Drift Detection Implementation
 
 ```python
 # tools/drift.py
@@ -2067,7 +1593,7 @@ def check(
     }
 ```
 
-### 7.8 Auto-Installer
+### 7.6 Auto-Installer
 
 ```python
 # installer/setup.py
@@ -2198,7 +1724,7 @@ def install(copy_agents: bool = True, register_mcp: bool = True) -> dict:
     return results
 ```
 
-### 7.9 Skill Suggestion Detection (Pattern Clustering)
+### 7.7 Skill Suggestion Detection (Pattern Clustering)
 
 ```python
 # tools/skills.py (skill suggestion detection)
@@ -2413,7 +1939,7 @@ def _derive_name(patterns: list[dict]) -> str:
     return "-".join(top_words) if top_words else "unnamed-skill"
 ```
 
-### 7.10 Skill File Generation (Accept/Dismiss/Defer)
+### 7.8 Skill File Generation (Accept/Dismiss/Defer)
 
 ```python
 # tools/skills.py (skill generation and approval)
@@ -2511,15 +2037,13 @@ def generate_skill(
 | Risk | Probability | Impact | Mitigation |
 |------|------------|--------|------------|
 | ONNX model download fails on corporate networks | Medium | Medium | Bundle model in package (adds ~22MB to install size) |
-| OpenCode session DB schema changes between versions | Medium | Low | Graceful fallback to tiktoken estimation |
 | `uvx` not available on older systems | Low | Medium | Provide `pip install` fallback instructions |
 | SQLite concurrent write conflicts (multiple sessions) | Low | Medium | WAL mode + file locking |
-| Token estimation accuracy varies by model | High | Low | Clearly label estimates with `○` indicator |
 | Pattern memory grows too large | Low | Low | Auto-prune + configurable max entries |
 | Codebase index stale after external changes (IDE, git checkout) | Medium | Low | mtime check on query; stale files re-indexed on access |
 | Export parsing misses symbols in complex syntax | Medium | Low | Graceful degradation — file still indexed, exports just incomplete |
 | Brute-force vector search unusable above ~50K patterns | Low (for v1 target) | High | Pluggable search backend; FAISS/ANN upgrade path documented in [Future Plans](FUTURE-PLANS.md) |
-| Codebase indexing too slow for monorepos (>100K files) | Low (for v1 target) | Medium | Parallel scanning, batch inserts, filesystem watchers documented as upgrade path |
+| Codebase indexing too slow for monorepos (>100K files) | Low (for v1 target) | Medium | Parallel scanning, batch inserts, incremental indexing documented as upgrade path |
 | Skill suggestion noise — too many false-positive clusters | Medium | Low | Conservative defaults (3+ patterns, 0.75 similarity threshold); user approval gate prevents bad skills from being created |
 | Stale skill threshold too aggressive — useful skills flagged prematurely | Low | Low | Configurable `stale_threshold_days` (default 60); stale detection is advisory only, never auto-deletes |
 | Generated skill file content too generic or incoherent | Medium | Low | Zero-LLM generation means content is a structured combination of pattern fields, not creative text; users review before accepting |
@@ -2561,7 +2085,6 @@ def generate_skill(
 | **uvx** | Package runner from `uv` by Astral — auto-downloads Python + dependencies |
 | **ONNX** | Open Neural Network Exchange — portable ML model format |
 | **MiniLM** | Small transformer model for sentence embeddings (22MB) |
-| **tiktoken** | OpenAI's byte-pair encoding tokenizer for token counting |
 | **Drift** | When agent output deviates from the planned task scope |
 | **Pattern** | A learned solution or pitfall from a previous pipeline run |
 | **Tier** | Abstract model quality level: best / mid / cheapest |
