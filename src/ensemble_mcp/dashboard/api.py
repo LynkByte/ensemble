@@ -18,6 +18,7 @@ from urllib.parse import unquote
 from aiohttp import web
 
 from ..config.defaults import DB_PATH, SERVER_NAME, SERVER_VERSION
+from ..state.locks import get_connection
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +29,7 @@ logger = logging.getLogger(__name__)
 def _get_conn(request: web.Request) -> sqlite3.Connection:
     """Open a read-only WAL connection to the dashboard DB."""
     db_path: Path = request.app["db_path"]
-    conn = sqlite3.connect(str(db_path), check_same_thread=False)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
-    conn.row_factory = sqlite3.Row
-    return conn
+    return get_connection(db_path)
 
 
 def _envelope(data: dict[str, Any], *, duration_ms: int = 0) -> dict[str, Any]:

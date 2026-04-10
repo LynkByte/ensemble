@@ -13,6 +13,7 @@ from pathlib import Path
 from aiohttp import web
 
 from ..config.defaults import DASHBOARD_DEFAULT_PORT, DASHBOARD_HOST, DB_PATH, SERVER_VERSION
+from ..state.locks import get_connection
 from .api import register_api_routes
 
 logger = logging.getLogger(__name__)
@@ -20,8 +21,104 @@ logger = logging.getLogger(__name__)
 STATIC_DIR = Path(__file__).parent / "static"
 
 
+def _ensure_db_ready(db_path: Path) -> None:
+    """Ensure the database directory and tables exist.
+
+    Called once at startup so the dashboard can serve even if the MCP
+    server has never run. All statements are ``CREATE TABLE IF NOT
+    EXISTS`` — safe and idempotent.
+    """
+    conn = get_connection(db_path)  # handles mkdir + WAL
+    try:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS schema_version (
+                version INTEGER PRIMARY KEY,
+                applied_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS patterns (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL, context TEXT NOT NULL,
+                approach TEXT NOT NULL, outcome TEXT NOT NULL,
+                project TEXT, embedding BLOB NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                last_matched_at TEXT, match_count INTEGER DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS mcp_calls (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tool_name TEXT NOT NULL,
+                input_bytes INTEGER DEFAULT 0,
+                output_bytes INTEGER DEFAULT 0,
+                duration_ms INTEGER,
+                called_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS project_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_path TEXT NOT NULL, file_path TEXT NOT NULL,
+                language TEXT, role TEXT,
+                size_bytes INTEGER DEFAULT 0,
+                modified_at TEXT NOT NULL,
+                indexed_at TEXT DEFAULT (datetime('now')),
+                UNIQUE(project_path, file_path)
+            );
+            CREATE TABLE IF NOT EXISTS file_exports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_id INTEGER NOT NULL
+                    REFERENCES project_files(id) ON DELETE CASCADE,
+                name TEXT NOT NULL, kind TEXT NOT NULL,
+                line_number INTEGER, signature TEXT, docstring TEXT,
+                UNIQUE(file_id, name, kind)
+            );
+            CREATE TABLE IF NOT EXISTS file_imports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_id INTEGER NOT NULL
+                    REFERENCES project_files(id) ON DELETE CASCADE,
+                import_path TEXT NOT NULL, raw_import TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS skill_suggestions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project TEXT NOT NULL, proposed_name TEXT NOT NULL,
+                proposed_content TEXT NOT NULL, theme TEXT NOT NULL,
+                confidence REAL DEFAULT 0.0, status TEXT DEFAULT 'pending',
+                created_at TEXT DEFAULT (datetime('now')),
+                resolved_at TEXT, generated_path TEXT
+            );
+            CREATE TABLE IF NOT EXISTS skill_usage_tracking (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                skill_path TEXT NOT NULL, project TEXT NOT NULL,
+                first_seen_at TEXT DEFAULT (datetime('now')),
+                last_matched_at TEXT, match_count INTEGER DEFAULT 0,
+                UNIQUE(skill_path, project)
+            );
+            CREATE TABLE IF NOT EXISTS drift_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_description TEXT NOT NULL,
+                changed_files TEXT NOT NULL,
+                score REAL NOT NULL,
+                similarity REAL NOT NULL,
+                verdict TEXT NOT NULL,
+                flags TEXT NOT NULL,
+                project TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS session_checkpoints (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                state_json TEXT NOT NULL,
+                version INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                UNIQUE(session_id)
+            );
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def _create_app(db_path: Path = DB_PATH) -> web.Application:
     """Build the aiohttp application with all routes."""
+    # Ensure DB directory and tables exist before serving requests
+    _ensure_db_ready(db_path)
+
     app = web.Application()
 
     # Store db_path in app state for handlers to access
