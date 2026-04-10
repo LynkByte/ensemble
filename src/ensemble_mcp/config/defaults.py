@@ -131,4 +131,4 @@ DASHBOARD_HOST = "127.0.0.1"
 
 # ── Server Metadata ───────────────────────────────────────────────
 SERVER_NAME = "ensemble-mcp"
-SERVER_VERSION = "0.1.0a4"
+SERVER_VERSION = "0.1.0a6"

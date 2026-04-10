@@ -7,15 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a6] - 2026-04-10
+
+### Added
+- **Web Dashboard v1** — local-only browser interface at `localhost:8787` for visualizing patterns, skills, projects, drift history, and sessions
+  - `ensemble-mcp web` CLI command with `--port` and `--no-open` flags
+  - 11 JSON API endpoints returning standard `{ok, data, error, meta}` envelope
+  - Single-page app using Alpine.js, Chart.js (CDN), and Tailwind CSS (CDN)
+  - 5 dashboard pages: Overview, Patterns, Skills, Projects, Drift, Sessions
+  - Drift history chart with trend visualization
+  - Read-only SQLite connection (WAL mode) — does not block MCP server writes
+- `drift_history` SQLite table for persisting drift check results over time
+- `drift_check` tool now accepts optional `project` parameter for history tracking
+- `pytest-aiohttp` added to dev dependencies for dashboard API testing
+- SQLite schema version bumped from 5 to 6
+
+### Test Suite
+- 416 tests passing (24 new: 18 dashboard API + 6 drift history)
+
+## [0.1.0a5] - 2026-04-10
+
 ### Added
 - `skill_file_cache` SQLite table for mtime-based caching of skill file content and pre-computed embeddings
 
 ### Changed
 - `skills_discover` now uses cached embeddings from SQLite instead of re-reading files and recomputing on every call
 - `_scan_skill_files` refactored to use incremental mtime-based refresh (same pattern as `project_index`)
-
-### Test Suite
-- 619 tests passing (up from 562)
+- Removed metrics/cost/token tracking subsystem — stripped out the metrics backfill tool, file watcher daemon, and stub parsers
+- Synced all documentation with current codebase state
+- Rewrote FUTURE-PLANS to focus on actual data sources
 
 ## [0.1.0a3] - 2026-04-07
 
@@ -97,5 +117,7 @@ Initial release with all 15 MCP tools across 3 implementation phases.
 - Shared fixtures: `tmp_db`, `test_conn`, `test_store`, `MockEmbeddingModel`
 - Full lint (ruff) and format compliance
 
+[0.1.0a6]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0a6
+[0.1.0a5]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0a5
 [0.1.0a3]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0a3
 [0.1.0]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0

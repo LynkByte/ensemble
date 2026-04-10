@@ -1,6 +1,6 @@
 [project]
 name = "ensemble-mcp"
-version = "0.1.0a4"
+version = "0.1.0a6"
 description = "MCP server providing vector memory, drift detection, model routing, skills discovery, session management, and codebase indexing for AI-assisted development pipelines."
 requires-python = ">=3.11"
 readme = "README.md"
