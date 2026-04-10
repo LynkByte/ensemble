@@ -45,7 +45,7 @@ async def _index_handler(request: web.Request) -> web.FileResponse:
     return web.FileResponse(STATIC_DIR / "index.html")
 
 
-def start_dashboard(
+def start_dashboard(  # pragma: no cover — blocking server + browser open
     port: int = DASHBOARD_DEFAULT_PORT,
     open_browser: bool = True,
     db_path: Path = DB_PATH,

@@ -13,7 +13,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 from aiohttp import web
-from aiohttp.test_utils import TestClient, TestServer  # noqa: F401 — used by pytest-aiohttp
 
 from ensemble_mcp.dashboard.api import register_api_routes
 from ensemble_mcp.state.idempotency import ensure_idempotency_table
