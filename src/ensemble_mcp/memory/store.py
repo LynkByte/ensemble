@@ -27,7 +27,7 @@ from ..state.locks import get_connection
 logger = logging.getLogger(__name__)
 
 # Current schema version — bump when adding new migrations.
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 class VectorStore:
@@ -206,6 +206,23 @@ class VectorStore:
             );
             CREATE INDEX IF NOT EXISTS idx_skill_cache_project
                 ON skill_file_cache(project_path);
+
+            -- Drift History
+            CREATE TABLE IF NOT EXISTS drift_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_description TEXT NOT NULL,
+                changed_files TEXT NOT NULL,
+                score REAL NOT NULL,
+                similarity REAL NOT NULL,
+                verdict TEXT NOT NULL,
+                flags TEXT NOT NULL,
+                project TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_drift_history_project
+                ON drift_history(project);
+            CREATE INDEX IF NOT EXISTS idx_drift_history_created
+                ON drift_history(created_at);
 
             -- Session Checkpoints
             CREATE TABLE IF NOT EXISTS session_checkpoints (

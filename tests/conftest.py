@@ -194,6 +194,22 @@ def test_conn(tmp_db: Path) -> Generator[sqlite3.Connection, None, None]:
             created_at TEXT DEFAULT (datetime('now')),
             UNIQUE(session_id)
         );
+
+        CREATE TABLE IF NOT EXISTS drift_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_description TEXT NOT NULL,
+            changed_files TEXT NOT NULL,
+            score REAL NOT NULL,
+            similarity REAL NOT NULL,
+            verdict TEXT NOT NULL,
+            flags TEXT NOT NULL,
+            project TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_drift_history_project
+            ON drift_history(project);
+        CREATE INDEX IF NOT EXISTS idx_drift_history_created
+            ON drift_history(created_at);
     """)
     ensure_idempotency_table(conn)
     conn.commit()
