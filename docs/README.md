@@ -6,7 +6,7 @@ title: Home
 
 > Multi-agent orchestration system with a companion Python MCP server for vector memory, drift detection, and codebase indexing.
 
-**Status:** Phase 1.0 (Contract Foundation), Phase 1 (MCP Core), and Phase 4 (Auto-Installer) complete. Phases 2, 3, 5 deferred.  
+**Status:** Phase 1.0 (Contract Foundation), Phase 1 (MCP Core), and Phase 4 (Auto-Installer) complete.  
 **Version:** 0.1.0a4  
 **Package:** `ensemble-mcp` -- 15 MCP tools across 9 subpackages
 
@@ -261,10 +261,7 @@ Mutating tool calls support `idempotency_key`. Replayed keys within a session re
 |-------|----------|-------------|--------|
 | **1.0: Contract Foundation** | 1-2 days | Response envelope, error taxonomy, lifecycle state machine, idempotency | ✅ Complete |
 | **1: MCP Core** | 4-5 days | Patterns, drift, routing, skills, codebase indexer tools | ✅ Complete |
-| **2: Metrics System** | 3-4 days | Token tracking, session reports, cost calculation | ❌ Not implemented |
-| **3: Session Parsers** | 2-3 days | OpenCode and Claude Code session file parsers | ❌ Not implemented |
 | **4: Auto-Installer** | 2-3 days | AI tool detection, agent copying, MCP registration | ✅ Complete |
-| **5: CLI Dashboard** | 2-3 days | Terminal-based metrics dashboard | ❌ Not implemented |
 | **6: Package & Publish** | 2-3 days | PyPI publishing, Docker image, documentation | ⚠️ Partially complete |
 
 ---
@@ -273,5 +270,5 @@ Mutating tool calls support `idempotency_key`. Replayed keys within a session re
 
 - [Design Specification](DESIGN-SPEC.md) -- Executive summary, current system analysis, improvement priorities
 - [Phase 1: Prompt-Level Improvements](references/DESIGN-SPEC-PHASE-01.md) -- Archival reference for prompt-only enhancements (pattern memory protocol, parallel execution, drift detection, hooks, user config)
-- [Phase 1: MCP Server Design](DESIGN-SPEC-PHASE-01.md) -- Full implementation spec (tool APIs, schemas, code examples, architecture decisions, risk assessment)
+- [Phase 1: MCP Server Design](archive/DESIGN-SPEC-PHASE-01.md) -- Historical design spec (tool APIs, schemas, architecture decisions, risk assessment)
 - [Future Plans](FUTURE-PLANS.md) -- Web dashboard, real-time live view, team analytics, report export, CI/CD integration, plugin system, and advanced indexing

@@ -399,8 +399,5 @@ Every setting tracks which layer it came from via `source_map` for debugging.
 |---|---|---|
 | 1.0 | Contract Foundation (config, errors, envelope, state, security) | ✅ Complete |
 | 1 | MCP Core (15 tools, server, tests) | ✅ Complete |
-| 2 | Metrics System (token tracking, cost calculation) | ❌ Not implemented |
-| 3 | Session Parsers (OpenCode, Claude Code) | ❌ Not implemented |
 | 4 | Auto-installer for AI tools | ✅ Complete |
-| 5 | CLI Dashboard | ❌ Not implemented |
 | 6 | Package & Publish | ⚠️ Partially complete (PyPI structure ready, not yet published) |

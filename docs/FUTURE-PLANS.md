@@ -10,7 +10,7 @@ title: Future Plans
 
 ---
 
-## 1. Web Dashboard (Phase 5 Extension)
+## 1. Web Dashboard
 
 ### 1.1 Overview
 
@@ -44,9 +44,9 @@ graph TB
 The HTTP server runs as a **separate thread** within the existing `ensemble-mcp` process. Starting it is opt-in via a CLI subcommand:
 
 ```bash
-ensemble-mcp dashboard              # starts server, opens browser to localhost:8787
-ensemble-mcp dashboard --port 9000  # custom port
-ensemble-mcp dashboard --no-open    # start server without auto-opening browser
+ensemble-mcp web              # starts server, opens browser to localhost:8787
+ensemble-mcp web --port 9000  # custom port
+ensemble-mcp web --no-open    # start server without auto-opening browser
 ```
 
 The MCP stdio server is completely unaffected — the dashboard is an additional interface to the same SQLite database.
@@ -280,7 +280,7 @@ MiniLM-L6-v2 has a hard limit of **128 input tokens** (~80-100 words). Text beyo
 - Skill file content in `skills_discover` (100-500 words)
 - Future semantic code search (function bodies, docstrings)
 
-See Section 6.2.1 of [Phase 1 Design Spec](DESIGN-SPEC-PHASE-01.md) for the full impact analysis.
+See Section 6.2.1 of [Phase 1 Design Spec](archive/DESIGN-SPEC-PHASE-01.md) for the full impact analysis.
 
 ### 7.2 Short-Term: Chunking Strategy
 
@@ -739,10 +739,7 @@ graph LR
 
 | Priority | Feature | Est. Effort | Depends On | Status |
 |----------|---------|-------------|------------|--------|
-| **High** | Metrics System (token tracking, session reports, cost calculation) | 3-4 days | Core MCP tools stable | ❌ Not started (Phase 2) |
-| **High** | Session Parsers (OpenCode, Claude Code) | 2-3 days | Metrics system | ❌ Not started (Phase 3) |
-| **High** | CLI Dashboard (terminal-based metrics display) | 2-3 days | Metrics system | ❌ Not started (Phase 5) |
-| **High** | Web Dashboard v1 (read-only) | 3-4 days | Metrics system stable | Not started |
+| **High** | Web Dashboard v1 (read-only) | 3-4 days | Core MCP tools stable | Not started |
 | **Done** | Skill Intelligence (auto-detect & pattern-to-skill graduation) | 5 days | Phase 1 patterns + skills tools stable | ✅ Complete |
 | **Medium** | Embedding Model Upgrade (chunking or model swap) | 1-2 days | Drift/skills accuracy feedback | Not started |
 | **Medium** | Report Export (CSV/PDF/JSON) | 2-3 days | Dashboard v1 | Not started |

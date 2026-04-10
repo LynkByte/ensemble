@@ -8,13 +8,10 @@
 |-------|-------------|--------|
 | Phase 1.0 | Contract Foundation (envelope, errors, lifecycle, idempotency, security) | ✅ Complete |
 | Phase 1 | MCP Core (15 tools: patterns, drift, routing, skills, session, indexer, utility) | ✅ Complete |
-| Phase 2 | Metrics System (token tracking, cost calculation, session reports) | ❌ Not implemented |
-| Phase 3 | Session Parsers (OpenCode, Claude Code file parsers) | ❌ Not implemented |
 | Phase 4 | Auto-Installer (AI tool detection, MCP registration) | ✅ Complete |
-| Phase 5 | CLI Dashboard (terminal-based metrics display) | ❌ Not implemented |
 | Phase 6 | Package & Publish (PyPI, Docker, documentation) | ⚠️ Partially complete |
 
-> **Note:** This document is a historical design specification. It describes the full planned system including features that have not yet been implemented. See the status table above for what exists in the codebase today.
+> **Note:** This document is a historical design specification. It describes the full planned system including features that were not implemented. See the status table above for what exists in the codebase today.
 
 ---
 

@@ -283,7 +283,8 @@ ensemble/
 ├── pyproject.toml         # Package config, deps, tool settings
 ├── docs/
 │   ├── DESIGN-SPEC.md         # Executive design spec
-│   ├── DESIGN-SPEC-PHASE-01.md # Phase 1 implementation spec
+│   ├── archive/               # Historical design specs
+│   │   └── DESIGN-SPEC-PHASE-01.md
 │   ├── SETUP.md               # Installation and setup guide
 │   ├── ARCHITECTURE.md        # Technical architecture
 │   ├── API-REFERENCE.md       # MCP tool API reference

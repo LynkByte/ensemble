@@ -9,22 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `skill_file_cache` SQLite table for mtime-based caching of skill file content and pre-computed embeddings
-- `metrics_backfill` MCP tool — backfill session steps with real token data from OpenCode or Claude Code session files
-- `backfill` CLI command — `ensemble-mcp backfill [--session-id X] [--force] [--ai-tool opencode|claude-code]`
-- `reasoning_tokens` column on the `steps` table (schema v2 migration)
-- `SOURCE_BACKFILL = "backfill"` source label constant
-- `watch` CLI command — file watcher daemon that monitors AI tool session files and auto-triggers backfill on changes (`ensemble-mcp watch [--debounce N] [--poll-interval N] [--ai-tool X]`)
-- `watchdog>=4.0` optional dependency (`pip install ensemble-mcp[watch]`)
-- Stub parsers for Cursor, GitHub Copilot, Windsurf, and Devin CLI — `detect()` functions identify installed tools; `parse_latest_session()` returns None with a logged warning explaining why token parsing is not feasible for each tool
-- 7 new path constants in `config/defaults.py` for stub parser data locations
-- Watcher engine (`watcher.py`) with debounced filesystem events (Claude Code via watchdog) and mtime polling (OpenCode SQLite WAL)
 
 ### Changed
 - `skills_discover` now uses cached embeddings from SQLite instead of re-reading files and recomputing on every call
 - `_scan_skill_files` refactored to use incremental mtime-based refresh (same pattern as `project_index`)
-- Schema version bumped from 3 to 4
-- Skill workflow (`ensemble-mcp-workflow.md`) now promotes `metrics_backfill` from optional to standard post-pipeline step
-- `parsers/__init__.py` expanded: `detect_ai_tool()` checks 6 tools (2 active + 4 stubs); `parse_latest_session()` dispatcher handles aliases (`github-copilot`, `github_copilot`, `codeium`)
 
 ### Test Suite
 - 619 tests passing (up from 562)
@@ -62,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - 2026-04-06
 
-Initial release with all 21 MCP tools across 6 implementation phases.
+Initial release with all 15 MCP tools across 3 implementation phases.
 
 ### Added
 
@@ -87,37 +75,13 @@ Initial release with all 21 MCP tools across 6 implementation phases.
 - **Utility tools**: `health`, `reset`
 - Layered configuration: defaults > global TOML > project TOML > env vars
 - Model pricing table (7 models: Claude Opus 4/Sonnet 4/Haiku 3.5, GPT-4o/4o-mini/5-mini, o1)
-- MCP server with stdio transport and 23 tool definitions
-
-#### Phase 2: Metrics & Token Tracking
-- `metrics_start_session`, `metrics_record_step`, `metrics_end_session`
-- `metrics_session_report` with ASCII table formatter
-- `metrics_trend` with daily cost/token aggregation
-- `metrics_compare` for side-by-side session comparison
-- 3-tier token resolution: direct usage > `usage_raw` parsing (Anthropic/OpenAI) > tiktoken estimation
-- MCP call tracking (`mcp_calls` table) with byte-level input/output recording
-- Cost calculation with per-model pricing, cache read/write separation, pricing version tracking
-
-#### Phase 3: Session File Parsers
-- OpenCode SQLite parser (read-only mode, message-level token extraction)
-- Claude Code JSONL parser (streaming deduplication by `message.id`, subagent recursion)
-- Auto-detection dispatcher (detects which AI tool is running)
-- Integration as fallback source in `metrics_record_step`
+- MCP server with stdio transport and 15 tool definitions
 
 #### Phase 4: Auto-Installer
 - Detection of 6 AI tools: OpenCode, Claude Code, GitHub Copilot, Cursor, Windsurf, Devin CLI
 - Config registration with backup creation (TOML for OpenCode, JSON for others)
 - `ensemble-mcp install` CLI command with `--local`, `--tools`, `--dry-run`, `--yes` flags
 - Interactive confirmation flow with plan preview
-
-#### Phase 5: CLI Dashboard
-- `ensemble-mcp dashboard` CLI command
-- Period summaries (today, week, month) with token and cost totals
-- Per-agent cost breakdown table with share percentages
-- Recent sessions table (configurable limit)
-- Daily trend bar chart (configurable range)
-- Terminal-width-aware rendering
-- `--days`, `--limit`, `--trend-days`, `--db-path` options
 
 #### Phase 6: Package & Publish
 - Full PyPI metadata: license, classifiers, keywords, URLs, typed marker

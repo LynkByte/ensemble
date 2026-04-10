@@ -31,16 +31,15 @@ title: Business Case
 AI-assisted software engineering is exploding — but current single-agent workflows are **wasteful, unpredictable, and lack memory**. Developers using tools like GitHub Copilot, Claude Code, and Cursor face:
 
 - **No learning** — every session starts from zero; the same mistakes repeat across pipelines
-- **No cost visibility** — no way to track or control how much token spend goes where
 - **Silent drift** — agents deviate from the plan with no detection or correction
 - **Static routing** — the same expensive model is used for trivial and complex tasks alike
 - **Redundant exploration** — codebase analysis repeats from scratch every run
 
-These problems compound at scale. A team of 10 engineers running 10 pipelines/day each wastes an estimated **16.2M tokens/month** on redundant pattern reading alone (see [Phase 1 Design Spec §3.5](DESIGN-SPEC-PHASE-01.md)).
+These problems compound at scale. A team of 10 engineers running 10 pipelines/day each wastes an estimated **16.2M tokens/month** on redundant pattern reading alone (see [Phase 1 Design Spec §3.5](archive/DESIGN-SPEC-PHASE-01.md)).
 
 ### The Solution
 
-**Ensemble** is a 7-agent orchestration pipeline backed by `ensemble-mcp` — a local Python MCP server providing vector memory, cost tracking, drift detection, smart model routing, and codebase indexing. It works with any MCP-compatible AI tool (OpenCode, Claude Code, GitHub Copilot, Cursor, Windsurf, Devin CLI).
+**Ensemble** is a 7-agent orchestration pipeline backed by `ensemble-mcp` — a local Python MCP server providing vector memory, drift detection, smart model routing, and codebase indexing. It works with any MCP-compatible AI tool (OpenCode, Claude Code, GitHub Copilot, Cursor, Windsurf, Devin CLI).
 
 ### Key Differentiators
 
@@ -49,7 +48,6 @@ These problems compound at scale. A team of 10 engineers running 10 pipelines/da
 | **Zero-LLM-Call architecture** | All intelligence runs locally (ONNX embeddings, SQLite). Near-zero marginal cost per user. No API keys required. |
 | **Cross-tool compatibility** | Works with 6+ AI tools via the open MCP protocol. Not locked to one IDE or vendor. |
 | **Memory that compounds** | Patterns learned in session 1 improve session 100. Teams build institutional AI knowledge. |
-| **Measurable cost savings** | Every metric carries a confidence indicator (`exact`, `partial`, `estimated`). Customers see real ROI. [Metrics system is a planned feature — Phase 2] |
 | **Zero-config installation** | Single command: `uvx ensemble-mcp`. No Docker, no cloud, no setup. |
 
 ### The Ask
@@ -95,7 +93,6 @@ These problems compound at scale. A team of 10 engineers running 10 pipelines/da
 |---------|----------|-----------------|-------------------------|-------------------|----------------|
 | Multi-agent pipeline | 7 specialized agents | Single agent | Proprietary pipeline | Proprietary agent | Single agent |
 | Cross-session memory | Vector memory (local) | None | None | Proprietary | None |
-| Cost tracking | Per-agent with confidence [planned] | None | None | None | None |
 | Drift detection | Cosine similarity scoring | None | None | Unknown | None |
 | Model routing | Task-aware tier recommendations | Fixed model | Fixed model | Fixed model | User-selected |
 | Codebase indexing | Local SQLite index | Per-session exploration | GitHub-level | Full repo context | Per-session |
@@ -169,9 +166,9 @@ To generate credible, reproducible numbers, run the following benchmark suite:
 
 | Metric | How to Measure | Tool |
 |--------|---------------|------|
-| Total tokens consumed | `metrics_session_report` from ensemble-mcp [planned feature] | Direct measurement |
-| Total cost (USD) | Computed from token counts + pricing table [planned feature] | ensemble-mcp |
-| Per-agent token breakdown | `metrics_record_step` per agent [planned feature] | ensemble-mcp |
+| Total tokens consumed | Estimated from model pricing and pipeline structure | Manual estimation |
+| Total cost (USD) | Computed from token count estimates + pricing table | Manual estimation |
+| Per-agent token breakdown | Estimated per pipeline step | Manual estimation |
 | Task completion (pass/fail) | Does the output compile, pass tests, and match the expected solution? | Manual review + CI |
 | Drift score | `drift_check` comparing task description to final diff | ensemble-mcp |
 | Wall-clock time | Session start to session end | Timestamp delta |
@@ -189,23 +186,19 @@ To generate credible, reproducible numbers, run the following benchmark suite:
 
 #### Running the Benchmarks
 
-> **Note:** The `metrics_*` commands below reference planned MCP tools (Metrics System — Phase 2). These are not CLI commands; they would be invoked via the MCP protocol by an AI tool agent. The `project_index` tool is available now.
-
 ```bash
 # 1. Index the target repo (available now via MCP tool)
 # project_index is called by the AI agent, not as a CLI command
 
-# 2-4. Metrics workflow (planned feature — Phase 2)
-# Once implemented, metrics_start_session, metrics_record_step,
-# metrics_end_session, and metrics_session_report will be available
-# as MCP tools called by the AI agent during pipeline execution.
+# 2. Run multiple pipeline sessions and record results manually
+# Token usage can be estimated from model pricing tables
 ```
 
 ### 3.2 Token & Cost Savings
 
 #### Existing Estimates (from Design Spec)
 
-These estimates are derived from the [Phase 1 Design Specification §3.2-3.5](DESIGN-SPEC-PHASE-01.md):
+These estimates are derived from the [Phase 1 Design Specification §3.2-3.5](archive/DESIGN-SPEC-PHASE-01.md):
 
 **Per-Pipeline Cost (Standard Feature Implementation):**
 
@@ -328,11 +321,11 @@ This gives Ensemble a **~99% gross margin** on any paid tier — comparable to p
 
 | Model | Free Tier | Pro (Individual) | Team | Enterprise |
 |-------|-----------|-----------------|------|------------|
-| **Option A: Feature-gated** | Core MCP tools (memory, drift, indexer) | + Dashboard + advanced analytics | + Team metrics aggregation + shared memory | + SSO + audit logs + priority support |
+| **Option A: Feature-gated** | Core MCP tools (memory, drift, indexer) | + Advanced analytics | + Team shared memory | + SSO + audit logs + priority support |
 | Price | $0 | $15-25/month | $30-50/seat/month | Custom |
-| **Option B: Usage-based** | Up to 100 sessions/month | Unlimited sessions + dashboard | + Team features | + Enterprise features |
+| **Option B: Usage-based** | Up to 100 sessions/month | Unlimited sessions | + Team features | + Enterprise features |
 | Price | $0 | $20/month | $40/seat/month | Custom |
-| **Option C: Open-core** | Full MCP server (open-source) | Web dashboard + reports | + Team analytics + shared patterns | + Self-hosted + support SLA |
+| **Option C: Open-core** | Full MCP server (open-source) | + Reports | + Team analytics + shared patterns | + Self-hosted + support SLA |
 | Price | $0 | $10-20/month | $25-40/seat/month | Custom |
 
 *Recommended: Option C (open-core). Maximizes adoption of the free tier while monetizing team/enterprise features.*
@@ -342,7 +335,7 @@ This gives Ensemble a **~99% gross margin** on any paid tier — comparable to p
 | Metric | Value | Assumption |
 |--------|-------|------------|
 | **ARPU** (blended across tiers) | $18/month | 80% free, 15% Pro, 5% Team |
-| **COGS per paid user** | ~$0.50/month | Hosting dashboard, support overhead |
+| **COGS per paid user** | ~$0.50/month | Hosting, support overhead |
 | **Gross margin** | ~97% | |
 | **CAC** (content marketing + dev advocacy) | $50-100 | SEO, blog posts, conference talks, open-source community |
 | **LTV** (24-month average retention) | $432 | $18 ARPU x 24 months |
@@ -460,7 +453,7 @@ graph TB
     end
 
     subgraph "Phase 3: Monetization (Month 6-18)"
-        C1[Launch web dashboard paid tier]
+        C1[Launch pro features paid tier]
         C2[Launch team features paid tier]
         C3[Enterprise outreach]
         C4[Partner with AI tool vendors]
@@ -511,7 +504,7 @@ graph TB
 
 | Milestone | Target Date | Status | Evidence |
 |-----------|-----------|--------|----------|
-| Design specification complete | 2026-03-30 | Done | [DESIGN-SPEC.md](DESIGN-SPEC.md), [Phase 1 Spec](DESIGN-SPEC-PHASE-01.md) |
+| Design specification complete | 2026-03-30 | Done | [DESIGN-SPEC.md](DESIGN-SPEC.md), [Phase 1 Spec](archive/DESIGN-SPEC-PHASE-01.md) |
 | Phase 1 implementation complete | 2026-04-10 | In Progress | — |
 | First benchmark suite run | *[TBD]* | Not Started | — |
 | Token savings validated on 5+ repos | *[TBD]* | Not Started | — |
@@ -576,14 +569,14 @@ graph TB
 | Monthly paid churn | 5% | Standard for B2B SaaS at early stage |
 | ARPU | $18 | Blended: 75% Pro at $15 + 25% Team at $35 |
 | CAC | $75 | Content-driven acquisition (blog, SEO, community) |
-| Time to first paid conversion | Month 3 | After open-source launch + dashboard release |
+| Time to first paid conversion | Month 3 | After open-source launch + pro features release |
 
 ### C. Key References
 
 | Document | What It Contains |
 |----------|-----------------|
 | [Design Specification](DESIGN-SPEC.md) | Executive summary, system analysis, improvement priorities |
-| [Phase 1: MCP Server Design](DESIGN-SPEC-PHASE-01.md) | Full implementation spec with tool APIs, schemas, cost analysis, break-even calculations |
+| [Phase 1: MCP Server Design](archive/DESIGN-SPEC-PHASE-01.md) | Historical design spec (tool APIs, schemas, cost analysis, break-even calculations) |
 | [Future Plans](FUTURE-PLANS.md) | Web dashboard, team analytics, CI/CD integration, plugin system, scaling roadmap |
 | [Agent Reference](references/README.md) | Pipeline overview and per-agent documentation |
 

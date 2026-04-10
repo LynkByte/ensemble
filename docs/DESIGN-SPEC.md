@@ -7,7 +7,7 @@
 **Date:** 2026-03-30  
 **Authors:** Collaborative design between user and AI assistant
 
-> **Implementation note (2026-04-09):** Phases 1.0 (Contract Foundation), 1 (MCP Core — 15 tools), and 4 (Auto-Installer) are fully implemented. Phases 2 (Metrics System), 3 (Session Parsers), and 5 (CLI Dashboard) remain in design-only state. Phase 6 (Package & Publish) is partially complete (PyPI structure ready, CI/CD configured, not yet published).
+> **Implementation note (2026-04-09):** Phases 1.0 (Contract Foundation), 1 (MCP Core — 15 tools), and 4 (Auto-Installer) are fully implemented. Phase 6 (Package & Publish) is partially complete (PyPI structure ready, CI/CD configured, not yet published).
 
 ---
 
@@ -26,7 +26,6 @@
 
 The current 7-agent orchestration system works well but lacks:
 - **Memory** — no learning from past pipelines; same mistakes repeat
-- **Cost visibility** — no unified cross-tool token/cost tracking with confidence metadata
 - **Drift detection** — agents can silently deviate from the plan
 - **Smart routing** — model assignment is static, not task-aware
 - **Extensibility** — no skills/hooks system for project-specific behavior
@@ -36,12 +35,11 @@ The current 7-agent orchestration system works well but lacks:
 
 ### Solution
 
-`ensemble-mcp` -- a Python MCP server providing vector memory, hybrid token/cost tracking (direct usage + parsers + estimation), drift detection, model routing, codebase indexing, and metrics. Distributed via `uvx` for zero-hassle cross-platform installation. Works with OpenCode, Claude Code, GitHub Copilot, Cursor, Windsurf, and Devin CLI.
+`ensemble-mcp` -- a Python MCP server providing vector memory, drift detection, model routing, codebase indexing, and skills discovery. Distributed via `uvx` for zero-hassle cross-platform installation. Works with OpenCode, Claude Code, GitHub Copilot, Cursor, Windsurf, and Devin CLI.
 
 ### Goals
 
 - Reduce token usage per pipeline by ~15-25% (up to ~40% on repeat visits with indexing)
-- Provide per-agent cost visibility with accuracy indicators
 - Enable cross-session learning (pattern memory)
 - Support any project type (Laravel, Vue, Python, PHP, mobile, etc.)
 - Let users customize models, reasoning, and budgets without editing agent files
@@ -54,10 +52,8 @@ graph TB
     subgraph "ensemble-mcp Server"
         E[ensemble-mcp<br/>Python MCP Server]
         E --> F[Vector Memory<br/>ONNX + SQLite]
-        E --> G[Token Tracking<br/>Direct Usage + Parsers + Estimation]
         E --> H[Drift Detection<br/>Cosine Similarity]
         E --> I[Model Routing<br/>Tier Recommendations]
-        E --> J[Metrics & Reports<br/>Session Dashboard]
         E --> IDX[Codebase Index<br/>File Map + Exports + Imports]
         E --> SI[Skill Intelligence<br/>Pattern-to-Skill Graduation]
     end
@@ -136,17 +132,16 @@ flowchart TD
 ### Weaknesses Found
 
 1. **No pattern memory** — every pipeline starts from zero knowledge
-2. **No token tracking** — no visibility into cost per agent or session
-3. **No drift detection** — agents can drift from the plan without warning
-4. **Static model routing** — model assignment doesn't adapt to task complexity
-5. **No cross-tool skill discovery** — Craft, Proof, and Lens reference "skills" but each AI tool handles skill loading natively from its own locations (`.ai/skills/`, `.claude/skills/`, etc.); there's no unified way to discover skills across tools (MCP Phase 1 solves this with vector-based semantic search)
-6. **Trace is isolated** — standalone agent at 228 lines, intentionally not part of the pipeline (invoked manually)
-7. **No parallel execution** — Proof and Lens run sequentially but could overlap
-8. **No hooks** — no extensibility points for project-specific behavior
-9. **No `.gitignore`** — `.opencode/` directory not excluded from version control
-10. **No codebase index** — Scope re-explores the project from scratch every pipeline run, wasting tokens on repeat visits
-11. **No user configuration** — models, reasoning effort, and temperature are hardcoded in agent YAML frontmatter; users must edit agent files to customize
-12. **No pattern-to-skill graduation** — recurring patterns in the pattern store are never automatically promoted to reusable skill files; users must manually notice repetition and create skills (Skill Intelligence feature addresses this)
+2. **No drift detection** — agents can drift from the plan without warning
+3. **Static model routing** — model assignment doesn't adapt to task complexity
+4. **No cross-tool skill discovery** — Craft, Proof, and Lens reference "skills" but each AI tool handles skill loading natively from its own locations (`.ai/skills/`, `.claude/skills/`, etc.); there's no unified way to discover skills across tools (MCP Phase 1 solves this with vector-based semantic search)
+5. **Trace is isolated** — standalone agent at 228 lines, intentionally not part of the pipeline (invoked manually)
+6. **No parallel execution** — Proof and Lens run sequentially but could overlap
+7. **No hooks** — no extensibility points for project-specific behavior
+8. **No `.gitignore`** — `.opencode/` directory not excluded from version control
+9. **No codebase index** — Scope re-explores the project from scratch every pipeline run, wasting tokens on repeat visits
+10. **No user configuration** — models, reasoning effort, and temperature are hardcoded in agent YAML frontmatter; users must edit agent files to customize
+11. **No pattern-to-skill graduation** — recurring patterns in the pattern store are never automatically promoted to reusable skill files; users must manually notice repetition and create skills (Skill Intelligence feature addresses this)
 
 ### Permission Model
 
@@ -234,7 +229,5 @@ Ordered by impact-to-effort ratio:
 
 To keep this file concise, the detailed design sections were split into dedicated files:
 
-- [MCP Server Design and Implementation Details](DESIGN-SPEC-PHASE-01.md)
+- [MCP Server Design and Implementation Details](archive/DESIGN-SPEC-PHASE-01.md) *(archived — contains historical design including features that were not implemented)*
 - [Prompt-Level Improvements (Archival Reference)](references/DESIGN-SPEC-PHASE-01.md)
-
-Both files are canonical and should be used for implementation planning and execution.

@@ -289,8 +289,6 @@ public function test_store_detects_duplicates(): void
 
 After a week of building the SmartTodo app, the developer has accumulated several patterns in memory. When they start their next Laravel project, ensemble-mcp's pattern memory immediately pays dividends — the agent already knows their preferred architecture (service classes, Pest testing, etc.) and applies it from the first prompt.
 
-> **Note:** Cost tracking and trend reporting are planned features (Metrics System — Phase 2). Once implemented, developers will be able to review per-session and per-agent cost breakdowns, compare sessions, and see cost trends over time.
-
 ---
 
 ## One Month Later: Skills Emerge
