@@ -6,9 +6,9 @@ title: Home
 
 > Multi-agent orchestration system with a companion Python MCP server for vector memory, drift detection, and codebase indexing.
 
-**Status:** Implementation Complete (Phases 1.0 through 5)
-**Version:** 1.0
-**Package:** `ensemble-mcp` -- 15 MCP tools across 7 subpackages
+**Status:** Phase 1.0 (Contract Foundation), Phase 1 (MCP Core), and Phase 4 (Auto-Installer) complete.  
+**Version:** 0.1.0a4  
+**Package:** `ensemble-mcp` -- 15 MCP tools across 9 subpackages
 
 ---
 
@@ -16,7 +16,7 @@ title: Home
 
 Ensemble is a **7-agent pipeline** for AI-assisted software engineering. Each agent has a dedicated role -- planning, implementation, formatting, review, and git operations -- orchestrated by a central captain agent.
 
-**`ensemble-mcp`** is the companion **Python MCP server** that enhances the pipeline with persistent memory, cost visibility, drift detection, smart model routing, and codebase indexing. It works with any MCP-compatible AI tool.
+**`ensemble-mcp`** is the companion **Python MCP server** that enhances the pipeline with persistent memory, drift detection, smart model routing, and codebase indexing. It works with any MCP-compatible AI tool.
 
 ---
 
@@ -257,14 +257,12 @@ Mutating tool calls support `idempotency_key`. Replayed keys within a session re
 
 ## Implementation Phases
 
-| Phase | Duration | Deliverables |
-|-------|----------|-------------|
-| **1.0: Contract Foundation** | 1-2 days | Response envelope, error taxonomy, lifecycle state machine, idempotency |
-| **1: MCP Core** | 4-5 days | Patterns, drift, routing, codebase indexer tools |
-| **4: Auto-Installer** | 2-3 days | AI tool detection, agent copying, MCP registration |
-| **6: Package & Publish** | 2-3 days | PyPI publishing, Docker image, documentation |
-
-**Total estimated: 12-18 days**
+| Phase | Duration | Deliverables | Status |
+|-------|----------|-------------|--------|
+| **1.0: Contract Foundation** | 1-2 days | Response envelope, error taxonomy, lifecycle state machine, idempotency | ✅ Complete |
+| **1: MCP Core** | 4-5 days | Patterns, drift, routing, skills, codebase indexer tools | ✅ Complete |
+| **4: Auto-Installer** | 2-3 days | AI tool detection, agent copying, MCP registration | ✅ Complete |
+| **6: Package & Publish** | 2-3 days | PyPI publishing, Docker image, documentation | ⚠️ Partially complete |
 
 ---
 
@@ -272,5 +270,5 @@ Mutating tool calls support `idempotency_key`. Replayed keys within a session re
 
 - [Design Specification](DESIGN-SPEC.md) -- Executive summary, current system analysis, improvement priorities
 - [Phase 1: Prompt-Level Improvements](references/DESIGN-SPEC-PHASE-01.md) -- Archival reference for prompt-only enhancements (pattern memory protocol, parallel execution, drift detection, hooks, user config)
-- [Phase 1: MCP Server Design](DESIGN-SPEC-PHASE-01.md) -- Full implementation spec (tool APIs, schemas, code examples, architecture decisions, risk assessment)
+- [Phase 1: MCP Server Design](DESIGN-SPEC-PHASE-01.md) -- Design spec (tool APIs, schemas, architecture decisions, risk assessment)
 - [Future Plans](FUTURE-PLANS.md) -- Web dashboard, real-time live view, team analytics, report export, CI/CD integration, plugin system, and advanced indexing

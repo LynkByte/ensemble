@@ -1,6 +1,6 @@
 # API Reference
 
-Complete reference for all 24 MCP tools provided by **ensemble-mcp** (22 core tools + `health` + `reset`).
+Complete reference for all 15 MCP tools provided by **ensemble-mcp** (13 core tools + `health` + `reset`).
 
 ## Response Envelope
 
@@ -17,7 +17,7 @@ Every tool returns this structure:
 
 **Meta fields:**
 - `duration_ms` — execution time in milliseconds
-- `source` — data origin: `"local"`, `"sqlite"`, `"session_parser"`, `"estimator"`, `"hybrid"`
+- `source` — data origin: `"local"`, `"sqlite"`
 - `confidence` — accuracy indicator: `"exact"`, `"partial"`, `"estimated"`
 
 ---
@@ -110,266 +110,6 @@ Remove old/unused patterns that have zero match count and are older than the con
 ```
 
 **Possible errors:** None
-
----
-
-## Metrics
-
-Token tracking with per-agent cost breakdown using the pricing table.
-
-### `metrics_start_session`
-
-Start tracking a pipeline session. Creates a session in `running` state.
-
-**Parameters:**
-
-| Name | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `task` | string | yes | — | Task description |
-| `classification` | string | yes | — | `trivial`, `simple`, `standard`, or `complex` |
-| `ai_tool` | string | no | null | Tool name: `opencode`, `claude-code`, `copilot`, etc. |
-| `project` | string | no | null | Project path |
-| `idempotency_key` | string | no | null | Dedup key |
-
-**Response `data`:**
-
-```json
-{
-  "session_id": "sess_a1b2c3d4e5f6",
-  "state": "running"
-}
-```
-
-**Possible errors:** None
-
----
-
-### `metrics_record_step`
-
-Record per-agent token and cost usage for a pipeline step. Cost is calculated automatically from the pricing table.
-
-**Parameters:**
-
-| Name | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `session_id` | string | yes | — | Session to record against |
-| `agent` | string | yes | — | Agent name (`ensemble`, `scope`, `craft`, etc.) |
-| `input_tokens` | integer | no | 0 | Input token count |
-| `output_tokens` | integer | no | 0 | Output token count |
-| `cache_read_tokens` | integer | no | 0 | Tokens read from cache |
-| `cache_write_tokens` | integer | no | 0 | Tokens written to cache |
-| `web_search_requests` | integer | no | 0 | Web search request count |
-| `cached_tokens` | integer | no | 0 | Total cached tokens (legacy) |
-| `model` | string | no | `claude-sonnet-4` | Model used for pricing |
-| `source` | string | no | `local` | Data source label |
-| `confidence` | string | no | `exact` | Accuracy: `exact`, `partial`, `estimated` |
-| `duration_ms` | integer | no | null | Step execution time |
-| `idempotency_key` | string | no | null | Dedup key |
-
-**Response `data`:**
-
-```json
-{
-  "recorded": true,
-  "step_id": 7,
-  "cost_usd": 0.001245,
-  "confidence": "exact",
-  "source": "local"
-}
-```
-
-**Possible errors:**
-- `NOT_FOUND_SESSION` — session_id does not exist
-
----
-
-### `metrics_end_session`
-
-Finalize a session, transition it to a terminal state, and record the end time.
-
-**Parameters:**
-
-| Name | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `session_id` | string | yes | — | Session to finalize |
-| `status` | string | no | `completed` | Final status: `completed`, `success`, `failed`, `partial`, `killed` |
-| `idempotency_key` | string | no | null | Dedup key |
-
-**Response `data`:**
-
-```json
-{
-  "session_id": "sess_a1b2c3d4e5f6",
-  "total_cost": 0.0523,
-  "state": "completed",
-  "status": "completed"
-}
-```
-
-**Possible errors:**
-- `NOT_FOUND_SESSION` — session_id does not exist
-- `CONFLICT_INVALID_STATE_TRANSITION` — session already in terminal state
-
----
-
-### `metrics_session_report`
-
-Generate a formatted session report with per-agent breakdown.
-
-**Parameters:**
-
-| Name | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `session_id` | string | yes | — | Session to report on |
-
-**Response `data`:**
-
-```json
-{
-  "report": {
-    "session_id": "sess_a1b2c3d4e5f6",
-    "task": "Add user authentication",
-    "classification": "standard",
-    "ai_tool": "opencode",
-    "state": "completed",
-    "status": "completed",
-    "total_input_tokens": 15000,
-    "total_output_tokens": 3200,
-    "total_cached_tokens": 8000,
-    "total_cost_usd": 0.0523,
-    "started_at": "2026-04-05T10:00:00",
-    "ended_at": "2026-04-05T10:05:30",
-    "steps": [
-      {
-        "agent": "scope",
-        "model": "claude-sonnet-4",
-        "input_tokens": 5000,
-        "output_tokens": 1200,
-        "cached_tokens": 3000,
-        "cost_usd": 0.018,
-        "accuracy": "exact",
-        "duration_ms": 4500
-      }
-    ]
-  }
-}
-```
-
-**Possible errors:**
-- `NOT_FOUND_SESSION` — session_id does not exist
-
----
-
-### `metrics_trend`
-
-Cost and token trends aggregated by day over the last N days.
-
-**Parameters:**
-
-| Name | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `days` | integer | no | 30 | Number of days to look back |
-
-**Response `data`:**
-
-```json
-{
-  "daily_costs": [
-    {
-      "date": "2026-04-04",
-      "input_tokens": 50000,
-      "output_tokens": 12000,
-      "cost_usd": 0.1523,
-      "sessions": 3
-    }
-  ],
-  "total_cost": 1.2345,
-  "total_sessions": 42,
-  "avg_cost_per_session": 0.0294,
-  "days": 30
-}
-```
-
-**Possible errors:** None (returns empty array on no data)
-
----
-
-### `metrics_compare`
-
-Compare two sessions side by side with a diff of key metrics.
-
-**Parameters:**
-
-| Name | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `session_id_a` | string | yes | — | First session |
-| `session_id_b` | string | yes | — | Second session |
-
-**Response `data`:**
-
-```json
-{
-  "session_a": {
-    "session_id": "sess_aaa",
-    "task": "Feature A",
-    "classification": "standard",
-    "input_tokens": 10000,
-    "output_tokens": 3000,
-    "cached_tokens": 5000,
-    "cost_usd": 0.04
-  },
-  "session_b": {
-    "session_id": "sess_bbb",
-    "task": "Feature B",
-    "classification": "complex",
-    "input_tokens": 25000,
-    "output_tokens": 8000,
-    "cached_tokens": 10000,
-    "cost_usd": 0.12
-  },
-  "diff": {
-    "input_tokens": 15000,
-    "output_tokens": 5000,
-    "cost_usd": 0.08
-  }
-}
-```
-
-**Possible errors:**
-- `NOT_FOUND_SESSION` — either session_id does not exist
-
----
-
-### `metrics_backfill`
-
-Backfill step records with real token data from AI tool session files. Reads actual usage from OpenCode's SQLite database or Claude Code's JSONL session files and retroactively updates steps that were recorded with zero or estimated tokens.
-
-Supports both OpenCode and Claude Code via the shared parser dispatcher. Steps are matched to parsed messages by timestamp proximity and model name.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `session_id` | string | No | Session to backfill. Defaults to the most recent session. |
-| `force` | boolean | No | Overwrite steps that already have real token data. Default: `false`. |
-| `ai_tool` | string | No | Override AI tool detection: `"opencode"` or `"claude-code"`. |
-| `idempotency_key` | string | No | Deduplication key. |
-
-**Response data:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `session_id` | string | The session that was backfilled. |
-| `steps_updated` | integer | Number of steps updated with real data. |
-| `steps_skipped` | integer | Steps skipped (already had real data). |
-| `steps_unmatched_db` | integer | DB steps with no parser match. |
-| `steps_unmatched_parser` | integer | Parser steps with no DB match. |
-| `before` | object | Session totals before backfill. |
-| `after` | object | Session totals after backfill. |
-| `source` | string | Always `"backfill"`. |
-| `confidence` | string | `"exact"` if all steps matched, `"partial"` if some unmatched. |
-
-**Possible errors:** `NOT_FOUND_SESSION`, `NOT_FOUND_STEP`, `VALIDATION_MISSING_FIELD`, `IO_FILESYSTEM`
 
 ---
 
@@ -754,7 +494,7 @@ Get the import/dependency graph for a specific file: what it imports, what impor
   ],
   "related": [
     "src/ensemble_mcp/tools/drift.py",
-    "src/ensemble_mcp/tools/metrics.py"
+    "src/ensemble_mcp/tools/session.py"
   ]
 }
 ```
@@ -777,7 +517,7 @@ Server health check. Returns status, version, database size, and pattern count.
 ```json
 {
   "status": "ok",
-  "version": "0.1.0",
+  "version": "0.1.0a4",
   "db_size_bytes": 524288,
   "pattern_count": 42,
   "server_name": "ensemble-mcp"

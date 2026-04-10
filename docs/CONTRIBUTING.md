@@ -68,7 +68,7 @@ Tests are async by default (`asyncio_mode = "auto"` in pyproject.toml).
 
 ### Test Coverage
 
-The project has 619 tests across 26 test files:
+The project has test files covering all implemented features:
 
 | Test File | Tests | Coverage |
 |---|---|---|
@@ -82,20 +82,12 @@ The project has 619 tests across 26 test files:
 | `test_patterns.py` | 11 | Store, search, prune tools |
 | `test_drift.py` | 5 | Drift check, verdicts, flags |
 | `test_routing.py` | 9 | All agent/classification combinations |
-| `test_metrics.py` | 24 | Session lifecycle, steps, reports, trends, usage_raw |
 | `test_session.py` | 9 | Save, load, optimistic versioning |
 | `test_indexer.py` | 34 | Index, query, dependencies, language parsers |
 | `test_skills.py` | 12 | Discover, suggest, generate, clustering |
 | `test_config.py` | 16 | Settings loading, TOML, env overrides |
-| `test_parsers.py` | 50 | OpenCode + Claude Code parsers, auto-detection, dispatcher |
-| `test_parsers_stubs.py` | 34 | Stub parsers (Cursor, Copilot, Windsurf, Devin), detection, dispatcher |
 | `test_installer.py` | 50 | Tool detection, registration, config read/write, CLI |
-| `test_dashboard.py` | 50 | Queries, widgets, rendering, CLI integration |
-| `test_report_formatter.py` | 18 | ASCII report tables, formatting helpers |
-| `test_token_utils.py` | 22 | Token estimation, usage_raw parsing, 3-tier resolution |
 | `test_mcp_tracking.py` | 5 | MCP call recording |
-| `test_backfill.py` | 31 | Backfill engine, step matching, session totals |
-| `test_watcher.py` | 23 | File watcher daemon, debouncer, poller, lifecycle |
 | `test_banner.py` | 4 | Server startup banner |
 | `test_download_progress.py` | 7 | Model download with progress bar |
 
@@ -152,7 +144,7 @@ warn_return_any = true
 disallow_untyped_defs = true
 ```
 
-External libraries `onnxruntime`, `tokenizers`, and `mcp` have `ignore_missing_imports = true`.
+External libraries `onnxruntime`, `tokenizers`, `mcp`, and `rich` have `ignore_missing_imports = true`.
 
 ## Code Conventions
 
@@ -279,7 +271,7 @@ ruff check src/ tests/
 ruff format src/ tests/
 ```
 
-6. **Document the tool** in `docs/docs/API-REFERENCE.md` following the existing format.
+6. **Document the tool** in `docs/API-REFERENCE.md` following the existing format.
 
 ## Project Structure
 
@@ -289,9 +281,9 @@ ensemble/
 ├── Dockerfile             # Container build
 ├── README.md              # Project overview
 ├── pyproject.toml         # Package config, deps, tool settings
-├── docs/docs/
+├── docs/
 │   ├── DESIGN-SPEC.md         # Executive design spec
-│   ├── DESIGN-SPEC-PHASE-01.md # Phase 1 implementation spec
+│   ├── DESIGN-SPEC-PHASE-01.md # MCP server design spec
 │   ├── SETUP.md               # Installation and setup guide
 │   ├── ARCHITECTURE.md        # Technical architecture
 │   ├── API-REFERENCE.md       # MCP tool API reference
@@ -321,7 +313,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ensemble-mcp
 
 ### Check what the server exposes
 
-All 24 tools are defined in `src/ensemble_mcp/server.py` in the `TOOL_DEFINITIONS` list. The tool names, descriptions, and JSON schemas are all there.
+All 15 tools are defined in `src/ensemble_mcp/server.py` in the `TOOL_DEFINITIONS` list. The tool names, descriptions, and JSON schemas are all there.
 
 ## Docker (CI / Isolation Only)
 
@@ -332,7 +324,7 @@ Docker is **not required** for end users or development. It exists as an optiona
 docker build -t ensemble-mcp .
 
 # Run (mount the cache directory to persist data across runs)
-docker run --rm -v ~/.cache/ensemble-mcp:/root/.cache/ensemble-mcp ensemble-mcp
+docker run --rm -v ~/.cache/ensemble-mcp:/home/app/.cache/ensemble-mcp ensemble-mcp
 ```
 
 End users should install with `pip install -e .` and configure their MCP client to launch `ensemble-mcp` directly. See the [Setup Guide](SETUP.md) for details.

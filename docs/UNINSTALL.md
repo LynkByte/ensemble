@@ -220,12 +220,12 @@ rm -f .ai/skills/ensemble-mcp-workflow.md
 ensemble-mcp stores its SQLite database and the ONNX embedding model in `~/.cache/ensemble-mcp/`:
 
 ```bash
-# Remove database (stored patterns, metrics, sessions)
+# Remove database (stored patterns, sessions, codebase index)
 rm -rf ~/.cache/ensemble-mcp/
 ```
 
 This deletes:
-- `data.db` -- SQLite database (patterns, metrics, sessions, codebase index)
+- `data.db` -- SQLite database (patterns, sessions, codebase index)
 - `models/` -- ONNX MiniLM-L6-v2 model (~22MB)
 
 ### Step 5: Remove global config (optional)
