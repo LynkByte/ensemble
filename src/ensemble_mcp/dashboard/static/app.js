@@ -1,8 +1,9 @@
 /**
  * ensemble-mcp Dashboard — Alpine.js application
  *
- * Single-page app with client-side routing, API fetching, and Chart.js
- * visualizations for patterns, skills, projects, drift, and sessions.
+ * Single-page app with client-side routing, API fetching, Chart.js
+ * visualizations, and mutation operations for patterns, skills,
+ * projects, settings, and data management.
  */
 
 /* global Chart */
@@ -18,12 +19,22 @@ function dashboard() {
             { id: 'projects', label: 'Projects' },
             { id: 'drift', label: 'Drift' },
             { id: 'sessions', label: 'Sessions' },
+            { id: 'settings', label: 'Settings' },
         ],
 
         // Global state
         version: '',
         loading: false,
         lastFetch: null,
+
+        // Toast notifications
+        toasts: [],
+
+        // Confirmation dialog
+        confirmVisible: false,
+        confirmTitle: '',
+        confirmMessage: '',
+        confirmCallback: null,
 
         // Overview
         summary: {},
@@ -34,6 +45,9 @@ function dashboard() {
         patternOffset: 0,
         patternFilter: '',
         expandedPattern: null,
+        editingPattern: null,
+        editPatternData: {},
+        pruneMaxAgeDays: 90,
 
         // Skills
         skillsTab: 'suggestions',
@@ -45,6 +59,8 @@ function dashboard() {
         projects: [],
         selectedProject: null,
         projectDetail: {},
+        projectHealth: null,
+        reindexingProject: null,
 
         // Drift
         driftData: [],
@@ -54,6 +70,13 @@ function dashboard() {
         sessionsTotal: 0,
         selectedSession: null,
         sessionDetail: {},
+
+        // Settings
+        settingsData: {},
+        settingsSourceMap: {},
+        settingsSchema: [],
+        settingsForm: {},
+        settingsSaving: false,
 
         // Charts
         _driftChart: null,
@@ -71,6 +94,8 @@ function dashboard() {
             this.selectedProject = null;
             this.selectedSession = null;
             this.expandedPattern = null;
+            this.editingPattern = null;
+            this.projectHealth = null;
             await this.loadPage(pageId);
         },
 
@@ -95,6 +120,9 @@ function dashboard() {
                 case 'sessions':
                     await this.loadSessions();
                     break;
+                case 'settings':
+                    await Promise.all([this.loadSettings(), this.loadSettingsSchema()]);
+                    break;
             }
         },
 
@@ -117,6 +145,63 @@ function dashboard() {
             } finally {
                 this.loading = false;
             }
+        },
+
+        async apiMutate(path, method, body) {
+            this.loading = true;
+            try {
+                const res = await fetch(path, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: body ? JSON.stringify(body) : undefined,
+                });
+                const json = await res.json();
+                this.lastFetch = new Date();
+                if (json.ok) {
+                    return { ok: true, data: json.data };
+                }
+                const errMsg = json.error ? json.error.message : 'Unknown error';
+                this.showToast(errMsg, 'error');
+                return { ok: false, error: json.error };
+            } catch (err) {
+                console.error('Mutation error:', err);
+                this.showToast('Request failed: ' + err.message, 'error');
+                return { ok: false, error: err.message };
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        // ── Toast notifications ──────────────────────────────────
+
+        showToast(message, type = 'info') {
+            const id = Date.now() + Math.random();
+            this.toasts.push({ id, message, type });
+            setTimeout(() => {
+                this.toasts = this.toasts.filter(t => t.id !== id);
+            }, 4000);
+        },
+
+        // ── Confirmation dialog ──────────────────────────────────
+
+        showConfirm(title, message, callback) {
+            this.confirmTitle = title;
+            this.confirmMessage = message;
+            this.confirmCallback = callback;
+            this.confirmVisible = true;
+        },
+
+        async doConfirm() {
+            this.confirmVisible = false;
+            if (this.confirmCallback) {
+                await this.confirmCallback();
+                this.confirmCallback = null;
+            }
+        },
+
+        cancelConfirm() {
+            this.confirmVisible = false;
+            this.confirmCallback = null;
         },
 
         // ── Data loaders ─────────────────────────────────────────
@@ -171,6 +256,7 @@ function dashboard() {
             if (data) {
                 this.projectDetail = data;
                 this.selectedProject = projectPath;
+                this.projectHealth = null;
                 this.$nextTick(() => {
                     this.renderLangChart();
                     this.renderRoleChart();
@@ -199,6 +285,217 @@ function dashboard() {
                 this.sessionDetail = data;
                 this.selectedSession = sessionId;
             }
+        },
+
+        async loadSettings() {
+            const data = await this.api('/api/settings');
+            if (data) {
+                this.settingsData = data.settings;
+                this.settingsSourceMap = data.source_map;
+                // Initialize form with current values
+                this.settingsForm = { ...data.settings };
+            }
+        },
+
+        async loadSettingsSchema() {
+            const data = await this.api('/api/settings/schema');
+            if (data) {
+                this.settingsSchema = data.schema;
+            }
+        },
+
+        async loadProjectHealth(projectPath) {
+            const data = await this.api(`/api/projects/${encodeURIComponent(projectPath)}/health`);
+            if (data) {
+                this.projectHealth = data;
+            }
+        },
+
+        // ── Pattern mutations ────────────────────────────────────
+
+        deletePattern(id) {
+            this.showConfirm(
+                'Delete Pattern',
+                'Are you sure you want to delete this pattern? This action cannot be undone.',
+                async () => {
+                    const result = await this.apiMutate(`/api/patterns/${id}`, 'DELETE');
+                    if (result.ok) {
+                        this.showToast('Pattern deleted successfully', 'success');
+                        this.expandedPattern = null;
+                        this.editingPattern = null;
+                        await this.loadPatterns();
+                    }
+                }
+            );
+        },
+
+        startEditPattern(p) {
+            this.editingPattern = p.id;
+            this.editPatternData = {
+                name: p.name,
+                context: p.context,
+                approach: p.approach,
+                outcome: p.outcome,
+            };
+        },
+
+        cancelEditPattern() {
+            this.editingPattern = null;
+            this.editPatternData = {};
+        },
+
+        async saveEditPattern(id) {
+            const result = await this.apiMutate(`/api/patterns/${id}`, 'PUT', this.editPatternData);
+            if (result.ok) {
+                this.showToast('Pattern updated successfully', 'success');
+                this.editingPattern = null;
+                this.editPatternData = {};
+                await this.loadPatterns();
+            }
+        },
+
+        prunePatterns() {
+            this.showConfirm(
+                'Prune Stale Patterns',
+                `This will delete patterns older than ${this.pruneMaxAgeDays} days with zero matches. Continue?`,
+                async () => {
+                    const result = await this.apiMutate('/api/patterns/prune', 'POST', {
+                        max_age_days: parseInt(this.pruneMaxAgeDays),
+                    });
+                    if (result.ok) {
+                        this.showToast(`Pruned ${result.data.pruned} patterns (${result.data.remaining} remaining)`, 'success');
+                        await this.loadPatterns();
+                    }
+                }
+            );
+        },
+
+        // ── Skill mutations ──────────────────────────────────────
+
+        async handleSkillSuggestion(id, action) {
+            if (action === 'accept') {
+                this.showConfirm(
+                    'Accept Skill Suggestion',
+                    'This will generate a skill file from this suggestion. Continue?',
+                    async () => {
+                        const result = await this.apiMutate(`/api/skills/suggestions/${id}/action`, 'POST', { action });
+                        if (result.ok) {
+                            this.showToast(`Skill ${action}ed successfully`, 'success');
+                            await this.loadSkills();
+                        }
+                    }
+                );
+            } else {
+                const result = await this.apiMutate(`/api/skills/suggestions/${id}/action`, 'POST', { action });
+                if (result.ok) {
+                    this.showToast(`Skill suggestion ${action}ed`, 'success');
+                    await this.loadSkills();
+                }
+            }
+        },
+
+        deleteTrackedSkill(id) {
+            this.showConfirm(
+                'Delete Tracked Skill',
+                'Remove this skill from tracking? The skill file itself will not be deleted.',
+                async () => {
+                    const result = await this.apiMutate(`/api/skills/tracked/${id}`, 'DELETE');
+                    if (result.ok) {
+                        this.showToast('Tracked skill removed', 'success');
+                        await Promise.all([this.loadSkills(), this.loadStaleSkills()]);
+                    }
+                }
+            );
+        },
+
+        // ── Settings mutations ───────────────────────────────────
+
+        async saveSettings() {
+            this.settingsSaving = true;
+            // Only send fields that differ from current settings
+            const changed = {};
+            for (const [key, value] of Object.entries(this.settingsForm)) {
+                if (JSON.stringify(value) !== JSON.stringify(this.settingsData[key])) {
+                    // Type coercion for numeric fields
+                    const schema = this.settingsSchema.find(s => s.name === key);
+                    if (schema && schema.type === 'integer') {
+                        changed[key] = parseInt(value);
+                    } else if (schema && schema.type === 'float') {
+                        changed[key] = parseFloat(value);
+                    } else {
+                        changed[key] = value;
+                    }
+                }
+            }
+
+            if (Object.keys(changed).length === 0) {
+                this.showToast('No changes to save', 'info');
+                this.settingsSaving = false;
+                return;
+            }
+
+            const result = await this.apiMutate('/api/settings', 'PUT', changed);
+            this.settingsSaving = false;
+            if (result.ok) {
+                this.showToast('Settings saved successfully', 'success');
+                await this.loadSettings();
+            }
+        },
+
+        resetAllData() {
+            this.showConfirm(
+                'Reset All Data',
+                'This will permanently delete ALL stored data including patterns, sessions, indexed projects, skill suggestions, and drift history. This action cannot be undone!',
+                async () => {
+                    const result = await this.apiMutate('/api/reset', 'POST', { confirm: true });
+                    if (result.ok) {
+                        this.showToast('All data has been reset', 'success');
+                        await this.loadHealth();
+                    }
+                }
+            );
+        },
+
+        // ── Project mutations ────────────────────────────────────
+
+        reindexProject(projectPath) {
+            this.showConfirm(
+                'Re-index Project',
+                `Force re-index "${projectPath}"? This will clear and rebuild the entire index.`,
+                async () => {
+                    this.reindexingProject = projectPath;
+                    const result = await this.apiMutate(
+                        `/api/projects/${encodeURIComponent(projectPath)}/reindex`,
+                        'POST'
+                    );
+                    this.reindexingProject = null;
+                    if (result.ok) {
+                        this.showToast(`Re-indexed ${result.data.files} files`, 'success');
+                        await this.loadProjects();
+                        if (this.selectedProject === projectPath) {
+                            await this.loadProjectDetail(projectPath);
+                        }
+                    }
+                }
+            );
+        },
+
+        clearProjectIndex(projectPath) {
+            this.showConfirm(
+                'Clear Project Index',
+                `Remove all indexed data for "${projectPath}"? The project can be re-indexed later.`,
+                async () => {
+                    const result = await this.apiMutate(
+                        `/api/projects/${encodeURIComponent(projectPath)}`,
+                        'DELETE'
+                    );
+                    if (result.ok) {
+                        this.showToast('Project index cleared', 'success');
+                        this.selectedProject = null;
+                        await this.loadProjects();
+                    }
+                }
+            );
         },
 
         // ── Chart rendering ──────────────────────────────────────
