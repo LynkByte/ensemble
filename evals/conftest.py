@@ -27,7 +27,7 @@ class EvalMockEmbeddingModel(EmbeddingModel):
     """Deterministic embedding model for eval benchmarks."""
 
     def __init__(self) -> None:
-        self._model_dir = Path("/dev/null")
+        super().__init__(model_dir=Path("/dev/null"))
         self._session = MagicMock()
         self._tokenizer = MagicMock()
 
