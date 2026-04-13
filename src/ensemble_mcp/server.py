@@ -1,6 +1,6 @@
 """MCP server setup and tool registration.
 
-Registers all 16 tools with the MCP protocol and runs the stdio server.
+Registers all 17 tools with the MCP protocol and runs the stdio server.
 """
 
 from __future__ import annotations
@@ -178,6 +178,51 @@ TOOL_DEFINITIONS: list[Tool] = [
                     "type": "integer",
                     "description": "Expected version for optimistic lock",
                 },
+                "original_request": {
+                    "type": "string",
+                    "description": "The user's original request (enables semantic search)",
+                },
+                "decisions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Key decisions made during the pipeline",
+                },
+                "completed_steps": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Steps completed so far",
+                },
+                "remaining_steps": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Steps remaining to complete",
+                },
+                "files_changed": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Files modified during the pipeline",
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Errors encountered during the pipeline",
+                },
+                "context_for_resume": {
+                    "type": "string",
+                    "description": "Key context needed to resume without re-deriving",
+                },
+                "task_classification": {
+                    "type": "string",
+                    "description": "trivial/simple/standard/complex",
+                },
+                "status": {
+                    "type": "string",
+                    "description": "Pipeline status (default: in_progress)",
+                },
+                "project": {
+                    "type": "string",
+                    "description": "Project path for scoped search",
+                },
                 "idempotency_key": {"type": "string"},
             },
             "required": ["session_id", "state"],
@@ -194,6 +239,34 @@ TOOL_DEFINITIONS: list[Tool] = [
                     "description": "Load specific session. Omit for latest.",
                 },
             },
+        },
+    ),
+    Tool(
+        name="session_search",
+        description=("Search sessions by semantic similarity. Returns top-K matches with scores."),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Semantic search query",
+                },
+                "top_k": {
+                    "type": "integer",
+                    "default": 5,
+                    "description": "Max results",
+                },
+                "project": {
+                    "type": "string",
+                    "description": "Filter by project",
+                },
+                "status": {
+                    "type": "string",
+                    "description": "Filter by status (e.g. in_progress, completed)",
+                },
+                "idempotency_key": {"type": "string"},
+            },
+            "required": ["query"],
         },
     ),
     # ── Indexer ──
@@ -313,9 +386,11 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]
 
         # Session
         case "session_save":
-            return cast(dict[str, Any], await session.session_save(conn, **arguments))
+            return cast(dict[str, Any], await session.session_save(store, **arguments))
         case "session_load":
-            return cast(dict[str, Any], await session.session_load(conn, **arguments))
+            return cast(dict[str, Any], await session.session_load(store, **arguments))
+        case "session_search":
+            return cast(dict[str, Any], await session.session_search(store, **arguments))
 
         # Indexer
         case "project_index":

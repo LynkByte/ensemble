@@ -27,7 +27,7 @@ ensemble-mcp server  (server.py)
     |       +-- drift.py       (1 tool)
     |       +-- routing.py     (1 tool)
     |       +-- skills.py      (3 tools)
-    |       +-- session.py     (2 tools)
+    |       +-- session.py     (3 tools)
     |       +-- indexer.py     (3 tools)
     |       +-- compress.py    (1 tool)
     |       +-- mcp_tracking.py (call recording)
@@ -79,7 +79,7 @@ src/ensemble_mcp/
 │   ├── drift.py          # drift_check
 │   ├── routing.py        # model_recommend (7x4 agent-classification matrix)
 │   ├── skills.py         # skills_discover, skills_suggest, skills_generate
-│   ├── session.py        # session_save, session_load (optimistic versioning)
+│   ├── session.py        # session_save, session_load, session_search
 │   ├── indexer.py        # project_index, project_query, project_dependencies
 │   └── mcp_tracking.py   # MCP call recording for audit/tracking
 │
@@ -261,7 +261,7 @@ All state lives in a single SQLite database (`~/.cache/ensemble-mcp/data.db`) wi
 
 | Table | Purpose | Key Columns |
 |---|---|---|
-| `session_checkpoints` | Optimistic-versioned state snapshots | `session_id`, `state_json`, `version` |
+| `session_checkpoints` | Optimistic-versioned state snapshots with semantic search | `session_id`, `state_json`, `version`, `embedding` (BLOB), `original_request`, `task_classification`, `status`, `project` |
 | `idempotency_keys` | Dedup store for mutating calls | `key`, `result_json`, `expires_at` |
 
 ### WAL Mode and Concurrency
@@ -439,6 +439,6 @@ Every setting tracks which layer it came from via `source_map` for debugging.
 | Phase | Scope | Status |
 |---|---|---|
 | 1.0 | Contract Foundation (config, errors, envelope, state, security) | ✅ Complete |
-| 1 | MCP Core (16 tools, server, tests) | ✅ Complete |
+| 1 | MCP Core (17 tools, server, tests) | ✅ Complete |
 | 4 | Auto-installer for AI tools | ✅ Complete |
 | 6 | Package & Publish | ⚠️ Partially complete (PyPI structure ready, not yet published) |

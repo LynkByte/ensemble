@@ -27,7 +27,7 @@ from ..state.locks import get_connection
 logger = logging.getLogger(__name__)
 
 # Current schema version — bump when adding new migrations.
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 class VectorStore:
@@ -248,6 +248,32 @@ class VectorStore:
                 self.conn.execute("ALTER TABLE file_exports ADD COLUMN signature TEXT")
             with contextlib.suppress(sqlite3.OperationalError):
                 self.conn.execute("ALTER TABLE file_exports ADD COLUMN docstring TEXT")
+
+        if existing < 7:
+            with contextlib.suppress(sqlite3.OperationalError):
+                self.conn.execute("ALTER TABLE session_checkpoints ADD COLUMN embedding BLOB")
+            with contextlib.suppress(sqlite3.OperationalError):
+                self.conn.execute(
+                    "ALTER TABLE session_checkpoints ADD COLUMN original_request TEXT"
+                )
+            with contextlib.suppress(sqlite3.OperationalError):
+                self.conn.execute(
+                    "ALTER TABLE session_checkpoints ADD COLUMN task_classification TEXT"
+                )
+            with contextlib.suppress(sqlite3.OperationalError):
+                self.conn.execute(
+                    "ALTER TABLE session_checkpoints ADD COLUMN status TEXT DEFAULT 'in_progress'"
+                )
+            with contextlib.suppress(sqlite3.OperationalError):
+                self.conn.execute("ALTER TABLE session_checkpoints ADD COLUMN project TEXT")
+            self.conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_session_checkpoints_status "
+                "ON session_checkpoints(status)"
+            )
+            self.conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_session_checkpoints_project "
+                "ON session_checkpoints(project)"
+            )
 
         if existing < SCHEMA_VERSION:
             self.conn.execute(

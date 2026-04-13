@@ -328,19 +328,40 @@ At pipeline start, check if `.opencode/hooks.md` exists in the project root:
 
 ## Session Persistence
 
-You MUST maintain a checkpoint file at `.opencode/resume.md` in the project root to enable resuming interrupted work. **Only maintain resume.md for standard and complex tasks.** Skip session persistence entirely for trivial and simple tasks -- they complete fast enough that persistence is overhead.
+You MUST persist session state for standard and complex tasks to enable resuming interrupted work. **Skip session persistence entirely for trivial and simple tasks** -- they complete fast enough that persistence is overhead.
 
-### When to Write / Update
+### Primary Method: ensemble-mcp `session_save`
 
-Update `.opencode/resume.md` at these moments:
+If ensemble-mcp tools are available, use `session_save` with structured resume fields:
 
-1. **After PLAN+EXPLORE completes** -- create the file with the original request, task breakdown, and classification
-2. **After IMPLEMENT completes** -- add files changed, move completed items
-3. **After each subsequent step** -- update the Completed / Remaining lists
-4. **On task completion** -- delete the file (work is done, nothing to resume)
-5. **On error or failure** -- capture error details in the Errors section before stopping
+```
+session_save({
+  session_id: "<unique-pipeline-run-id>",
+  state: { <full pipeline state> },
+  original_request: "The user's original request verbatim",
+  decisions: ["Decision 1 and rationale", ...],
+  completed_steps: ["Step 1: Plan", ...],
+  remaining_steps: ["Step 3: Test", ...],
+  files_changed: ["src/foo.py", ...],
+  errors: ["Error message if any", ...],
+  context_for_resume: "Key context needed to avoid re-deriving work",
+  task_classification: "standard",  // trivial/simple/standard/complex
+  status: "in_progress",            // in_progress/completed/failed
+  project: "/path/to/project"
+})
+```
 
-### File Format
+### When to Call `session_save`
+
+1. **After PLAN+EXPLORE completes** -- create the checkpoint with original request, task breakdown, and classification
+2. **After IMPLEMENT completes** -- update with files changed, move completed items
+3. **After each subsequent step** -- update the completed/remaining lists
+4. **On task completion** -- update with `status: "completed"`
+5. **On error or failure** -- update with errors and `status: "failed"` before stopping
+
+### Fallback Method: `.opencode/resume.md`
+
+If ensemble-mcp is unavailable, fall back to maintaining a checkpoint file at `.opencode/resume.md` in the project root.
 
 Always use this exact structure for `.opencode/resume.md`:
 
@@ -445,6 +466,10 @@ Call `drift_check` with:
 2. **Save checkpoint** (standard/complex only): Call `session_save` with:
    - `session_id`: a unique identifier for this pipeline run
    - `state`: final pipeline state (steps completed, files changed, status)
+   - `original_request`: the user's original request (enables semantic search for resume)
+   - `task_classification`: your task classification
+   - `status`: `"completed"` or `"failed"`
+   - `project`: project path (optional, for project-scoped search)
 
 ### On-Demand (user asks)
 
@@ -454,6 +479,8 @@ Call `drift_check` with:
 
 When the user says "resume", "continue", or similar:
 
-1. Check for `.opencode/resume.md`
-2. If found with `status: in_progress`: read it, summarize progress, ask "Continue from [step]?" or "Start fresh?"
-3. If not found: tell the user "No unfinished work found for this project."
+1. If ensemble-mcp is available, call `session_search` with `query` set to the user's message and `status: "in_progress"` to find relevant incomplete sessions. Also call `session_load` without a `session_id` to get the most recent checkpoint.
+2. If a matching session is found: load it via `session_load(session_id=<matched_id>)`, summarize progress, ask "Continue from [step]?" or "Start fresh?"
+3. If ensemble-mcp is unavailable, check for `.opencode/resume.md`
+4. If `.opencode/resume.md` found with `status: in_progress`: read it, summarize progress, ask "Continue from [step]?" or "Start fresh?"
+5. If neither source has unfinished work: tell the user "No unfinished work found for this project."
