@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Context Compression Tool** — new `context_compress` MCP tool (#16) that compresses verbose natural language text into terse, token-efficient form while preserving all technical content (code blocks, URLs, paths, headings, tables). Rule-based, zero LLM calls, ~30-40% token savings
+  - New `compress/` subpackage with engine, preservers, and token counter
+  - Atomic tokenizer download with integrity protection
+  - Thread-safe initialization
+- **Eval/Benchmark Framework** — new `evals/` directory with benchmark harness for measuring tool effectiveness
+  - `bench_compress.py` — compression ratio, latency, preservation accuracy
+  - `bench_patterns.py` — pattern search latency (p50/p95/p99), recall accuracy
+  - `bench_drift.py` — drift detection accuracy, latency
+  - `evals/runner.py` — standalone runner with markdown table output
+  - Run with `python evals/runner.py` or `python -m pytest evals/ -v`
+
+### Test Suite
+- 464 tests passing (48 new: compression engine + tool tests)
+
 ## [0.1.0a6] - 2026-04-10
 
 ### Added

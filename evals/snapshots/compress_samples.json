@@ -1,0 +1,77 @@
+[
+  {
+    "id": "verbose_explanation",
+    "input": "Sure! I'd be happy to help you understand this concept. I think it's basically a really good idea to use connection pooling. It's actually very important because in order to handle multiple concurrent requests, you essentially need to reuse database connections rather than creating new ones each time. Perhaps you might also want to consider using an ORM as well as a migration tool. Due to the fact that raw SQL can be error-prone, it seems like using SQLAlchemy would be a much better approach.",
+    "category": "prose"
+  },
+  {
+    "id": "markdown_tutorial",
+    "input": "# Getting Started with ensemble-mcp\n\nSure! Let me help you get set up. Here's basically what you need to do.\n\n## Installation\n\nI think the simplest approach is to just run:\n\n```bash\npip install ensemble-mcp\n```\n\nIt's actually really straightforward. You might also want to install the dev dependencies:\n\n```bash\npip install -e \".[dev]\"\n```\n\n## Configuration\n\nThe configuration file is at `~/.config/ensemble-mcp/config.toml`. I think you should basically edit it to set your preferences.\n\n| Setting | Default | Description |\n|---------|---------|-------------|\n| cache_dir | ~/.cache/ensemble-mcp | Data directory |\n| model | MiniLM-L6-v2 | Embedding model |\n| port | 8787 | Dashboard port |\n\n## Running\n\nJust run:\n\n$ ensemble-mcp\n\nPerhaps you might also want to try:\n\n$ ensemble-mcp web --port 9000\n\nI think this is essentially a really good way to get started.",
+    "category": "markdown"
+  },
+  {
+    "id": "api_docs_verbose",
+    "input": "Great question! The `patterns_search` function is actually a really important tool. I think it basically works by taking a query string and searching through stored patterns using semantic similarity. The function signature is `patterns_search(store, *, query, top_k=3, project=None, idempotency_key=None)`. It returns a dict with matches. Perhaps you should consider using `top_k=5` for better recall. In order to use it effectively, you just need to provide a descriptive query. Due to the fact that it uses embeddings, similar concepts will match even if the exact words differ.",
+    "category": "api_docs"
+  },
+  {
+    "id": "code_review_feedback",
+    "input": "I think this code is basically pretty good, but I have a few suggestions. First, I'd be happy to point out that the error handling in `src/ensemble_mcp/tools/drift.py` is actually really well done. However, it seems like you might want to consider adding type hints to the helper functions. The `_persist_drift_history` function at line 96 could perhaps benefit from using a dataclass instead of individual parameters. As well as that, I think the cosine similarity computation at https://en.wikipedia.org/wiki/Cosine_similarity could essentially be optimized by using numpy broadcasting. In order to improve performance, you should basically batch the embedding calls.\n\n```python\n# Suggested improvement\ndef embed_batch(self, texts: list[str]) -> list[np.ndarray]:\n    return [self.embed(t) for t in texts]\n```\n\nOverall, I think this is a very good implementation. Perhaps consider adding more test cases for edge conditions.",
+    "category": "code_review"
+  },
+  {
+    "id": "troubleshooting_guide",
+    "input": "Sure! I think I can help you debug this issue. It's basically a common problem that actually occurs when the ONNX model hasn't been downloaded yet.\n\n## Error: Model not found\n\nIf you see this error:\n\n```\nToolError: IO_MODEL_DOWNLOAD - Failed to connect to https://huggingface.co/...\n```\n\nI think you should really try these steps:\n\n1. Check your internet connection\n2. Verify the cache directory exists at `~/.cache/ensemble-mcp/models/`\n3. Try manually downloading the model:\n\n$ wget https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx\n\nPerhaps the issue is essentially that your firewall is blocking the download. Due to the fact that the model is ~22MB, it might also be a timeout issue.\n\n## Error: VALIDATION_INVALID_VALUE\n\nThis basically means the input was invalid. I think you should check:\n\n- The `query` parameter is not empty\n- The `top_k` value is a positive integer\n- The `project` field, if provided, is a non-empty string\n\nIt's actually quite simple to fix these validation errors.",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "architecture_discussion",
+    "input": "I'd be happy to explain the architecture. I think the system is basically organized into several subpackages, each handling a specific concern:\n\n- `config/` — Layered settings and defaults\n- `contracts/` — Response envelope and error taxonomy\n- `memory/` — ONNX embeddings and SQLite vector store\n- `security/` — Secret redaction and trust boundaries\n- `state/` — Session lifecycle and idempotency\n- `tools/` — MCP tool implementations\n\nThe data flows essentially like this: the MCP client sends a tool call, which goes through `server.py`'s `_dispatch_tool`, then to the appropriate tool handler. I think the `@tool_handler` decorator is actually a really clever pattern because it automatically wraps responses in the standard envelope.\n\nDue to the fact that all computation is local (ONNX Runtime + SQLite), there are no external API calls. The embedding model (all-MiniLM-L6-v2) generates 384-dimensional vectors in approximately 5ms per embedding. In order to search patterns, we use brute-force cosine similarity, which is sufficient for collections under 10,000 vectors.\n\nPerhaps in the future, we might want to consider adding approximate nearest neighbor search (e.g., FAISS) as well as batch embedding support. I think v2.0.0 would be a good target for these improvements.",
+    "category": "architecture"
+  },
+  {
+    "id": "pure_code",
+    "input": "```python\nfrom __future__ import annotations\n\nimport sqlite3\nfrom typing import Any\n\nfrom ..contracts.envelope import tool_handler\nfrom ..state.idempotency import check_idempotency, store_idempotency\n\n\n@tool_handler(source=\"local\", confidence=\"exact\")\nasync def context_compress(\n    conn: sqlite3.Connection,\n    *,\n    text: str,\n    idempotency_key: str | None = None,\n) -> dict[str, Any]:\n    cached = check_idempotency(conn, idempotency_key)\n    if cached is not None:\n        return cached\n    result = {\"compressed\": text}\n    store_idempotency(conn, idempotency_key, result)\n    return result\n```",
+    "category": "code_only"
+  },
+  {
+    "id": "changelog_entry",
+    "input": "## v0.1.0a6 (2024-01-15)\n\nSure! Here's what changed. I think these are basically the most important updates:\n\n### Added\n- Dashboard web interface at `localhost:8787`\n- Skill suggestion system with `skills_suggest` and `skills_generate` tools\n- Project indexer with `project_index`, `project_query`, `project_dependencies`\n\n### Changed\n- Updated embedding model to all-MiniLM-L6-v2 (v1.2.3 → v2.0.0)\n- Improved drift detection thresholds: `DRIFT_THRESHOLD_ALIGNED = 0.3`\n- Refactored `src/ensemble_mcp/server.py` for better dispatch\n\n### Fixed\n- Fixed idempotency key expiration (was 12h, now 24h)\n- Fixed WAL mode initialization on Windows\n- Resolved https://github.com/LynkByte/ensemble/issues/42",
+    "category": "changelog"
+  },
+  {
+    "id": "error_messages",
+    "input": "I think the error handling could basically be improved. Here are the current error codes that are actually used:\n\n| Code | Category | Retryable |\n|------|----------|----------|\n| VALIDATION_MISSING_FIELD | Validation | No |\n| VALIDATION_INVALID_VALUE | Validation | No |\n| NOT_FOUND_SESSION | Not Found | No |\n| CONFLICT_VERSION_MISMATCH | Conflict | Yes |\n| TIMEOUT_EMBEDDING | Timeout | Yes |\n| IO_DATABASE | IO | Yes |\n| INTERNAL_ERROR | Internal | Maybe |\n\nPerhaps you should really consider adding more specific error codes. In order to improve error messages, I think you should basically include more context in the `details` field. Due to the fact that these errors are returned to AI agents, the messages should be very clear and actionable.",
+    "category": "reference"
+  },
+  {
+    "id": "short_technical",
+    "input": "Use `pip install -e .` to install. Config at `~/.config/ensemble-mcp/config.toml`. Default port: 8787.",
+    "category": "technical_short"
+  },
+  {
+    "id": "commit_message_verbose",
+    "input": "I think we should basically commit this with a message like: \"I'd be happy to add the context compression tool which essentially implements rule-based text compression for reducing token count while preserving technical content like code blocks and URLs as well as file paths. Due to the fact that this is a local operation, it requires zero LLM calls. Perhaps we should also mention that it uses the same tokenizer as the embedding model for consistency.\"",
+    "category": "commit_message"
+  },
+  {
+    "id": "multiline_code_and_prose",
+    "input": "I think the function is basically defined like this:\n\n```python\nasync def drift_check(\n    model: EmbeddingModel,\n    conn: sqlite3.Connection,\n    *,\n    task_description: str,\n    changed_files: list[str],\n    diff_summary: str,\n    project: str | None = None,\n    idempotency_key: str | None = None,\n) -> dict[str, Any]:\n    \"\"\"Check if code changes drift from the original task.\"\"\"\n    cached = check_idempotency(conn, idempotency_key)\n    if cached is not None:\n        return cached\n\n    task_emb = model.embed(task_description)\n    diff_emb = model.embed(diff_summary)\n    similarity = cosine_similarity(task_emb, diff_emb)\n    drift_score = 1.0 - similarity\n    return {\"score\": drift_score}\n```\n\nIt's actually really elegant. I think the algorithm essentially compares the task description embedding with the diff summary embedding using cosine similarity. Due to the fact that the embeddings are normalized, the similarity is always between 0 and 1. In order to interpret the score, you basically use the thresholds defined in `src/ensemble_mcp/config/defaults.py`:\n\n- Score < 0.3: aligned\n- Score < 0.6: minor drift\n- Score >= 0.6: significant drift\n\nPerhaps these thresholds could be configurable in a future version (v2.0.0).",
+    "category": "mixed"
+  },
+  {
+    "id": "nested_lists",
+    "input": "Sure! I think the project structure is basically organized as follows:\n\n- `src/ensemble_mcp/` — Main package\n  - `config/` — Configuration defaults\n  - `contracts/` — Response envelope\n  - `memory/` — Embeddings and vector store\n  - `security/` — Redaction\n  - `state/` — Session management\n  - `tools/` — Tool implementations\n- `tests/` — Test suite\n  - `fixtures/` — Test data\n  - `conftest.py` — Shared fixtures\n- `evals/` — Benchmark harness\n\nI think this is actually a really well-organized structure. In order to add a new tool, you essentially need to:\n1. Create the implementation in `tools/`\n2. Register it in `server.py`\n3. Add tests in `tests/`\n\nPerhaps you should also update the documentation.",
+    "category": "structural"
+  },
+  {
+    "id": "minimal_prose",
+    "input": "The server runs on port 8787 by default.",
+    "category": "minimal"
+  },
+  {
+    "id": "dates_and_versions_heavy",
+    "input": "I think the release timeline is basically:\n\n- v0.1.0a1 (2023-11-01): Initial alpha\n- v0.1.0a2 (2023-12-15): Added drift detection\n- v0.1.0a3 (2024-01-05): Added skill discovery\n- v0.1.0a4 (2024-02-14): Added project indexer\n- v0.1.0a5 (2024-03-20): Added session management\n- v0.1.0a6 (2024-04-10): Added web dashboard\n\nPerhaps the next release (v0.1.0b1) should really focus on performance. Due to the fact that we're approaching beta, I think we should basically stabilize the API. The target date is 2024-06-01T00:00:00Z.",
+    "category": "timeline"
+  }
+]

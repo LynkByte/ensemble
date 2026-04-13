@@ -1,6 +1,6 @@
 """MCP server setup and tool registration.
 
-Registers all 15 tools with the MCP protocol and runs the stdio server.
+Registers all 16 tools with the MCP protocol and runs the stdio server.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from .config.defaults import SERVER_NAME, SERVER_VERSION
 from .memory.store import VectorStore
 from .security.trust import require_confirmation
 from .tools import (
+    compress,
     drift,
     indexer,
     patterns,
@@ -253,6 +254,26 @@ TOOL_DEFINITIONS: list[Tool] = [
             "required": ["confirm"],
         },
     ),
+    # ── Compress ──
+    Tool(
+        name="context_compress",
+        description=(
+            "Compress verbose natural language text into terse, token-efficient form "
+            "while preserving all technical content (code, URLs, paths, headings). "
+            "Rule-based, zero LLM calls."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": "The text to compress",
+                },
+                "idempotency_key": {"type": "string", "description": "Optional idempotency key"},
+            },
+            "required": ["text"],
+        },
+    ),
 ]
 
 
@@ -309,6 +330,10 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]
             return _health(store)
         case "reset":
             return await _reset(store, **arguments)
+
+        # Compress
+        case "context_compress":
+            return cast(dict[str, Any], await compress.context_compress(conn, **arguments))
 
         case _:
             return {

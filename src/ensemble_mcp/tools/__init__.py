@@ -1,4 +1,4 @@
-"""MCP tool implementations (15 tools total).
+"""MCP tool implementations (16 tools total).
 
 Tool categories:
 - Patterns (3): patterns_search, patterns_store, patterns_prune
@@ -8,4 +8,5 @@ Tool categories:
 - Session (2): session_save, session_load
 - Indexer (3): project_index, project_query, project_dependencies
 - Utility (2): health, reset
+- Compress (1): context_compress
 """

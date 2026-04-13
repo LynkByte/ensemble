@@ -129,6 +129,10 @@ INDEXER_IGNORED_EXTENSIONS: set[str] = {
 DASHBOARD_DEFAULT_PORT = 8787
 DASHBOARD_HOST = "127.0.0.1"
 
+# ── Context Compression ──────────────────────────────────────────
+COMPRESS_MAX_INPUT_LENGTH = 100_000  # chars
+COMPRESS_MIN_INPUT_LENGTH = 10  # chars
+
 # ── Server Metadata ───────────────────────────────────────────────
 SERVER_NAME = "ensemble-mcp"
 SERVER_VERSION = "0.1.0a6"
