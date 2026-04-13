@@ -58,6 +58,11 @@ def _ensure_tokenizer() -> Tokenizer:
         from tokenizers import Tokenizer as TokClass
 
         _tokenizer = TokClass.from_file(str(tokenizer_path))
+        # Disable truncation and padding — we need accurate full-length
+        # token counts, not the 128-token padded/truncated sequences
+        # used for embedding inference.
+        _tokenizer.no_truncation()
+        _tokenizer.no_padding()
         return _tokenizer
 
 

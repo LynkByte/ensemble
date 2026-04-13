@@ -6,46 +6,14 @@ and measures latency and classification accuracy.
 
 from __future__ import annotations
 
-import asyncio
 import statistics
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import MagicMock
 
-import numpy as np
-
-from ensemble_mcp.memory.embeddings import EmbeddingModel
-from ensemble_mcp.state.idempotency import ensure_idempotency_table
-from ensemble_mcp.state.locks import get_connection
 from ensemble_mcp.tools.drift import drift_check
-
-
-class _BenchEmbeddingModel(EmbeddingModel):
-    """Deterministic embedding model for drift benchmarks."""
-
-    def __init__(self) -> None:
-        super().__init__(model_dir=Path("/dev/null"))
-        self._session = MagicMock()
-        self._tokenizer = MagicMock()
-
-    def embed(self, text: str) -> np.ndarray:
-        rng = np.random.RandomState(hash(text) % (2**31))
-        vec = rng.randn(384).astype(np.float32)
-        norm = np.linalg.norm(vec)
-        if norm > 0:
-            vec = vec / norm
-        return vec
-
-    def embed_batch(self, texts: list[str]) -> list[np.ndarray]:
-        return [self.embed(t) for t in texts]
-
-    def _load(self) -> None:
-        pass
-
-    def _ensure_model(self) -> None:
-        pass
-
+from evals.conftest import EvalMockEmbeddingModel
+from evals.helpers import make_eval_db, percentile, run_async
 
 # ── Test pairs with ground-truth expectations ────────────────────
 
@@ -72,7 +40,9 @@ _DRIFT_PAIRS: list[dict[str, object]] = [
             "src/config.py",
             "src/database/schema.py",
         ],
-        "diff": "Updated rate limiting middleware, added database migration for rate limit tracking",  # noqa: E501
+        "diff": (
+            "Updated rate limiting middleware, added database migration for rate limit tracking"
+        ),
         "expected_verdict": "minor_drift",
         "description": "Related but includes config and migration changes",
     },
@@ -151,28 +121,15 @@ class DriftBenchResult:
 
     @property
     def p50_ms(self) -> float:
-        return _percentile(self.latencies_ms, 50)
+        return percentile(self.latencies_ms, 50)
 
     @property
     def p95_ms(self) -> float:
-        return _percentile(self.latencies_ms, 95)
+        return percentile(self.latencies_ms, 95)
 
     @property
     def p99_ms(self) -> float:
-        return _percentile(self.latencies_ms, 99)
-
-
-def _percentile(data: list[float], p: int) -> float:
-    """Compute the p-th percentile of a list of floats."""
-    if not data:
-        return 0.0
-    sorted_data = sorted(data)
-    k = (len(sorted_data) - 1) * p / 100
-    f = int(k)
-    c = f + 1
-    if c >= len(sorted_data):
-        return sorted_data[-1]
-    return sorted_data[f] + (k - f) * (sorted_data[c] - sorted_data[f])
+        return percentile(self.latencies_ms, 99)
 
 
 def run_drift_benchmark(tmp_dir: Path | None = None) -> DriftBenchResult:
@@ -186,34 +143,15 @@ def run_drift_benchmark(tmp_dir: Path | None = None) -> DriftBenchResult:
     if tmp_dir is None:
         tmp_dir = Path(tempfile.mkdtemp())
 
-    db_path = tmp_dir / "bench_drift.db"
-    conn = get_connection(db_path)
-
-    # Create required tables
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS drift_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            task_description TEXT NOT NULL,
-            changed_files TEXT NOT NULL,
-            score REAL NOT NULL,
-            similarity REAL NOT NULL,
-            verdict TEXT NOT NULL,
-            flags TEXT NOT NULL,
-            project TEXT,
-            created_at TEXT DEFAULT (datetime('now'))
-        );
-    """)
-    ensure_idempotency_table(conn)
-    conn.commit()
-
-    model = _BenchEmbeddingModel()
+    conn = make_eval_db(tmp_dir)
+    model = EvalMockEmbeddingModel()
     latencies: list[float] = []
     correct = 0
     per_pair: list[dict[str, object]] = []
 
     for pair in _DRIFT_PAIRS:
         start = time.perf_counter()
-        env = asyncio.run(
+        env = run_async(
             drift_check(
                 model,
                 conn,
@@ -268,7 +206,7 @@ def format_drift_results(result: DriftBenchResult) -> str:
         f"- **p50**: {result.p50_ms:.2f}ms",
         f"- **p95**: {result.p95_ms:.2f}ms",
         f"- **p99**: {result.p99_ms:.2f}ms",
-        f"- **Mean**: {statistics.mean(result.latencies_ms):.2f}ms",
+        f"- **Mean**: {statistics.mean(result.latencies_ms) if result.latencies_ms else 0.0:.2f}ms",
         "",
         "### Per-Pair Results",
         "",
@@ -290,6 +228,26 @@ def format_drift_results(result: DriftBenchResult) -> str:
     )
 
     return "\n".join(lines)
+
+
+# ── Pytest-discoverable wrappers ─────────────────────────────────
+
+
+def test_drift_benchmark_runs() -> None:
+    """Pytest wrapper: runs drift benchmark and validates results."""
+    result = run_drift_benchmark()
+    assert result.num_pairs > 0
+    assert result.p50_ms < 100, f"p50 latency too high: {result.p50_ms}ms"
+    assert result.total_verdicts == result.num_pairs
+    assert len(result.per_pair) == result.num_pairs
+
+
+def test_drift_format_output() -> None:
+    """Pytest wrapper: ensures format function produces valid markdown."""
+    result = run_drift_benchmark()
+    markdown = format_drift_results(result)
+    assert "## Drift Detection Benchmark" in markdown
+    assert "### Per-Pair Results" in markdown
 
 
 if __name__ == "__main__":

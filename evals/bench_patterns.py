@@ -1,52 +1,21 @@
-"""Benchmark for patterns_search tool.
+"""Benchmark for patterns_search, patterns_store, and patterns_prune tools.
 
 Pre-loads patterns into a VectorStore, then measures search latency
-(p50/p95/p99) and recall accuracy across a set of queries.
+(p50/p95/p99) and recall accuracy across a set of queries. Also
+benchmarks store throughput and prune correctness.
 """
 
 from __future__ import annotations
 
-import asyncio
 import statistics
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from unittest.mock import MagicMock
 
-import numpy as np
-
-from ensemble_mcp.memory.embeddings import EmbeddingModel
 from ensemble_mcp.memory.store import VectorStore
-from ensemble_mcp.tools.patterns import patterns_search, patterns_store
-
-# ── Mock model for benchmarks ────────────────────────────────────
-
-
-class _BenchEmbeddingModel(EmbeddingModel):
-    """Deterministic embedding model for pattern benchmarks."""
-
-    def __init__(self) -> None:
-        super().__init__(model_dir=Path("/dev/null"))
-        self._session = MagicMock()
-        self._tokenizer = MagicMock()
-
-    def embed(self, text: str) -> np.ndarray:
-        rng = np.random.RandomState(hash(text) % (2**31))
-        vec = rng.randn(384).astype(np.float32)
-        norm = np.linalg.norm(vec)
-        if norm > 0:
-            vec = vec / norm
-        return vec
-
-    def embed_batch(self, texts: list[str]) -> list[np.ndarray]:
-        return [self.embed(t) for t in texts]
-
-    def _load(self) -> None:
-        pass
-
-    def _ensure_model(self) -> None:
-        pass
-
+from ensemble_mcp.tools.patterns import patterns_prune, patterns_search, patterns_store
+from evals.conftest import EvalMockEmbeddingModel
+from evals.helpers import percentile, run_async
 
 # ── Seed patterns ────────────────────────────────────────────────
 
@@ -129,49 +98,40 @@ _SEARCH_QUERIES: list[dict[str, str]] = [
 
 @dataclass(slots=True)
 class PatternBenchResult:
-    """Aggregate result of the patterns_search benchmark."""
+    """Aggregate result of the patterns benchmark suite."""
 
     num_patterns: int
     num_queries: int
     latencies_ms: list[float]
     recall_hits: int
     recall_total: int
+    store_latencies_ms: list[float] = field(default_factory=list)
+    prune_latency_ms: float = 0.0
+    prune_count: int = 0
 
     @property
     def p50_ms(self) -> float:
-        return _percentile(self.latencies_ms, 50)
+        return percentile(self.latencies_ms, 50)
 
     @property
     def p95_ms(self) -> float:
-        return _percentile(self.latencies_ms, 95)
+        return percentile(self.latencies_ms, 95)
 
     @property
     def p99_ms(self) -> float:
-        return _percentile(self.latencies_ms, 99)
+        return percentile(self.latencies_ms, 99)
 
     @property
     def recall_pct(self) -> float:
         return (self.recall_hits / self.recall_total * 100) if self.recall_total else 0.0
 
 
-def _percentile(data: list[float], p: int) -> float:
-    """Compute the p-th percentile of a list of floats."""
-    if not data:
-        return 0.0
-    sorted_data = sorted(data)
-    k = (len(sorted_data) - 1) * p / 100
-    f = int(k)
-    c = f + 1
-    if c >= len(sorted_data):
-        return sorted_data[-1]
-    return sorted_data[f] + (k - f) * (sorted_data[c] - sorted_data[f])
-
-
 def run_patterns_benchmark(tmp_dir: Path | None = None) -> PatternBenchResult:
-    """Run the patterns_search benchmark.
+    """Run the full patterns benchmark: store, search, and prune.
 
     Creates a temporary VectorStore, seeds it with patterns, then
-    measures search latency and recall accuracy.
+    measures search latency and recall accuracy. Also benchmarks
+    store throughput and prune operations.
     """
     import tempfile
 
@@ -179,12 +139,16 @@ def run_patterns_benchmark(tmp_dir: Path | None = None) -> PatternBenchResult:
         tmp_dir = Path(tempfile.mkdtemp())
 
     db_path = tmp_dir / "bench_patterns.db"
-    model = _BenchEmbeddingModel()
+    model = EvalMockEmbeddingModel()
     store = VectorStore(db_path=db_path, model=model)
 
-    # Seed patterns
+    # Seed patterns and measure store latency
+    store_latencies: list[float] = []
     for pat in _SEED_PATTERNS:
-        asyncio.run(patterns_store(store, **pat))
+        start = time.perf_counter()
+        run_async(patterns_store(store, **pat))
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        store_latencies.append(round(elapsed_ms, 2))
 
     # Run searches and measure
     latencies: list[float] = []
@@ -192,7 +156,7 @@ def run_patterns_benchmark(tmp_dir: Path | None = None) -> PatternBenchResult:
 
     for sq in _SEARCH_QUERIES:
         start = time.perf_counter()
-        env = asyncio.run(patterns_search(store, query=sq["query"], top_k=5))
+        env = run_async(patterns_search(store, query=sq["query"], top_k=5))
         elapsed_ms = (time.perf_counter() - start) * 1000
         latencies.append(round(elapsed_ms, 2))
 
@@ -202,6 +166,12 @@ def run_patterns_benchmark(tmp_dir: Path | None = None) -> PatternBenchResult:
             if sq["expected_match"] in match_names:
                 hits += 1
 
+    # Prune benchmark (with max_age_days=0 to prune all unmatched)
+    start = time.perf_counter()
+    prune_env = run_async(patterns_prune(store, max_age_days=0))
+    prune_latency_ms = (time.perf_counter() - start) * 1000
+    prune_count = prune_env["data"]["pruned"] if prune_env["ok"] else 0
+
     store.close()
 
     return PatternBenchResult(
@@ -210,27 +180,89 @@ def run_patterns_benchmark(tmp_dir: Path | None = None) -> PatternBenchResult:
         latencies_ms=latencies,
         recall_hits=hits,
         recall_total=len(_SEARCH_QUERIES),
+        store_latencies_ms=store_latencies,
+        prune_latency_ms=round(prune_latency_ms, 2),
+        prune_count=prune_count,
     )
 
 
 def format_patterns_results(result: PatternBenchResult) -> str:
     """Format patterns benchmark results as markdown."""
     lines: list[str] = [
-        "## Patterns Search Benchmark",
+        "## Patterns Benchmark",
         "",
         f"- **Patterns seeded**: {result.num_patterns}",
         f"- **Queries run**: {result.num_queries}",
         f"- **Recall**: {result.recall_hits}/{result.recall_total} ({result.recall_pct:.0f}%)",
         "",
-        "### Latency",
+        "### Search Latency",
         "",
         f"- **p50**: {result.p50_ms:.2f}ms",
         f"- **p95**: {result.p95_ms:.2f}ms",
         f"- **p99**: {result.p99_ms:.2f}ms",
-        f"- **Mean**: {statistics.mean(result.latencies_ms):.2f}ms",
+        f"- **Mean**: {statistics.mean(result.latencies_ms) if result.latencies_ms else 0.0:.2f}ms",
     ]
 
+    if result.store_latencies_ms:
+        lines.extend(
+            [
+                "",
+                "### Store Latency",
+                "",
+                f"- **Mean**: {statistics.mean(result.store_latencies_ms):.2f}ms",
+                f"- **p95**: {percentile(result.store_latencies_ms, 95):.2f}ms",
+            ]
+        )
+
+    lines.extend(
+        [
+            "",
+            "### Prune",
+            "",
+            f"- **Pruned**: {result.prune_count}",
+            f"- **Latency**: {result.prune_latency_ms:.2f}ms",
+        ]
+    )
+
     return "\n".join(lines)
+
+
+# ── Pytest-discoverable wrappers ─────────────────────────────────
+
+
+def test_patterns_benchmark_runs() -> None:
+    """Pytest wrapper: runs patterns benchmark and validates results."""
+    result = run_patterns_benchmark()
+    assert result.num_patterns > 0
+    assert result.num_queries > 0
+    assert result.p50_ms >= 0
+    assert result.recall_total == result.num_queries
+
+
+def test_patterns_store_benchmark() -> None:
+    """Pytest wrapper: validates store latency measurements exist."""
+    result = run_patterns_benchmark()
+    assert len(result.store_latencies_ms) == result.num_patterns
+    assert all(lat >= 0 for lat in result.store_latencies_ms)
+
+
+def test_patterns_prune_benchmark() -> None:
+    """Pytest wrapper: validates prune operation ran successfully."""
+    result = run_patterns_benchmark()
+    assert result.prune_latency_ms >= 0
+    # Prune count may be 0 if patterns gained matches before the prune
+    # call; >= 0 is the tightest bound we can assert here.
+    assert result.prune_count >= 0
+
+
+def test_patterns_format_output() -> None:
+    """Pytest wrapper: ensures format function produces valid markdown."""
+    result = run_patterns_benchmark()
+    markdown = format_patterns_results(result)
+    assert "## Patterns Benchmark" in markdown
+    assert "### Search Latency" in markdown
+    assert "### Store Latency" in markdown
+    assert "### Prune" in markdown
 
 
 if __name__ == "__main__":

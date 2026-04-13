@@ -1,7 +1,7 @@
 """Benchmark for context_compress tool.
 
 Measures compression ratio, latency, and preservation accuracy
-across a corpus of diverse text samples.
+across a corpus of diverse text samples and real project documentation.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ensemble_mcp.compress.engine import compress
+from evals.corpus import load_doc_corpus
 
 SNAPSHOTS_DIR = Path(__file__).parent / "snapshots"
 
@@ -55,6 +56,42 @@ def run_compress_benchmark() -> list[CompressBenchResult]:
             CompressBenchResult(
                 sample_id=sample["id"],
                 category=sample.get("category", "unknown"),
+                input_chars=len(text),
+                output_chars=len(cr.compressed_text),
+                original_tokens=cr.original_tokens,
+                compressed_tokens=cr.compressed_tokens,
+                savings_pct=cr.savings_pct,
+                preserved_count=cr.preserved_count,
+                latency_ms=round(elapsed_ms, 2),
+            )
+        )
+
+    return results
+
+
+def run_compress_real_docs_benchmark() -> list[CompressBenchResult]:
+    """Run compression benchmark on real project documentation files.
+
+    Uses ``docs/*.md`` from the project root. Skips files shorter than
+    the compression engine's minimum input length (10 chars).
+    """
+    docs = load_doc_corpus()
+    results: list[CompressBenchResult] = []
+
+    for doc in docs:
+        text = doc["content"]
+        # Skip very short docs that don't meet compression minimum
+        if len(text) < 10:
+            continue
+
+        start = time.perf_counter()
+        cr = compress(text)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        results.append(
+            CompressBenchResult(
+                sample_id=doc["id"],
+                category=doc["category"],
                 input_chars=len(text),
                 output_chars=len(cr.compressed_text),
                 original_tokens=cr.original_tokens,
@@ -116,6 +153,45 @@ def format_compress_results(results: list[CompressBenchResult]) -> str:
     return "\n".join(lines)
 
 
+# ── Pytest-discoverable wrappers ─────────────────────────────────
+
+
+def test_compress_benchmark_runs() -> None:
+    """Pytest wrapper: runs compression benchmark and validates results."""
+    results = run_compress_benchmark()
+    assert len(results) > 0, "Expected at least one benchmark result"
+    for r in results:
+        assert r.savings_pct >= 0, f"Negative savings for {r.sample_id}"
+        assert r.latency_ms >= 0, f"Negative latency for {r.sample_id}"
+        # Allow a small tolerance: whitespace normalisation around preserved spans
+        # can add 1-2 chars; the meaningful metric is savings_pct, not raw char count.
+        assert r.output_chars <= r.input_chars + 5, (
+            f"Output much larger than input for {r.sample_id}"
+        )
+
+
+def test_compress_format_output() -> None:
+    """Pytest wrapper: ensures format function produces valid markdown."""
+    results = run_compress_benchmark()
+    markdown = format_compress_results(results)
+    assert "## Compression Benchmark" in markdown
+    assert "### Aggregate" in markdown
+
+
+def test_compress_real_docs() -> None:
+    """Pytest wrapper: runs compression on real project docs."""
+    results = run_compress_real_docs_benchmark()
+    assert len(results) > 0, "Expected at least one real doc result"
+    for r in results:
+        # Structural assertion: savings should be non-negative
+        assert r.savings_pct >= 0, f"Negative savings for real doc {r.sample_id}"
+        assert r.latency_ms >= 0, f"Negative latency for real doc {r.sample_id}"
+
+
 if __name__ == "__main__":
     results = run_compress_benchmark()
     print(format_compress_results(results))
+    print()
+    print("--- Real Docs ---")
+    real_results = run_compress_real_docs_benchmark()
+    print(format_compress_results(real_results))

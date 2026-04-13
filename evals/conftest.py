@@ -1,7 +1,8 @@
 """Eval-specific test fixtures.
 
-Provides database connections, mock models, and snapshot data loaders
-for benchmark tests.
+Provides database connections, mock models, snapshot data loaders,
+real-project corpus data, and synthetic project directories
+for benchmark tests across all 16 MCP tools.
 """
 
 from __future__ import annotations
@@ -17,8 +18,8 @@ import pytest
 
 from ensemble_mcp.memory.embeddings import EmbeddingModel
 from ensemble_mcp.memory.store import VectorStore
-from ensemble_mcp.state.idempotency import ensure_idempotency_table
-from ensemble_mcp.state.locks import get_connection
+from evals.corpus import load_doc_corpus, load_src_corpus
+from evals.helpers import make_eval_db
 
 SNAPSHOTS_DIR = Path(__file__).parent / "snapshots"
 
@@ -66,144 +67,12 @@ def eval_model() -> EvalMockEmbeddingModel:
 
 @pytest.fixture()
 def eval_conn(tmp_path: Path) -> Generator[sqlite3.Connection, None, None]:
-    """Yield a clean SQLite connection with all tables for eval benchmarks."""
-    db_path = tmp_path / "eval_data.db"
-    conn = get_connection(db_path)
+    """Yield a clean SQLite connection with all tables for eval benchmarks.
 
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS schema_version (
-            version INTEGER PRIMARY KEY,
-            applied_at TEXT DEFAULT (datetime('now'))
-        );
-
-        CREATE TABLE IF NOT EXISTS patterns (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            context TEXT NOT NULL,
-            approach TEXT NOT NULL,
-            outcome TEXT NOT NULL,
-            project TEXT,
-            embedding BLOB NOT NULL,
-            created_at TEXT DEFAULT (datetime('now')),
-            last_matched_at TEXT,
-            match_count INTEGER DEFAULT 0
-        );
-
-        CREATE TABLE IF NOT EXISTS mcp_calls (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tool_name TEXT NOT NULL,
-            input_bytes INTEGER DEFAULT 0,
-            output_bytes INTEGER DEFAULT 0,
-            duration_ms INTEGER,
-            called_at TEXT DEFAULT (datetime('now'))
-        );
-
-        CREATE TABLE IF NOT EXISTS project_files (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project_path TEXT NOT NULL,
-            file_path TEXT NOT NULL,
-            language TEXT,
-            role TEXT,
-            size_bytes INTEGER DEFAULT 0,
-            modified_at TEXT NOT NULL,
-            indexed_at TEXT DEFAULT (datetime('now')),
-            UNIQUE(project_path, file_path)
-        );
-
-        CREATE TABLE IF NOT EXISTS file_exports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            file_id INTEGER NOT NULL
-                REFERENCES project_files(id) ON DELETE CASCADE,
-            name TEXT NOT NULL,
-            kind TEXT NOT NULL,
-            line_number INTEGER,
-            signature TEXT,
-            docstring TEXT,
-            UNIQUE(file_id, name, kind)
-        );
-
-        CREATE TABLE IF NOT EXISTS file_imports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            file_id INTEGER NOT NULL
-                REFERENCES project_files(id) ON DELETE CASCADE,
-            import_path TEXT NOT NULL,
-            raw_import TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS skill_suggestions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project TEXT NOT NULL,
-            proposed_name TEXT NOT NULL,
-            proposed_content TEXT NOT NULL,
-            theme TEXT NOT NULL,
-            confidence REAL DEFAULT 0.0,
-            status TEXT DEFAULT 'pending',
-            created_at TEXT DEFAULT (datetime('now')),
-            resolved_at TEXT,
-            generated_path TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS skill_suggestion_patterns (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            suggestion_id INTEGER NOT NULL
-                REFERENCES skill_suggestions(id) ON DELETE CASCADE,
-            pattern_id INTEGER NOT NULL
-                REFERENCES patterns(id) ON DELETE CASCADE,
-            UNIQUE(suggestion_id, pattern_id)
-        );
-
-        CREATE TABLE IF NOT EXISTS skill_usage_tracking (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            skill_path TEXT NOT NULL,
-            project TEXT NOT NULL,
-            first_seen_at TEXT DEFAULT (datetime('now')),
-            last_matched_at TEXT,
-            match_count INTEGER DEFAULT 0,
-            UNIQUE(skill_path, project)
-        );
-
-        CREATE TABLE IF NOT EXISTS skill_file_cache (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project_path TEXT NOT NULL,
-            file_path TEXT NOT NULL,
-            name TEXT NOT NULL,
-            source_tool TEXT NOT NULL,
-            content TEXT NOT NULL,
-            embedding BLOB NOT NULL,
-            modified_at TEXT NOT NULL,
-            cached_at TEXT DEFAULT (datetime('now')),
-            UNIQUE(project_path, file_path)
-        );
-        CREATE INDEX IF NOT EXISTS idx_skill_cache_project
-            ON skill_file_cache(project_path);
-
-        CREATE TABLE IF NOT EXISTS session_checkpoints (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT NOT NULL,
-            state_json TEXT NOT NULL,
-            version INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT DEFAULT (datetime('now')),
-            UNIQUE(session_id)
-        );
-
-        CREATE TABLE IF NOT EXISTS drift_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            task_description TEXT NOT NULL,
-            changed_files TEXT NOT NULL,
-            score REAL NOT NULL,
-            similarity REAL NOT NULL,
-            verdict TEXT NOT NULL,
-            flags TEXT NOT NULL,
-            project TEXT,
-            created_at TEXT DEFAULT (datetime('now'))
-        );
-        CREATE INDEX IF NOT EXISTS idx_drift_history_project
-            ON drift_history(project);
-        CREATE INDEX IF NOT EXISTS idx_drift_history_created
-            ON drift_history(created_at);
-    """)
-    ensure_idempotency_table(conn)
-    conn.commit()
+    Delegates table creation to :func:`evals.helpers.make_eval_db` so
+    the DDL is defined in a single place.
+    """
+    conn = make_eval_db(tmp_path)
 
     yield conn
     conn.close()
@@ -219,3 +88,116 @@ def eval_store(
     store = VectorStore(db_path=db_path, model=eval_model)
     yield store
     store.close()
+
+
+@pytest.fixture()
+def corpus_docs() -> list[dict[str, str]]:
+    """Load real docs/*.md files as benchmark corpus."""
+    return load_doc_corpus()
+
+
+@pytest.fixture()
+def corpus_src() -> list[dict[str, str]]:
+    """Load real src/ensemble_mcp/**/*.py files as benchmark corpus."""
+    return load_src_corpus()
+
+
+@pytest.fixture()
+def eval_project_dir(tmp_path: Path) -> Path:
+    """Create a synthetic project directory for indexer/skills benchmarks.
+
+    Contains a mix of Python, TypeScript, Markdown files and a
+    ``.ai/skills/`` directory with mock skill files.
+    """
+    project = tmp_path / "test_project"
+    project.mkdir()
+
+    # Python files
+    (project / "src").mkdir()
+    (project / "src" / "main.py").write_text(
+        '"""Main application entry point."""\n\n'
+        "import os\nimport sys\n\n"
+        "from src.utils import helper\n\n\n"
+        "def main() -> None:\n"
+        '    """Run the application."""\n'
+        "    print('hello')\n\n\n"
+        "class App:\n"
+        '    """Application class."""\n\n'
+        "    def run(self) -> None:\n"
+        "        pass\n",
+        encoding="utf-8",
+    )
+    (project / "src" / "utils.py").write_text(
+        '"""Utility functions."""\n\n'
+        "import json\n\n\n"
+        "def helper(x: int) -> int:\n"
+        '    """Double a number."""\n'
+        "    return x * 2\n\n\n"
+        "def format_output(data: dict) -> str:\n"
+        '    """Format data as JSON string."""\n'
+        "    return json.dumps(data)\n",
+        encoding="utf-8",
+    )
+    (project / "src" / "__init__.py").write_text("", encoding="utf-8")
+
+    # Tests
+    (project / "tests").mkdir()
+    (project / "tests" / "test_main.py").write_text(
+        "from src.main import main, App\n\n\n"
+        "def test_main() -> None:\n"
+        "    main()\n\n\n"
+        "def test_app() -> None:\n"
+        "    app = App()\n"
+        "    app.run()\n",
+        encoding="utf-8",
+    )
+
+    # TypeScript files
+    (project / "frontend").mkdir()
+    (project / "frontend" / "index.ts").write_text(
+        "export function greet(name: string): string {\n"
+        "    return `Hello, ${name}`;\n"
+        "}\n\n"
+        "export class UserService {\n"
+        "    getUser(id: number) { return { id }; }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    # Markdown docs
+    (project / "docs").mkdir()
+    (project / "docs" / "README.md").write_text(
+        "# Test Project\n\nA test project for benchmarks.\n\n"
+        "## Features\n\n- Feature A\n- Feature B\n",
+        encoding="utf-8",
+    )
+
+    # Config file
+    (project / "config.yaml").write_text(
+        "app:\n  name: test\n  port: 8080\n  debug: true\n",
+        encoding="utf-8",
+    )
+
+    # Skill files for skills_discover
+    skills_dir = project / ".ai" / "skills"
+    skills_dir.mkdir(parents=True)
+    (skills_dir / "testing.md").write_text(
+        "# Testing Patterns\n\n"
+        "## When to Apply\n\n"
+        "- Writing unit tests\n"
+        "- Integration testing\n\n"
+        "## Approach\n\n"
+        "Use pytest fixtures with dependency injection.\n",
+        encoding="utf-8",
+    )
+    (skills_dir / "refactoring.md").write_text(
+        "# Refactoring Guide\n\n"
+        "## When to Apply\n\n"
+        "- Code smells detected\n"
+        "- Performance issues\n\n"
+        "## Approach\n\n"
+        "Extract method, rename variables, simplify conditionals.\n",
+        encoding="utf-8",
+    )
+
+    return project
