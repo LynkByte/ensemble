@@ -1,6 +1,6 @@
 # API Reference
 
-Complete reference for all 15 MCP tools provided by **ensemble-mcp** (13 core tools + `health` + `reset`).
+Complete reference for all 16 MCP tools provided by **ensemble-mcp** (14 core tools + `health` + `reset`).
 
 ## Response Envelope
 
@@ -501,6 +501,45 @@ Get the import/dependency graph for a specific file: what it imports, what impor
 
 **Possible errors:**
 - `NOT_FOUND_FILE` — file not found in the index (run `project_index` first)
+
+---
+
+## Context Compression
+
+Rule-based text compression for reducing token usage.
+
+### `context_compress`
+
+Compress verbose natural language text into terse, token-efficient form while preserving all technical content.
+
+**Parameters:**
+
+| Name | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `text` | string | yes | — | The text to compress |
+| `idempotency_key` | string | no | null | Dedup key |
+
+**Response `data`:**
+
+```json
+{
+  "compressed_text": "Build REST API user mgmt. Need CRUD endpoints /api/users...",
+  "original_tokens": 156,
+  "compressed_tokens": 94,
+  "savings_pct": 39.7,
+  "preserved_count": 3
+}
+```
+
+**Notes:**
+- Rule-based compression, zero LLM calls
+- Preserves: code blocks, inline code, URLs, file paths, headings, tables, version numbers, dates
+- `preserved_count` indicates how many technical content blocks were detected and preserved verbatim
+- Typical savings: ~30-40% token reduction on natural language text
+
+**Possible errors:**
+- `VALIDATION_MISSING_FIELD` — text is empty
+- `VALIDATION_CONSTRAINT` — text too long or too short
 
 ---
 

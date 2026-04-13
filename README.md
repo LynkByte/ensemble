@@ -1,6 +1,6 @@
 # ensemble-mcp
 
-A Python MCP (Model Context Protocol) server that provides **vector memory**, **drift detection**, **model routing**, **skills discovery**, **session management**, and **codebase indexing** for AI-assisted development pipelines.
+A Python MCP (Model Context Protocol) server that provides **vector memory**, **drift detection**, **model routing**, **skills discovery**, **session management**, **codebase indexing**, and **context compression** for AI-assisted development pipelines.
 
 All intelligence is local — zero LLM/API calls. Uses ONNX Runtime embeddings (~5ms), numpy cosine similarity, and SQLite storage.
 
@@ -218,7 +218,7 @@ ensemble-mcp install --dry-run
 ensemble-mcp install --yes
 ```
 
-## 15 MCP Tools
+## 16 MCP Tools
 
 ### Patterns (semantic memory)
 
@@ -263,6 +263,12 @@ ensemble-mcp install --yes
 | `project_query` | Query index by language, path, or text |
 | `project_dependencies` | Get import/dependency graph for a file |
 
+### Context Compression
+
+| Tool | Description |
+|------|-------------|
+| `context_compress` | Compress verbose text into terse, token-efficient form while preserving technical content |
+
 ### Utility
 
 | Tool | Description |
@@ -300,9 +306,10 @@ ensemble-mcp/
     memory/               # ONNX embeddings, SQLite vector store, cosine similarity
     security/             # Secret redaction, trust boundaries
     state/                # Session/step lifecycle, idempotency, locks
-    tools/                # 15 MCP tool implementations + call-recording utility
+    tools/                # 16 MCP tool implementations + call-recording utility
     installer/            # AI tool detection + MCP registration
     dashboard/            # Web dashboard (aiohttp server, JSON API, SPA frontend)
+    compress/             # Rule-based text compression engine
     cli/                  # Startup banner
     data/                 # Bundled agent and skill files
 ```
@@ -370,6 +377,18 @@ python -m build
 ```bash
 docker build -t ensemble-mcp .
 docker run --rm -v ~/.cache/ensemble-mcp:/home/app/.cache/ensemble-mcp ensemble-mcp
+```
+
+## Eval Framework
+
+Benchmark harness for measuring tool effectiveness:
+
+```bash
+# Run eval benchmarks
+python evals/runner.py
+
+# Or via pytest
+python -m pytest evals/ -v
 ```
 
 ## Supported AI Tools

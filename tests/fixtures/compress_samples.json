@@ -1,0 +1,62 @@
+[
+  {
+    "name": "markdown_with_code_blocks",
+    "input": "Sure! I'd be happy to help. Here's how you can basically set up a database connection in Python:\n\n```python\nimport sqlite3\n\ndef get_connection(path: str) -> sqlite3.Connection:\n    conn = sqlite3.connect(path)\n    conn.execute('PRAGMA journal_mode=WAL')\n    return conn\n```\n\nI think this is actually a really good approach because it essentially uses WAL mode for better concurrency. In order to use this, you just need to import the module and call `get_connection('/path/to/db')`. Perhaps you might also want to consider adding connection pooling as well as error handling.",
+    "expect_preserved": ["```python", "get_connection", "`get_connection('/path/to/db')`"],
+    "expect_removed": ["Sure!", "I'd be happy to help", "basically", "actually", "really", "essentially", "I think", "just", "Perhaps"]
+  },
+  {
+    "name": "plain_text_with_urls",
+    "input": "I think you should really check out the documentation at https://docs.python.org/3/library/sqlite3.html for more details. It's actually very comprehensive. You might also want to look at https://www.sqlalchemy.org/ as well as https://peps.python.org/pep-0249/ for the DB-API specification.",
+    "expect_preserved": ["https://docs.python.org/3/library/sqlite3.html", "https://www.sqlalchemy.org/", "https://peps.python.org/pep-0249/"],
+    "expect_removed": ["I think", "really", "actually", "very"]
+  },
+  {
+    "name": "text_with_table",
+    "input": "Great question! Here's a table that basically shows the different model tiers:\n\n| Tier | Cost | Quality |\n|------|------|---------|\n| best | $$$ | Highest |\n| mid | $$ | Good |\n| cheapest | $ | Basic |\n\nI think this is essentially a really good overview of the options. Perhaps you should consider the mid tier.",
+    "expect_preserved": ["| Tier | Cost | Quality |", "|------|------|---------", "| best | $$$ | Highest |"],
+    "expect_removed": ["Great question!", "basically", "I think", "essentially", "really", "Perhaps"]
+  },
+  {
+    "name": "text_with_file_paths",
+    "input": "You should actually look at the configuration file at src/ensemble_mcp/config/defaults.py. It's really important. The tests are in tests/test_patterns.py and the main server is at src/ensemble_mcp/server.py. I think these are basically the most important files.",
+    "expect_preserved": ["src/ensemble_mcp/config/defaults.py", "tests/test_patterns.py", "src/ensemble_mcp/server.py"],
+    "expect_removed": ["actually", "really", "I think", "basically"]
+  },
+  {
+    "name": "pure_code_block",
+    "input": "```python\nimport asyncio\nfrom typing import Any\n\nasync def process(data: list[str]) -> dict[str, Any]:\n    results = {}\n    for item in data:\n        results[item] = await fetch(item)\n    return results\n```",
+    "expect_preserved": ["```python", "async def process", "dict[str, Any]"],
+    "expect_removed": []
+  },
+  {
+    "name": "headings_preservation",
+    "input": "# Installation Guide\n\nI'd be happy to help you get started. Here's basically what you need to do.\n\n## Prerequisites\n\nYou'll actually just need Python 3.11 or higher. It's really quite simple.\n\n## Steps\n\nIn order to install, just run `pip install ensemble-mcp`. Perhaps you might also want to set up a virtual environment.",
+    "expect_preserved": ["# Installation Guide", "## Prerequisites", "## Steps", "`pip install ensemble-mcp`"],
+    "expect_removed": ["I'd be happy to help", "basically", "actually", "just", "really", "quite", "Perhaps"]
+  },
+  {
+    "name": "inline_code_preservation",
+    "input": "The `VectorStore` class is really the main entry point. You should basically call `store.search_patterns()` with a query string. I think using `top_k=5` is actually a very good default. Perhaps consider `min_score=0.3` as well.",
+    "expect_preserved": ["`VectorStore`", "`store.search_patterns()`", "`top_k=5`", "`min_score=0.3`"],
+    "expect_removed": ["really", "basically", "I think", "actually", "very", "Perhaps"]
+  },
+  {
+    "name": "version_numbers",
+    "input": "I think you should really upgrade from v1.2.3 to v2.0.0. The release on 2024-01-15 basically fixed all the critical bugs. It's actually very important to use the latest version.",
+    "expect_preserved": ["v1.2.3", "v2.0.0", "2024-01-15"],
+    "expect_removed": ["I think", "really", "basically", "actually", "very"]
+  },
+  {
+    "name": "mixed_technical_and_prose",
+    "input": "Sure! Let me explain. The `drift_check` function compares embeddings using cosine similarity. It works by:\n\n1. Embedding the task description\n2. Embedding the diff summary\n3. Computing `1.0 - similarity`\n\nI think this is essentially a really good approach. The threshold at `DRIFT_THRESHOLD_ALIGNED = 0.3` is actually quite conservative. In order to adjust it, modify `src/ensemble_mcp/config/defaults.py`.\n\n```python\nDRIFT_THRESHOLD_ALIGNED = 0.3\nDRIFT_THRESHOLD_MINOR = 0.6\n```\n\nDue to the fact that the embeddings are normalized, the similarity is always between 0 and 1.",
+    "expect_preserved": ["`drift_check`", "`1.0 - similarity`", "`DRIFT_THRESHOLD_ALIGNED = 0.3`", "```python", "src/ensemble_mcp/config/defaults.py"],
+    "expect_removed": ["Sure!", "Let me explain.", "essentially", "really", "actually", "quite", "I think", "In order to", "Due to the fact that"]
+  },
+  {
+    "name": "shell_commands",
+    "input": "To get started, you should basically run these commands:\n\n$ pip install -e .\n$ ensemble-mcp serve\n\nI think it's actually really simple. Perhaps you might also want to run:\n\n$ python -m pytest tests/",
+    "expect_preserved": ["$ pip install -e .", "$ ensemble-mcp serve", "$ python -m pytest tests/"],
+    "expect_removed": ["basically", "I think", "actually", "really", "Perhaps"]
+  }
+]

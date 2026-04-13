@@ -29,6 +29,7 @@ ensemble-mcp server  (server.py)
     |       +-- skills.py      (3 tools)
     |       +-- session.py     (2 tools)
     |       +-- indexer.py     (3 tools)
+    |       +-- compress.py    (1 tool)
     |       +-- mcp_tracking.py (call recording)
     |       +-- health / reset (2 tools, inline)
     |
@@ -84,6 +85,12 @@ src/ensemble_mcp/
 │
 ├── installer/            # Auto-detect AI tools, register MCP server
 │   └── setup.py          # Auto-detect AI tools, register MCP server
+│
+├── compress/
+│   ├── __init__.py       # Package init, re-exports compress + CompressResult
+│   ├── engine.py         # Compression pipeline: extract→preserve→compress→rejoin
+│   ├── preservers.py     # Regex patterns for detecting technical content to preserve
+│   └── tokens.py         # Token counting via HuggingFace tokenizer (lazy-load)
 │
 ├── cli/                  # CLI support modules
 │   └── banner.py         # Server startup banner
@@ -369,6 +376,40 @@ Tiers (`best`, `mid`, `cheapest`) are abstract — the consuming agent maps them
 2. **Suggestion**: Clusters stored patterns by embedding similarity (threshold >= 0.75) using single-linkage agglomerative clustering. Clusters with >= 3 members become skill suggestions
 3. **Generation**: Accepts/dismisses/defers suggestions. On accept, writes a Markdown skill file (zero-LLM generation from pattern content)
 
+## Context Compression
+
+`compress/engine.py` implements a rule-based text compression pipeline that reduces token count while preserving all technical content. The pipeline follows an **Extract → Preserve → Compress → Rejoin** pattern:
+
+```
+Input Text
+    |
+    v
+1. Extract — identify technical content blocks via regex (preservers.py)
+    |         (code blocks, inline code, URLs, file paths, headings, tables,
+    |          version numbers, dates)
+    |
+    v
+2. Preserve — replace technical blocks with placeholders
+    |           (ensures they pass through compression untouched)
+    |
+    v
+3. Compress — apply rule-based transformations to natural language
+    |           (remove filler words, shorten phrases, condense sentences)
+    |
+    v
+4. Rejoin — restore preserved blocks into compressed text
+    |
+    v
+Compressed Text (~30-40% fewer tokens)
+```
+
+Key characteristics:
+
+- **Zero LLM calls**: All transformations are rule-based regex substitutions
+- **Technical content safety**: Code blocks, URLs, paths, and structured content are never modified
+- **Token counting**: Uses HuggingFace tokenizer (lazy-loaded, thread-safe) for accurate before/after measurement
+- **Atomic download**: Tokenizer files are downloaded with integrity protection
+
 ## Configuration Layering
 
 `config/settings.py` loads settings in order:
@@ -398,6 +439,6 @@ Every setting tracks which layer it came from via `source_map` for debugging.
 | Phase | Scope | Status |
 |---|---|---|
 | 1.0 | Contract Foundation (config, errors, envelope, state, security) | ✅ Complete |
-| 1 | MCP Core (15 tools, server, tests) | ✅ Complete |
+| 1 | MCP Core (16 tools, server, tests) | ✅ Complete |
 | 4 | Auto-installer for AI tools | ✅ Complete |
 | 6 | Package & Publish | ⚠️ Partially complete (PyPI structure ready, not yet published) |

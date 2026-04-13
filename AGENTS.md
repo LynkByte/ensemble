@@ -2,7 +2,7 @@
 
 ## Overview
 
-Python MCP server (`ensemble-mcp`) providing vector memory, drift detection, model routing, skills discovery, session management, codebase indexing, and a local web dashboard. **Fully implemented** — 15 MCP tools across 10 subpackages, CLI with serve/install/uninstall/add-agents/add-skills/web commands.
+Python MCP server (`ensemble-mcp`) providing vector memory, drift detection, model routing, skills discovery, session management, codebase indexing, context compression, and a local web dashboard. **Fully implemented** — 16 MCP tools across 11 subpackages, CLI with serve/install/uninstall/add-agents/add-skills/web commands.
 
 ## Commands
 
@@ -39,13 +39,14 @@ Entry point: `__main__.py` → `server.serve()` (stdio MCP server).
 | `memory/` | ONNX embeddings, SQLite vector store, cosine similarity |
 | `security/` | Secret redaction, trust boundary enforcement |
 | `state/` | Session/step lifecycle, idempotency, locks |
-| `tools/` | 15 MCP tool implementations + call-recording utility (7 categories below) |
+| `tools/` | 16 MCP tool implementations + call-recording utility (7 categories below) |
 | `installer/` | Auto-detect AI tools, register MCP server |
 | `dashboard/` | Web dashboard: aiohttp server, JSON API, Alpine.js SPA |
+| `compress/` | Rule-based text compression engine |
 | `cli/` | Startup banner |
 | `data/` | Bundled agent and skill files |
 
-### Tool categories (15 tools)
+### Tool categories (16 tools)
 
 - **Patterns**: `patterns_search`, `patterns_store`, `patterns_prune`
 - **Drift**: `drift_check`
@@ -53,6 +54,7 @@ Entry point: `__main__.py` → `server.serve()` (stdio MCP server).
 - **Skills**: `skills_discover`, `skills_suggest`, `skills_generate`
 - **Session**: `session_save`, `session_load`
 - **Indexer**: `project_index`, `project_query`, `project_dependencies`
+- **Compress**: `context_compress`
 - **Utility**: `health`, `reset`
 
 ### Local-only — zero LLM/API calls
