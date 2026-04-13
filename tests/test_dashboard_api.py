@@ -120,8 +120,10 @@ def _seed_db(conn: sqlite3.Connection) -> None:
 
     # Session checkpoints
     conn.execute(
-        "INSERT INTO session_checkpoints (session_id, state_json, version) VALUES (?, ?, ?)",
-        ("sess-001", json.dumps({"status": "completed", "steps": 3}), 2),
+        "INSERT INTO session_checkpoints"
+        " (session_id, state_json, version, status)"
+        " VALUES (?, ?, ?, ?)",
+        ("sess-001", json.dumps({"status": "completed", "steps": 3}), 2, "completed"),
     )
 
     conn.commit()
@@ -223,6 +225,11 @@ def seeded_db(tmp_path):
             state_json TEXT NOT NULL,
             version INTEGER NOT NULL DEFAULT 1,
             created_at TEXT DEFAULT (datetime('now')),
+            embedding BLOB,
+            original_request TEXT,
+            task_classification TEXT,
+            status TEXT DEFAULT 'in_progress',
+            project TEXT,
             UNIQUE(session_id)
         );
     """)

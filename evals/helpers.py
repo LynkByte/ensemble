@@ -169,8 +169,17 @@ def make_eval_db(tmp_dir: Path) -> sqlite3.Connection:
             state_json TEXT NOT NULL,
             version INTEGER NOT NULL DEFAULT 1,
             created_at TEXT DEFAULT (datetime('now')),
+            embedding BLOB,
+            original_request TEXT,
+            task_classification TEXT,
+            status TEXT DEFAULT 'in_progress',
+            project TEXT,
             UNIQUE(session_id)
         );
+        CREATE INDEX IF NOT EXISTS idx_session_checkpoints_status
+            ON session_checkpoints(status);
+        CREATE INDEX IF NOT EXISTS idx_session_checkpoints_project
+            ON session_checkpoints(project);
 
         CREATE TABLE IF NOT EXISTS drift_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -67,6 +67,8 @@ MODEL_TIERS: list[str] = ["best", "mid", "cheapest"]
 # ── Session / Lifecycle ───────────────────────────────────────────
 SESSION_STATES: list[str] = ["pending", "running", "completed", "failed", "killed"]
 STEP_STATES: list[str] = ["pending", "running", "completed", "failed", "skipped"]
+SESSION_DEFAULT_TOP_K = 5
+SESSION_MIN_SCORE = 0.25
 
 # ── Idempotency ───────────────────────────────────────────────────
 IDEMPOTENCY_KEY_TTL_HOURS = 24

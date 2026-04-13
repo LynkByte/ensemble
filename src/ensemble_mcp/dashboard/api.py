@@ -684,7 +684,8 @@ async def handle_sessions(request: web.Request) -> web.Response:
     conn = _get_conn(request)
     try:
         rows = conn.execute(
-            "SELECT session_id, state_json, version, created_at "
+            "SELECT session_id, state_json, version, created_at, "
+            "original_request, task_classification, status, project "
             "FROM session_checkpoints "
             "ORDER BY created_at DESC LIMIT ? OFFSET ?",
             (limit, offset),
@@ -695,16 +696,21 @@ async def handle_sessions(request: web.Request) -> web.Response:
         sessions = []
         for r in rows:
             state = json.loads(r["state_json"])
-            # Best-effort status extraction from state_json
-            status = state.get("status", state.get("state", "unknown"))
-            sessions.append(
-                {
-                    "session_id": r["session_id"],
-                    "status": status,
-                    "version": r["version"],
-                    "created_at": r["created_at"],
-                }
-            )
+            # Prefer dedicated status column, fall back to state_json extraction
+            status = r["status"] or state.get("status", state.get("state", "unknown"))
+            entry: dict[str, Any] = {
+                "session_id": r["session_id"],
+                "status": status,
+                "version": r["version"],
+                "created_at": r["created_at"],
+            }
+            if r["original_request"] is not None:
+                entry["original_request"] = r["original_request"]
+            if r["task_classification"] is not None:
+                entry["task_classification"] = r["task_classification"]
+            if r["project"] is not None:
+                entry["project"] = r["project"]
+            sessions.append(entry)
 
         elapsed = int((time.monotonic() - start) * 1000)
         return _json_ok(
@@ -722,7 +728,8 @@ async def handle_session_detail(request: web.Request) -> web.Response:
     conn = _get_conn(request)
     try:
         row = conn.execute(
-            "SELECT session_id, state_json, version, created_at "
+            "SELECT session_id, state_json, version, created_at, "
+            "original_request, task_classification, status, project "
             "FROM session_checkpoints WHERE session_id = ?",
             (session_id,),
         ).fetchone()
@@ -731,16 +738,23 @@ async def handle_session_detail(request: web.Request) -> web.Response:
             return _error_envelope(f"Session '{session_id}' not found")
 
         state = json.loads(row["state_json"])
+        result: dict[str, Any] = {
+            "session_id": row["session_id"],
+            "state": state,
+            "version": row["version"],
+            "created_at": row["created_at"],
+        }
+        if row["original_request"] is not None:
+            result["original_request"] = row["original_request"]
+        if row["task_classification"] is not None:
+            result["task_classification"] = row["task_classification"]
+        if row["status"] is not None:
+            result["status"] = row["status"]
+        if row["project"] is not None:
+            result["project"] = row["project"]
+
         elapsed = int((time.monotonic() - start) * 1000)
-        return _json_ok(
-            {
-                "session_id": row["session_id"],
-                "state": state,
-                "version": row["version"],
-                "created_at": row["created_at"],
-            },
-            duration_ms=elapsed,
-        )
+        return _json_ok(result, duration_ms=elapsed)
     finally:
         conn.close()
 
