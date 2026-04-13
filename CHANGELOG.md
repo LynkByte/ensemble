@@ -7,20 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a7] - 2026-04-13
+
 ### Added
-- **Context Compression Tool** — new `context_compress` MCP tool (#16) that compresses verbose natural language text into terse, token-efficient form while preserving all technical content (code blocks, URLs, paths, headings, tables). Rule-based, zero LLM calls, ~30-40% token savings
+- **Context Compression Tool** — new `context_compress` MCP tool (#16) that compresses verbose natural language text into terse, token-efficient form while preserving all technical content (code blocks, URLs, paths, headings, tables). Rule-based, zero LLM calls, ~10-23% token savings on verbose prose
   - New `compress/` subpackage with engine, preservers, and token counter
   - Atomic tokenizer download with integrity protection
   - Thread-safe initialization
-- **Eval/Benchmark Framework** — new `evals/` directory with benchmark harness for measuring tool effectiveness
-  - `bench_compress.py` — compression ratio, latency, preservation accuracy
-  - `bench_patterns.py` — pattern search latency (p50/p95/p99), recall accuracy
-  - `bench_drift.py` — drift detection accuracy, latency
+- **Eval/Benchmark Framework** — comprehensive `evals/` directory with benchmarks for all 16 MCP tools
+  - `bench_compress.py` — compression ratio, latency, preservation accuracy (synthetic + real docs)
+  - `bench_patterns.py` — pattern search/store/prune latency and recall
+  - `bench_drift.py` — drift detection accuracy and latency
+  - `bench_routing.py` — model routing correctness (31 rule matrix, 100% accuracy)
+  - `bench_session.py` — session save/load roundtrip, version conflicts
+  - `bench_indexer.py` — project indexing, querying, dependency analysis
+  - `bench_skills.py` — skill discovery, suggestion, generation
+  - `bench_health_reset.py` — health check and data reset
   - `evals/runner.py` — standalone runner with markdown table output
-  - Run with `python evals/runner.py` or `python -m pytest evals/ -v`
+  - `evals/cli.py` — generic CLI: `python evals/cli.py run <tool> [--key value]`
+  - `evals/corpus.py` — real project data loader (docs/ and src/ as test corpus)
+  - `evals/helpers.py` — shared utilities (percentile, async runner, DB setup)
+  - Run with `python evals/runner.py`, `python -m pytest evals/ -v`, or `python evals/cli.py run <tool>`
+
+### Fixed
+- **Tokenizer padding/truncation bug** — `count_tokens()` was always returning 128 due to MiniLM tokenizer padding and truncation settings, causing compression to report 0% savings. Fixed by disabling padding and truncation in the token counter.
 
 ### Test Suite
-- 464 tests passing (48 new: compression engine + tool tests)
+- 464 unit tests + 27 eval benchmarks passing
 
 ## [0.1.0a6] - 2026-04-10
 
