@@ -163,3 +163,4 @@ Keep exploration output compact to minimize token usage for downstream agents:
 - Always check for existing factories, fixtures, or seed data for relevant models
 - If a task involves creating a new file, find the closest sibling file and report its structure
 - Keep plans concise -- no more than 15 steps for any single task
+- If the task involves UI/UX changes (new pages, modals, forms, layout changes, user-facing flows), ask clarifying questions about design expectations before planning -- e.g. preferred layout, responsive behavior, accessibility requirements, or existing design system components to use

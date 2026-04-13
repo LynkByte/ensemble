@@ -11,6 +11,27 @@
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen" x-data="dashboard()" x-init="init()">
 
+    <!-- Toast notifications -->
+    <div class="toast-container">
+        <template x-for="t in toasts" :key="t.id">
+            <div class="toast" :class="'toast-' + t.type" x-text="t.message"
+                x-transition:enter="transition ease-out duration-300"
+                x-transition:leave="transition ease-in duration-200"></div>
+        </template>
+    </div>
+
+    <!-- Confirmation dialog -->
+    <div x-show="confirmVisible" x-cloak class="modal-overlay" @click.self="cancelConfirm()">
+        <div class="modal-content">
+            <h3 x-text="confirmTitle"></h3>
+            <p x-text="confirmMessage"></p>
+            <div class="modal-actions">
+                <button @click="cancelConfirm()" class="btn">Cancel</button>
+                <button @click="doConfirm()" class="btn btn-danger">Confirm</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Navigation -->
     <nav class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4">
@@ -117,15 +138,27 @@
         <div x-show="page === 'patterns'" x-cloak>
             <div class="flex items-center justify-between mb-6">
                 <h1 class="text-2xl font-bold">Patterns</h1>
-                <div class="text-gray-400 text-sm" x-text="'Total: ' + patternsTotal"></div>
+                <div class="flex items-center gap-4">
+                    <div class="text-gray-400 text-sm" x-text="'Total: ' + patternsTotal"></div>
+                </div>
             </div>
 
-            <!-- Filters -->
-            <div class="flex gap-4 mb-4">
-                <input type="text" x-model="patternFilter"
-                    @input.debounce.300ms="loadPatterns()"
-                    placeholder="Filter by project..."
-                    class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-green-400 focus:outline-none">
+            <!-- Filters and Actions -->
+            <div class="flex items-center justify-between gap-4 mb-4">
+                <div class="flex gap-4 items-center">
+                    <input type="text" x-model="patternFilter"
+                        @input.debounce.300ms="loadPatterns()"
+                        placeholder="Filter by project..."
+                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-green-400 focus:outline-none">
+                </div>
+                <div class="flex gap-2 items-center">
+                    <input type="number" x-model="pruneMaxAgeDays" min="1" max="365"
+                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm w-20 focus:border-green-400 focus:outline-none"
+                        title="Max age in days">
+                    <button @click="prunePatterns()" class="btn btn-warning btn-sm">
+                        Prune Stale
+                    </button>
+                </div>
             </div>
 
             <!-- Patterns Table -->
@@ -138,34 +171,70 @@
                             <th class="text-right py-2">Matches</th>
                             <th class="text-left py-2">Last Matched</th>
                             <th class="text-left py-2">Created</th>
+                            <th class="text-right py-2">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <template x-for="p in patterns" :key="p.id">
-                            <tr class="border-b border-gray-800 hover:bg-gray-800 cursor-pointer"
-                                @click="expandedPattern = expandedPattern === p.id ? null : p.id">
-                                <td class="py-2 font-medium" x-text="p.name"></td>
-                                <td class="py-2 text-gray-400" x-text="p.project || 'global'"></td>
-                                <td class="py-2 text-right">
-                                    <span class="text-green-400" x-text="p.match_count"></span>
-                                </td>
-                                <td class="py-2 text-gray-400" x-text="p.last_matched_at ? formatDate(p.last_matched_at) : 'never'"></td>
-                                <td class="py-2 text-gray-400" x-text="formatDate(p.created_at)"></td>
-                            </tr>
-                            <tr x-show="expandedPattern === p.id" class="bg-gray-800">
-                                <td colspan="5" class="py-4 px-4">
-                                    <div class="space-y-3">
-                                        <div>
-                                            <span class="text-gray-400 text-xs uppercase">Context</span>
-                                            <p class="mt-1" x-text="p.context"></p>
+                            <tr>
+                                <td colspan="6" class="p-0">
+                                    <!-- Main row -->
+                                    <div class="flex items-center border-b border-gray-800 hover:bg-gray-800 cursor-pointer"
+                                        @click="expandedPattern = expandedPattern === p.id ? null : p.id; editingPattern = null">
+                                        <div class="py-2 flex-1 font-medium px-1" x-text="p.name"></div>
+                                        <div class="py-2 w-32 text-gray-400" x-text="p.project || 'global'"></div>
+                                        <div class="py-2 w-20 text-right">
+                                            <span class="text-green-400" x-text="p.match_count"></span>
                                         </div>
-                                        <div>
-                                            <span class="text-gray-400 text-xs uppercase">Approach</span>
-                                            <p class="mt-1" x-text="p.approach"></p>
+                                        <div class="py-2 w-40 text-gray-400" x-text="p.last_matched_at ? formatDate(p.last_matched_at) : 'never'"></div>
+                                        <div class="py-2 w-40 text-gray-400" x-text="formatDate(p.created_at)"></div>
+                                        <div class="py-2 w-24 text-right" @click.stop>
+                                            <button @click="startEditPattern(p); expandedPattern = p.id"
+                                                class="btn btn-sm mr-1" title="Edit">Edit</button>
+                                            <button @click="deletePattern(p.id)"
+                                                class="btn btn-sm btn-danger" title="Delete">Del</button>
                                         </div>
-                                        <div>
-                                            <span class="text-gray-400 text-xs uppercase">Outcome</span>
-                                            <p class="mt-1" x-text="p.outcome"></p>
+                                    </div>
+                                    <!-- Expanded detail (view mode) -->
+                                    <div x-show="expandedPattern === p.id && editingPattern !== p.id" class="bg-gray-800 py-4 px-4 border-b border-gray-700">
+                                        <div class="space-y-3">
+                                            <div>
+                                                <span class="text-gray-400 text-xs uppercase">Context</span>
+                                                <p class="mt-1" x-text="p.context"></p>
+                                            </div>
+                                            <div>
+                                                <span class="text-gray-400 text-xs uppercase">Approach</span>
+                                                <p class="mt-1" x-text="p.approach"></p>
+                                            </div>
+                                            <div>
+                                                <span class="text-gray-400 text-xs uppercase">Outcome</span>
+                                                <p class="mt-1" x-text="p.outcome"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Expanded detail (edit mode) -->
+                                    <div x-show="expandedPattern === p.id && editingPattern === p.id" class="bg-gray-800 py-4 px-4 border-b border-gray-700" @click.stop>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="form-label">Name</label>
+                                                <input type="text" x-model="editPatternData.name" class="form-input">
+                                            </div>
+                                            <div>
+                                                <label class="form-label">Context</label>
+                                                <textarea x-model="editPatternData.context" class="edit-textarea" rows="2"></textarea>
+                                            </div>
+                                            <div>
+                                                <label class="form-label">Approach</label>
+                                                <textarea x-model="editPatternData.approach" class="edit-textarea" rows="2"></textarea>
+                                            </div>
+                                            <div>
+                                                <label class="form-label">Outcome</label>
+                                                <textarea x-model="editPatternData.outcome" class="edit-textarea" rows="2"></textarea>
+                                            </div>
+                                            <div class="flex gap-2 justify-end">
+                                                <button @click="cancelEditPattern()" class="btn btn-sm">Cancel</button>
+                                                <button @click="saveEditPattern(p.id)" class="btn btn-sm btn-success">Save</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </td>
@@ -234,15 +303,29 @@
                                     :class="s.status === 'pending' ? 'bg-yellow-900 text-yellow-300' :
                                             s.status === 'accepted' ? 'bg-green-900 text-green-300' :
                                             s.status === 'dismissed' ? 'bg-red-900 text-red-300' :
+                                            s.status === 'deferred' ? 'bg-blue-900 text-blue-300' :
                                             'bg-gray-700 text-gray-300'"
                                     x-text="s.status"></span>
                             </div>
-                            <div class="text-sm text-gray-400">
-                                Confidence: <span class="text-white" x-text="(s.confidence * 100).toFixed(0) + '%'"></span>
+                            <div class="flex items-center gap-3">
+                                <span class="text-sm text-gray-400">
+                                    Confidence: <span class="text-white" x-text="(s.confidence * 100).toFixed(0) + '%'"></span>
+                                </span>
+                                <template x-if="s.status === 'pending' || s.status === 'deferred'">
+                                    <div class="flex gap-1">
+                                        <button @click="handleSkillSuggestion(s.id, 'accept')"
+                                            class="btn btn-sm btn-success" title="Accept">Accept</button>
+                                        <button @click="handleSkillSuggestion(s.id, 'defer')"
+                                            class="btn btn-sm" title="Defer">Defer</button>
+                                        <button @click="handleSkillSuggestion(s.id, 'dismiss')"
+                                            class="btn btn-sm btn-danger" title="Dismiss">Dismiss</button>
+                                    </div>
+                                </template>
                             </div>
                         </div>
                         <div class="text-gray-400 text-sm mt-1" x-text="'Theme: ' + s.theme"></div>
                         <div class="text-gray-500 text-xs mt-1" x-text="'Project: ' + s.project + ' | Created: ' + formatDate(s.created_at)"></div>
+                        <div x-show="s.generated_path" class="text-green-400 text-xs mt-1" x-text="'Generated: ' + s.generated_path"></div>
                     </div>
                 </template>
                 <div x-show="skillSuggestions.length === 0" class="text-gray-500 text-center py-8">
@@ -259,6 +342,7 @@
                             <th class="text-left py-2">Project</th>
                             <th class="text-right py-2">Matches</th>
                             <th class="text-left py-2">Last Matched</th>
+                            <th class="text-right py-2">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -268,6 +352,10 @@
                                 <td class="py-2 text-gray-400" x-text="t.project"></td>
                                 <td class="py-2 text-right text-green-400" x-text="t.match_count"></td>
                                 <td class="py-2 text-gray-400" x-text="t.last_matched_at ? formatDate(t.last_matched_at) : 'never'"></td>
+                                <td class="py-2 text-right">
+                                    <button @click="deleteTrackedSkill(t.id)"
+                                        class="btn btn-sm btn-danger" title="Remove from tracking">Remove</button>
+                                </td>
                             </tr>
                         </template>
                     </tbody>
@@ -318,16 +406,26 @@
                             <th class="text-right py-2">Files</th>
                             <th class="text-right py-2">Languages</th>
                             <th class="text-left py-2">Last Indexed</th>
+                            <th class="text-right py-2">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <template x-for="p in projects" :key="p.project_path">
-                            <tr class="border-b border-gray-800 hover:bg-gray-800 cursor-pointer"
-                                @click="loadProjectDetail(p.project_path)">
-                                <td class="py-2 font-mono text-sm text-blue-400" x-text="p.project_path"></td>
+                            <tr class="border-b border-gray-800 hover:bg-gray-800">
+                                <td class="py-2 font-mono text-sm text-blue-400 cursor-pointer"
+                                    @click="loadProjectDetail(p.project_path)" x-text="p.project_path"></td>
                                 <td class="py-2 text-right" x-text="p.file_count"></td>
                                 <td class="py-2 text-right" x-text="p.language_count"></td>
                                 <td class="py-2 text-gray-400" x-text="formatDate(p.last_indexed)"></td>
+                                <td class="py-2 text-right">
+                                    <button @click="reindexProject(p.project_path)"
+                                        class="btn btn-sm mr-1"
+                                        :class="reindexingProject === p.project_path ? 'btn-loading' : ''"
+                                        :disabled="reindexingProject === p.project_path"
+                                        title="Re-index">Re-index</button>
+                                    <button @click="clearProjectIndex(p.project_path)"
+                                        class="btn btn-sm btn-danger" title="Clear index">Clear</button>
+                                </td>
                             </tr>
                         </template>
                     </tbody>
@@ -339,7 +437,14 @@
 
             <!-- Project Detail -->
             <div x-show="selectedProject" x-cloak>
-                <button @click="selectedProject = null" class="btn mb-4">&larr; Back to projects</button>
+                <div class="flex items-center gap-3 mb-4">
+                    <button @click="selectedProject = null; projectHealth = null" class="btn">&larr; Back to projects</button>
+                    <button @click="reindexProject(selectedProject)"
+                        class="btn btn-sm"
+                        :class="reindexingProject === selectedProject ? 'btn-loading' : ''"
+                        :disabled="reindexingProject === selectedProject">Re-index</button>
+                    <button @click="clearProjectIndex(selectedProject)" class="btn btn-sm btn-danger">Clear Index</button>
+                </div>
                 <div class="card mb-4">
                     <h2 class="text-lg font-semibold mb-2 font-mono" x-text="projectDetail.project_path"></h2>
                     <div class="flex gap-6 text-sm text-gray-400">
@@ -347,6 +452,38 @@
                         <span>Exports: <span class="text-white" x-text="projectDetail.total_exports"></span></span>
                     </div>
                 </div>
+
+                <!-- Index Health Section -->
+                <div class="card mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-gray-400">Index Health</h3>
+                        <button @click="loadProjectHealth(selectedProject)" class="btn btn-sm">Check Health</button>
+                    </div>
+                    <div x-show="projectHealth" class="space-y-2 text-sm">
+                        <div class="flex gap-6 text-gray-400">
+                            <span>Indexed Files: <span class="text-white" x-text="projectHealth?.file_count"></span></span>
+                            <span>Missing on Disk: <span
+                                :class="projectHealth?.missing_files_count > 0 ? 'text-yellow-400' : 'text-green-400'"
+                                x-text="projectHealth?.missing_files_count"></span></span>
+                        </div>
+                        <div class="flex gap-6 text-gray-400">
+                            <span>Oldest Index: <span class="text-white" x-text="formatDate(projectHealth?.oldest_indexed_at)"></span></span>
+                            <span>Newest Index: <span class="text-white" x-text="formatDate(projectHealth?.newest_indexed_at)"></span></span>
+                        </div>
+                        <div x-show="projectHealth?.missing_files_count > 0" class="mt-2">
+                            <span class="text-yellow-400 text-xs uppercase font-medium">Missing Files</span>
+                            <div class="mt-1 bg-gray-800 rounded p-2 max-h-40 overflow-y-auto">
+                                <template x-for="f in projectHealth?.missing_files" :key="f">
+                                    <div class="text-xs text-gray-400 font-mono py-0.5" x-text="f"></div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    <div x-show="!projectHealth" class="text-gray-500 text-sm">
+                        Click "Check Health" to scan for stale or missing files.
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="card">
                         <h3 class="text-sm font-semibold text-gray-400 mb-3">Language Breakdown</h3>
@@ -476,6 +613,61 @@
                         <pre class="bg-gray-800 rounded p-4 overflow-x-auto text-sm text-gray-300" x-text="JSON.stringify(sessionDetail.state, null, 2)"></pre>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div x-show="page === 'settings'" x-cloak>
+            <h1 class="text-2xl font-bold mb-6">Settings</h1>
+
+            <!-- Settings Form -->
+            <div class="card mb-6">
+                <h2 class="text-lg font-semibold mb-4">Configuration</h2>
+                <p class="text-gray-400 text-sm mb-6">
+                    Settings are saved to the global config file. Values can be overridden by project config or environment variables.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <template x-for="field in settingsSchema" :key="field.name">
+                        <div class="form-group">
+                            <label class="form-label">
+                                <span x-text="field.name"></span>
+                                <span x-show="settingsSourceMap[field.name]"
+                                    class="form-source"
+                                    :class="'source-' + (settingsSourceMap[field.name] || 'default')"
+                                    x-text="settingsSourceMap[field.name] || 'default'"></span>
+                            </label>
+                            <input
+                                :type="field.type === 'integer' || field.type === 'float' ? 'number' : 'text'"
+                                :step="field.type === 'float' ? '0.01' : '1'"
+                                x-model="settingsForm[field.name]"
+                                class="form-input"
+                                :placeholder="field.default || ''">
+                            <div class="form-hint" x-text="field.description"></div>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="flex justify-end mt-6">
+                    <button @click="saveSettings()"
+                        class="btn btn-success"
+                        :class="settingsSaving ? 'btn-loading' : ''"
+                        :disabled="settingsSaving">
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="danger-zone">
+                <h3>Danger Zone</h3>
+                <p>
+                    Reset all stored data including patterns, sessions, indexed projects, skill suggestions,
+                    drift history, and idempotency keys. This action is irreversible.
+                </p>
+                <button @click="resetAllData()" class="btn btn-danger">
+                    Reset All Data
+                </button>
             </div>
         </div>
 

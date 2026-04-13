@@ -1,12 +1,16 @@
 """JSON API endpoints for the ensemble-mcp dashboard.
 
-All endpoints are read-only (GET) and return the standard
-``{ok, data, error, meta}`` envelope. Each handler opens its own
-read-only SQLite connection so the MCP server is never blocked.
+Provides both read-only (GET) and mutation (POST/PUT/DELETE) endpoints.
+All responses use the standard ``{ok, data, error, meta}`` envelope.
+Each handler opens its own SQLite connection so the MCP server is
+never blocked.
 """
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import dataclasses
 import json
 import logging
 import sqlite3
@@ -17,7 +21,9 @@ from urllib.parse import unquote
 
 from aiohttp import web
 
-from ..config.defaults import DB_PATH, SERVER_NAME, SERVER_VERSION
+from ..config.defaults import DB_PATH, GLOBAL_CONFIG_PATH, SERVER_NAME, SERVER_VERSION
+from ..config.settings import Settings, _load_toml, load_settings
+from ..security.redaction import redact
 from ..state.locks import get_connection
 
 logger = logging.getLogger(__name__)
@@ -28,6 +34,14 @@ logger = logging.getLogger(__name__)
 
 def _get_conn(request: web.Request) -> sqlite3.Connection:
     """Open a read-only WAL connection to the dashboard DB."""
+    db_path: Path = request.app["db_path"]
+    conn = get_connection(db_path)
+    conn.execute("PRAGMA query_only = ON")
+    return conn
+
+
+def _get_write_conn(request: web.Request) -> sqlite3.Connection:
+    """Open a writable WAL connection to the dashboard DB."""
     db_path: Path = request.app["db_path"]
     return get_connection(db_path)
 
@@ -62,6 +76,56 @@ def _json_ok(data: dict[str, Any], *, duration_ms: int = 0) -> web.Response:
     return web.json_response(_envelope(data, duration_ms=duration_ms))
 
 
+def _json_mutated(data: dict[str, Any], *, duration_ms: int = 0, status: int = 200) -> web.Response:
+    """Return a mutation success response with optional status code."""
+    return web.json_response(_envelope(data, duration_ms=duration_ms), status=status)
+
+
+async def _parse_json_body(request: web.Request) -> dict[str, Any]:
+    """Parse and return JSON body from a request.
+
+    Raises:
+        web.HTTPBadRequest: If the body is missing or invalid JSON.
+    """
+    try:
+        body = await request.json()
+    except Exception as exc:
+        raise web.HTTPBadRequest(
+            text=json.dumps(
+                {
+                    "ok": False,
+                    "data": None,
+                    "error": {
+                        "code": "VALIDATION_INVALID_VALUE",
+                        "message": "Request body must be valid JSON",
+                        "retryable": False,
+                        "details": {},
+                    },
+                    "meta": {"duration_ms": 0, "source": "dashboard", "confidence": "exact"},
+                }
+            ),
+            content_type="application/json",
+        ) from exc
+    if not isinstance(body, dict):
+        raise web.HTTPBadRequest(
+            text=json.dumps(
+                {
+                    "ok": False,
+                    "data": None,
+                    "error": {
+                        "code": "VALIDATION_INVALID_TYPE",
+                        "message": "Request body must be a JSON object",
+                        "retryable": False,
+                        "details": {},
+                    },
+                    "meta": {"duration_ms": 0, "source": "dashboard", "confidence": "exact"},
+                }
+            ),
+            content_type="application/json",
+        )
+    return body
+
+
 def _parse_int(value: str | None, default: int) -> int:
     """Parse a query param as int, falling back to default."""
     if value is None:
@@ -72,22 +136,100 @@ def _parse_int(value: str | None, default: int) -> int:
         return default
 
 
+def _settings_field_schema() -> list[dict[str, Any]]:
+    """Return field names, types, defaults, and descriptions for the Settings form."""
+    descriptions: dict[str, str] = {
+        "cache_dir": "Directory for cache data (DB and models)",
+        "db_path": "Path to the SQLite database file",
+        "model_dir": "Directory for ONNX embedding model files",
+        "max_patterns": "Maximum number of stored patterns",
+        "default_top_k": "Default number of results for pattern search",
+        "default_min_score": "Minimum similarity score for pattern matches",
+        "default_prune_max_age_days": "Default max age (days) for pruning stale patterns",
+        "drift_threshold_aligned": "Score threshold below which drift is 'aligned'",
+        "drift_threshold_minor": "Score threshold below which drift is 'minor'",
+        "cluster_similarity_threshold": "Cosine similarity threshold for skill clustering",
+        "default_min_cluster_size": "Minimum cluster size for skill suggestions",
+        "default_stale_threshold_days": "Days before a skill is considered stale",
+        "idempotency_key_ttl_hours": "Hours before idempotency keys expire",
+    }
+    fields: list[dict[str, Any]] = []
+    for f in dataclasses.fields(Settings):
+        if f.name == "source_map":
+            continue
+        ftype = f.type
+        # Resolve type strings to display-friendly names
+        if ftype == "Path" or ftype is Path:
+            type_name = "path"
+        elif ftype == "int" or ftype is int:
+            type_name = "integer"
+        elif ftype == "float" or ftype is float:
+            type_name = "float"
+        else:
+            type_name = "string"
+        default_val = f.default if f.default is not dataclasses.MISSING else None
+        fields.append(
+            {
+                "name": f.name,
+                "type": type_name,
+                "default": str(default_val) if default_val is not None else None,
+                "description": descriptions.get(f.name, ""),
+            }
+        )
+    return fields
+
+
+def _write_toml(path: Path, data: dict[str, Any]) -> None:
+    """Write a flat dict as a TOML file (simple scalar values only)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = ["# ensemble-mcp configuration", "# Auto-generated by dashboard", ""]
+    for key, value in sorted(data.items()):
+        if isinstance(value, bool):
+            lines.append(f"{key} = {'true' if value else 'false'}")
+        elif isinstance(value, (int, float)):
+            lines.append(f"{key} = {value}")
+        elif isinstance(value, str):
+            # Escape backslashes and quotes for TOML
+            escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+            lines.append(f'{key} = "{escaped}"')
+        else:
+            escaped = str(value).replace("\\", "\\\\").replace('"', '\\"')
+            lines.append(f'{key} = "{escaped}"')
+    lines.append("")  # trailing newline
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
 # ── Route registration ────────────────────────────────────────────
 
 
 def register_api_routes(app: web.Application) -> None:
     """Add all /api/* routes to the application."""
+    # Read endpoints
     app.router.add_get("/api/summary", handle_summary)
     app.router.add_get("/api/patterns", handle_patterns)
     app.router.add_get("/api/patterns/{id}", handle_pattern_detail)
     app.router.add_get("/api/skills", handle_skills)
     app.router.add_get("/api/skills/stale", handle_skills_stale)
     app.router.add_get("/api/projects", handle_projects)
+    app.router.add_get("/api/projects/{path:.+}/health", handle_project_health)
     app.router.add_get("/api/projects/{path:.+}", handle_project_detail)
     app.router.add_get("/api/drift", handle_drift)
     app.router.add_get("/api/sessions", handle_sessions)
     app.router.add_get("/api/sessions/{id}", handle_session_detail)
     app.router.add_get("/api/health", handle_health)
+    app.router.add_get("/api/settings", handle_settings_get)
+    app.router.add_get("/api/settings/schema", handle_settings_schema)
+
+    # Mutation endpoints
+    app.router.add_delete("/api/patterns/{id}", handle_pattern_delete)
+    app.router.add_put("/api/patterns/{id}", handle_pattern_edit)
+    app.router.add_post("/api/patterns/prune", handle_pattern_prune)
+    app.router.add_post("/api/skills/suggestions/{id}/action", handle_skill_action)
+    app.router.add_delete("/api/skills/tracked/{id}", handle_skill_delete)
+    app.router.add_put("/api/settings", handle_settings_update)
+    app.router.add_post("/api/reset", handle_reset)
+    app.router.add_post("/api/projects/{path:.+}/reindex", handle_project_reindex)
+    app.router.add_delete("/api/projects/{path:.+}", handle_project_delete)
 
 
 # ── Endpoint handlers ─────────────────────────────────────────────
@@ -306,19 +448,20 @@ async def handle_skills(request: web.Request) -> web.Response:
         # Tracked skills
         if project:
             tracked_rows = conn.execute(
-                "SELECT skill_path, project, first_seen_at, last_matched_at, match_count "
+                "SELECT id, skill_path, project, first_seen_at, last_matched_at, match_count "
                 "FROM skill_usage_tracking WHERE project = ? "
                 "ORDER BY last_matched_at DESC",
                 (project,),
             ).fetchall()
         else:
             tracked_rows = conn.execute(
-                "SELECT skill_path, project, first_seen_at, last_matched_at, match_count "
+                "SELECT id, skill_path, project, first_seen_at, last_matched_at, match_count "
                 "FROM skill_usage_tracking ORDER BY last_matched_at DESC"
             ).fetchall()
 
         tracked = [
             {
+                "id": r["id"],
                 "skill_path": r["skill_path"],
                 "project": r["project"],
                 "first_seen_at": r["first_seen_at"],
@@ -626,6 +769,644 @@ async def handle_health(request: web.Request) -> web.Response:
                 "pattern_count": pattern_count,
                 "session_count": session_count,
                 "project_count": project_count,
+            },
+            duration_ms=elapsed,
+        )
+    finally:
+        conn.close()
+
+
+# ── Mutation endpoint handlers ────────────────────────────────────
+
+
+async def handle_pattern_delete(request: web.Request) -> web.Response:
+    """Delete a single pattern by ID."""
+    start = time.monotonic()
+    pattern_id = _parse_int(request.match_info.get("id"), -1)
+    conn = _get_write_conn(request)
+    try:
+        # Check existence first
+        row = conn.execute("SELECT id FROM patterns WHERE id = ?", (pattern_id,)).fetchone()
+        if not row:
+            return _error_envelope(f"Pattern {pattern_id} not found")
+
+        conn.execute("DELETE FROM patterns WHERE id = ?", (pattern_id,))
+        conn.commit()
+
+        elapsed = int((time.monotonic() - start) * 1000)
+        return _json_mutated({"deleted": True, "id": pattern_id}, duration_ms=elapsed)
+    finally:
+        conn.close()
+
+
+async def handle_pattern_edit(request: web.Request) -> web.Response:
+    """Edit pattern fields (name, context, approach, outcome)."""
+    start = time.monotonic()
+    pattern_id = _parse_int(request.match_info.get("id"), -1)
+    body = await _parse_json_body(request)
+
+    # Only allow editing specific fields
+    allowed_fields = {"name", "context", "approach", "outcome"}
+    updates = {k: v for k, v in body.items() if k in allowed_fields}
+
+    if not updates:
+        return _error_envelope(
+            "No valid fields to update. Allowed: name, context, approach, outcome",
+            code="VALIDATION_INVALID_VALUE",
+            status=400,
+        )
+
+    # Validate that all values are strings
+    for key, value in updates.items():
+        if not isinstance(value, str) or not value.strip():
+            return _error_envelope(
+                f"Field '{key}' must be a non-empty string",
+                code="VALIDATION_INVALID_TYPE",
+                status=400,
+            )
+
+    conn = _get_write_conn(request)
+    try:
+        # Build SET clause and update in a single step (avoids TOCTOU race)
+        set_parts = [f"{k} = ?" for k in updates]
+        values = list(updates.values())
+        values.append(pattern_id)
+        cursor = conn.execute(
+            f"UPDATE patterns SET {', '.join(set_parts)} WHERE id = ?",  # noqa: S608
+            values,
+        )
+        if cursor.rowcount == 0:
+            return _error_envelope(f"Pattern {pattern_id} not found")
+        conn.commit()
+
+        # Return updated pattern
+        updated = conn.execute(
+            "SELECT id, name, context, approach, outcome, project, "
+            "created_at, last_matched_at, match_count "
+            "FROM patterns WHERE id = ?",
+            (pattern_id,),
+        ).fetchone()
+
+        elapsed = int((time.monotonic() - start) * 1000)
+        return _json_mutated(
+            {
+                "updated": True,
+                "pattern": {
+                    "id": updated["id"],
+                    "name": updated["name"],
+                    "context": updated["context"],
+                    "approach": updated["approach"],
+                    "outcome": updated["outcome"],
+                    "project": updated["project"],
+                    "created_at": updated["created_at"],
+                    "last_matched_at": updated["last_matched_at"],
+                    "match_count": updated["match_count"],
+                },
+            },
+            duration_ms=elapsed,
+        )
+    finally:
+        conn.close()
+
+
+async def handle_pattern_prune(request: web.Request) -> web.Response:
+    """Prune stale patterns (zero matches, older than max_age_days)."""
+    start = time.monotonic()
+    body = await _parse_json_body(request)
+
+    max_age_days = body.get("max_age_days", 90)
+    min_score = body.get("min_score", 0.3)
+
+    if not isinstance(max_age_days, int) or isinstance(max_age_days, bool) or max_age_days < 1:
+        return _error_envelope(
+            "max_age_days must be a positive integer",
+            code="VALIDATION_INVALID_VALUE",
+            status=400,
+        )
+
+    if not isinstance(min_score, (int, float)) or isinstance(min_score, bool) or min_score < 0:
+        return _error_envelope(
+            "min_score must be a non-negative number",
+            code="VALIDATION_INVALID_VALUE",
+            status=400,
+        )
+
+    conn = _get_write_conn(request)
+    try:
+        # Replicate VectorStore.prune_patterns() logic with min_score threshold
+        cursor = conn.execute(
+            "DELETE FROM patterns WHERE "
+            "created_at < datetime('now', ? || ' days') AND match_count < ?",
+            (f"-{max_age_days}", min_score),
+        )
+        pruned = cursor.rowcount
+        remaining = int(conn.execute("SELECT COUNT(*) FROM patterns").fetchone()[0])
+        conn.commit()
+
+        elapsed = int((time.monotonic() - start) * 1000)
+        return _json_mutated(
+            {
+                "pruned": pruned,
+                "remaining": remaining,
+                "max_age_days": max_age_days,
+                "min_score": min_score,
+            },
+            duration_ms=elapsed,
+        )
+    finally:
+        conn.close()
+
+
+async def handle_skill_action(request: web.Request) -> web.Response:
+    """Accept, dismiss, or defer a skill suggestion."""
+    start = time.monotonic()
+    suggestion_id = _parse_int(request.match_info.get("id"), -1)
+    body = await _parse_json_body(request)
+
+    action = body.get("action", "")
+    if action not in ("accept", "dismiss", "defer"):
+        return _error_envelope(
+            f"Invalid action '{action}'. Must be accept, dismiss, or defer",
+            code="VALIDATION_INVALID_VALUE",
+            status=400,
+        )
+
+    conn = _get_write_conn(request)
+    try:
+        row = conn.execute(
+            "SELECT id, proposed_name, proposed_content, status, project "
+            "FROM skill_suggestions WHERE id = ?",
+            (suggestion_id,),
+        ).fetchone()
+
+        if not row:
+            return _error_envelope(f"Skill suggestion {suggestion_id} not found")
+
+        current_status = row["status"]
+        if current_status in ("accepted", "dismissed"):
+            return _error_envelope(
+                f"Suggestion {suggestion_id} is already {current_status}",
+                code="CONFLICT_ALREADY_RESOLVED",
+                status=409,
+            )
+
+        if action == "dismiss":
+            conn.execute(
+                "UPDATE skill_suggestions SET status = 'dismissed', "
+                "resolved_at = datetime('now') WHERE id = ?",
+                (suggestion_id,),
+            )
+            conn.commit()
+            elapsed = int((time.monotonic() - start) * 1000)
+            return _json_mutated(
+                {"suggestion_id": suggestion_id, "status": "dismissed", "generated": False},
+                duration_ms=elapsed,
+            )
+
+        if action == "defer":
+            conn.execute(
+                "UPDATE skill_suggestions SET status = 'deferred' WHERE id = ?",
+                (suggestion_id,),
+            )
+            conn.commit()
+            elapsed = int((time.monotonic() - start) * 1000)
+            return _json_mutated(
+                {"suggestion_id": suggestion_id, "status": "deferred", "generated": False},
+                duration_ms=elapsed,
+            )
+
+        # action == "accept"
+        proposed_name = row["proposed_name"]
+        proposed_content = row["proposed_content"]
+        project = row["project"]
+
+        output_dir = body.get("output_dir", ".ai/skills")
+        # Validate output_dir: reject absolute paths and path traversal
+        if Path(output_dir).is_absolute() or ".." in Path(output_dir).parts:
+            return _error_envelope(
+                "output_dir must be a relative path without '..' segments",
+                code="VALIDATION_INVALID_VALUE",
+                status=400,
+            )
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        file_name = f"{proposed_name}.md"
+        file_path = output_path / file_name
+        file_path.write_text(proposed_content, encoding="utf-8")
+
+        conn.execute(
+            "UPDATE skill_suggestions SET status = 'accepted', "
+            "resolved_at = datetime('now'), generated_path = ? WHERE id = ?",
+            (str(file_path), suggestion_id),
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO skill_usage_tracking (skill_path, project) VALUES (?, ?)",
+            (str(file_path), project),
+        )
+        conn.commit()
+
+        elapsed = int((time.monotonic() - start) * 1000)
+        return _json_mutated(
+            {
+                "suggestion_id": suggestion_id,
+                "status": "accepted",
+                "generated": True,
+                "path": str(file_path),
+            },
+            duration_ms=elapsed,
+            status=201,
+        )
+    finally:
+        conn.close()
+
+
+async def handle_skill_delete(request: web.Request) -> web.Response:
+    """Remove a tracked skill from skill_usage_tracking."""
+    start = time.monotonic()
+    skill_id = _parse_int(request.match_info.get("id"), -1)
+    conn = _get_write_conn(request)
+    try:
+        row = conn.execute(
+            "SELECT id FROM skill_usage_tracking WHERE id = ?", (skill_id,)
+        ).fetchone()
+        if not row:
+            return _error_envelope(f"Tracked skill {skill_id} not found")
+
+        conn.execute("DELETE FROM skill_usage_tracking WHERE id = ?", (skill_id,))
+        conn.commit()
+
+        elapsed = int((time.monotonic() - start) * 1000)
+        return _json_mutated({"deleted": True, "id": skill_id}, duration_ms=elapsed)
+    finally:
+        conn.close()
+
+
+async def handle_settings_get(request: web.Request) -> web.Response:
+    """Read current config by loading Settings and serializing."""
+    start = time.monotonic()
+    settings = load_settings()
+
+    # Serialize settings to a dict
+    settings_dict: dict[str, Any] = {}
+    for f in dataclasses.fields(settings):
+        if f.name == "source_map":
+            continue
+        value = getattr(settings, f.name)
+        settings_dict[f.name] = str(value) if isinstance(value, Path) else value
+
+    # Read raw TOML if global config exists, redacting any secrets
+    raw_toml: str | None = None
+    config_path = request.app.get("global_config_path", GLOBAL_CONFIG_PATH)
+    if Path(config_path).is_file():
+        raw_toml = redact(Path(config_path).read_text(encoding="utf-8"))
+
+    elapsed = int((time.monotonic() - start) * 1000)
+    return _json_ok(
+        {
+            "settings": settings_dict,
+            "source_map": settings.source_map,
+            "raw_toml": raw_toml,
+            "config_path": str(config_path),
+        },
+        duration_ms=elapsed,
+    )
+
+
+async def handle_settings_update(request: web.Request) -> web.Response:
+    """Write config to ~/.config/ensemble-mcp/config.toml."""
+    start = time.monotonic()
+    body = await _parse_json_body(request)
+
+    # Validate field names against Settings dataclass
+    valid_fields = {f.name for f in dataclasses.fields(Settings) if f.name != "source_map"}
+    invalid_fields = set(body.keys()) - valid_fields
+    if invalid_fields:
+        return _error_envelope(
+            f"Unknown settings fields: {', '.join(sorted(invalid_fields))}",
+            code="VALIDATION_INVALID_VALUE",
+            status=400,
+        )
+
+    if not body:
+        return _error_envelope(
+            "No settings provided",
+            code="VALIDATION_MISSING_FIELD",
+            status=400,
+        )
+
+    # Type validation
+    settings = Settings()
+    for key, value in body.items():
+        current = getattr(settings, key)
+        if isinstance(current, int) and not isinstance(value, int):
+            return _error_envelope(
+                f"Field '{key}' must be an integer",
+                code="VALIDATION_INVALID_TYPE",
+                status=400,
+            )
+        if isinstance(current, int) and isinstance(value, bool):
+            return _error_envelope(
+                f"Field '{key}' must be an integer",
+                code="VALIDATION_INVALID_TYPE",
+                status=400,
+            )
+        if isinstance(current, float) and not isinstance(value, (int, float)):
+            return _error_envelope(
+                f"Field '{key}' must be a number",
+                code="VALIDATION_INVALID_TYPE",
+                status=400,
+            )
+        if isinstance(current, Path) and not isinstance(value, str):
+            return _error_envelope(
+                f"Field '{key}' must be a string path",
+                code="VALIDATION_INVALID_TYPE",
+                status=400,
+            )
+
+    # Load existing global config and merge
+    config_path = request.app.get("global_config_path", GLOBAL_CONFIG_PATH)
+    try:
+        existing = _load_toml(Path(config_path))
+        existing.update(body)
+        _write_toml(Path(config_path), existing)
+    except Exception as exc:
+        return _error_envelope(
+            f"Failed to write settings: {exc}",
+            code="IO_WRITE_ERROR",
+            status=500,
+        )
+
+    elapsed = int((time.monotonic() - start) * 1000)
+    return _json_mutated(
+        {"saved": True, "config_path": str(config_path), "fields": list(body.keys())},
+        duration_ms=elapsed,
+    )
+
+
+async def handle_settings_schema(request: web.Request) -> web.Response:
+    """Return field names, types, defaults for generating the settings form."""
+    _ = request
+    start = time.monotonic()
+    schema = _settings_field_schema()
+    elapsed = int((time.monotonic() - start) * 1000)
+    return _json_ok({"schema": schema}, duration_ms=elapsed)
+
+
+async def handle_reset(request: web.Request) -> web.Response:
+    """Reset all data. Requires {"confirm": true} in body."""
+    start = time.monotonic()
+    body = await _parse_json_body(request)
+
+    if body.get("confirm") is not True:
+        return _error_envelope(
+            "Reset requires confirm=true in request body",
+            code="VALIDATION_CONSTRAINT",
+            status=400,
+        )
+
+    conn = _get_write_conn(request)
+    try:
+        tables = [
+            "patterns",
+            "mcp_calls",
+            "file_exports",
+            "file_imports",
+            "project_files",
+            "skill_suggestion_patterns",
+            "skill_suggestions",
+            "skill_usage_tracking",
+            "drift_history",
+            "session_checkpoints",
+            "idempotency_keys",
+        ]
+        with conn:
+            for table in tables:
+                with contextlib.suppress(sqlite3.OperationalError):
+                    conn.execute(f"DELETE FROM {table}")  # noqa: S608
+
+        elapsed = int((time.monotonic() - start) * 1000)
+        return _json_mutated({"reset": True}, duration_ms=elapsed)
+    finally:
+        conn.close()
+
+
+def _sync_reindex_project(project: Path, conn: sqlite3.Connection) -> int:
+    """Synchronous file scan and DB indexing for a project.
+
+    Clears the existing index and re-scans the filesystem. Designed to
+    run in a thread pool via ``asyncio.to_thread`` to avoid blocking the
+    event loop.
+    """
+    from datetime import UTC, datetime
+
+    from ..config.defaults import INDEXER_IGNORED_DIRS, INDEXER_IGNORED_EXTENSIONS
+    from ..tools.indexer import (
+        _detect_language,
+        _detect_role,
+        _extract_exports,
+        _extract_imports,
+        _is_ignored,
+        _load_gitignore_patterns,
+    )
+
+    project_str = str(project)
+
+    # Clear existing index (force re-index)
+    conn.execute(
+        "DELETE FROM file_exports WHERE file_id IN "
+        "(SELECT id FROM project_files WHERE project_path = ?)",
+        (project_str,),
+    )
+    conn.execute(
+        "DELETE FROM file_imports WHERE file_id IN "
+        "(SELECT id FROM project_files WHERE project_path = ?)",
+        (project_str,),
+    )
+    conn.execute(
+        "DELETE FROM project_files WHERE project_path = ?",
+        (project_str,),
+    )
+
+    gitignore_patterns = _load_gitignore_patterns(project)
+
+    indexed_count = 0
+    for fp in project.rglob("*"):
+        if not fp.is_file():
+            continue
+
+        rel = str(fp.relative_to(project))
+
+        if _is_ignored(rel, INDEXER_IGNORED_DIRS, gitignore_patterns):
+            continue
+
+        if fp.suffix.lower() in INDEXER_IGNORED_EXTENSIONS:
+            continue
+
+        stat = fp.stat()
+        mtime = datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat()
+        size = stat.st_size
+
+        language = _detect_language(fp)
+        role = _detect_role(rel)
+
+        content = ""
+        if language and size < 500_000:
+            with contextlib.suppress(OSError):
+                content = fp.read_text(encoding="utf-8", errors="replace")
+
+        cursor = conn.execute(
+            "INSERT INTO project_files "
+            "(project_path, file_path, language, role, size_bytes, modified_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (project_str, rel, language, role, size, mtime),
+        )
+        file_id = cursor.lastrowid or 0
+
+        exports = _extract_exports(content, language)
+        for exp in exports:
+            conn.execute(
+                "INSERT OR IGNORE INTO file_exports "
+                "(file_id, name, kind, line_number, signature, docstring) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    file_id,
+                    exp["name"],
+                    exp["kind"],
+                    exp.get("line_number"),
+                    exp.get("signature"),
+                    exp.get("docstring"),
+                ),
+            )
+
+        imports = _extract_imports(content, language)
+        for imp in imports:
+            conn.execute(
+                "INSERT INTO file_imports (file_id, import_path, raw_import) VALUES (?, ?, ?)",
+                (file_id, imp["import_path"], imp["raw"]),
+            )
+
+        indexed_count += 1
+
+    conn.commit()
+    return indexed_count
+
+
+async def handle_project_reindex(request: web.Request) -> web.Response:
+    """Force re-index a project by scanning the filesystem."""
+    start = time.monotonic()
+    project_path = unquote(request.match_info["path"])
+    project = Path(project_path).resolve()
+
+    if not project.is_dir():
+        return _error_envelope(
+            f"Project directory not found: {project_path}",
+            code="NOT_FOUND_PROJECT",
+        )
+
+    conn = _get_write_conn(request)
+    try:
+        indexed_count = await asyncio.to_thread(_sync_reindex_project, project, conn)
+
+        elapsed = int((time.monotonic() - start) * 1000)
+        return _json_mutated(
+            {"indexed": True, "files": indexed_count, "project_path": str(project)},
+            duration_ms=elapsed,
+        )
+    finally:
+        conn.close()
+
+
+async def handle_project_delete(request: web.Request) -> web.Response:
+    """Clear index for a project (delete all indexed data)."""
+    start = time.monotonic()
+    project_path = unquote(request.match_info["path"])
+    conn = _get_write_conn(request)
+    try:
+        # Check project exists in index
+        exists = conn.execute(
+            "SELECT COUNT(*) FROM project_files WHERE project_path = ?",
+            (project_path,),
+        ).fetchone()[0]
+        if not exists:
+            return _error_envelope(f"Project '{project_path}' not found in index")
+
+        # Delete in dependency order
+        conn.execute(
+            "DELETE FROM file_exports WHERE file_id IN "
+            "(SELECT id FROM project_files WHERE project_path = ?)",
+            (project_path,),
+        )
+        conn.execute(
+            "DELETE FROM file_imports WHERE file_id IN "
+            "(SELECT id FROM project_files WHERE project_path = ?)",
+            (project_path,),
+        )
+        conn.execute(
+            "DELETE FROM project_files WHERE project_path = ?",
+            (project_path,),
+        )
+        conn.commit()
+
+        elapsed = int((time.monotonic() - start) * 1000)
+        return _json_mutated(
+            {"deleted": True, "project_path": project_path},
+            duration_ms=elapsed,
+        )
+    finally:
+        conn.close()
+
+
+async def handle_project_health(request: web.Request) -> web.Response:
+    """Return index staleness info: file count, oldest indexed_at, files missing on disk."""
+    start = time.monotonic()
+    project_path = unquote(request.match_info["path"])
+    conn = _get_conn(request)
+    try:
+        # Check project exists
+        file_count = conn.execute(
+            "SELECT COUNT(*) FROM project_files WHERE project_path = ?",
+            (project_path,),
+        ).fetchone()[0]
+        if not file_count:
+            return _error_envelope(f"Project '{project_path}' not found in index")
+
+        # Oldest indexed_at
+        oldest_row = conn.execute(
+            "SELECT MIN(indexed_at) FROM project_files WHERE project_path = ?",
+            (project_path,),
+        ).fetchone()
+        oldest_indexed_at = oldest_row[0] if oldest_row else None
+
+        # Newest indexed_at
+        newest_row = conn.execute(
+            "SELECT MAX(indexed_at) FROM project_files WHERE project_path = ?",
+            (project_path,),
+        ).fetchone()
+        newest_indexed_at = newest_row[0] if newest_row else None
+
+        # Check for files not found on disk
+        rows = conn.execute(
+            "SELECT file_path FROM project_files WHERE project_path = ?",
+            (project_path,),
+        ).fetchall()
+
+        missing_files: list[str] = []
+        project_dir = Path(project_path)
+        for r in rows:
+            full_path = project_dir / r["file_path"]
+            if not full_path.exists():
+                missing_files.append(r["file_path"])
+
+        elapsed = int((time.monotonic() - start) * 1000)
+        return _json_ok(
+            {
+                "project_path": project_path,
+                "file_count": file_count,
+                "oldest_indexed_at": oldest_indexed_at,
+                "newest_indexed_at": newest_indexed_at,
+                "missing_files_count": len(missing_files),
+                "missing_files": missing_files[:50],  # limit to avoid huge responses
             },
             duration_ms=elapsed,
         )
