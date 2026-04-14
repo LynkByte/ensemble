@@ -82,6 +82,19 @@ Step             Agent                Category      Purpose
 5. GIT           → @team-signal      [overhead]    Commit, push, check CI pipeline status
 ```
 
+**With Parallel Streams (when Architect recommends):**
+
+```
+Step             Agent                    Category      Purpose
+1. PLAN+EXPLORE  → @team-scope         [overhead]    Analyze requirements, explore codebase, identify parallel streams
+   ── USER APPROVAL GATE ──                            Present plan to user, wait for approval before proceeding
+2. IMPLEMENT     → @team-craft (×N)     [useful-work] Launch N parallel engineers, each on a disjoint file set
+   ── FILE MERGE VERIFICATION ──                       Verify no cross-stream file conflicts
+3+4. BUILD+TEST  → @team-forge            [validation]  Format code, compile assets, run tests, fix test files
+   + REVIEW      → @team-lens        [validation]  Review code quality, security audit  [PARALLEL]
+5. GIT           → @team-signal          [overhead]    Commit, push, check CI pipeline status
+```
+
 Not all tasks run all steps. Use the Task Classification above and the architect's recommendations to determine which steps to run.
 
 ## Skip Rules
@@ -112,6 +125,85 @@ For standard and complex tasks, steps 3 (BUILD+TEST) and 4 (REVIEW) run in paral
 - If Inspector finds critical issues, remediation loop runs after Forge completes
 - Both must complete before proceeding to GIT
 - For simple tasks, run Forge first, then Inspector (sequential) -- the simpler flow is sufficient
+
+## Parallel IMPLEMENT
+
+When the Architect's output includes a `## Parallel Streams` section, the Captain launches multiple `@team-craft` instances in parallel, each working on a disjoint set of files.
+
+### Activation Criteria
+
+- Only activate when the Architect's output includes a `## Parallel Streams` section
+- If no parallel streams section is present, use single `@team-craft` invocation as normal
+- The Architect's parallel streams recommendation is advisory -- the Captain may override and fall back to single-stream if conditions below are not met
+
+### File Overlap Validation
+
+Before launching parallel engineers, the Captain MUST verify that no file appears in more than one stream:
+
+1. Collect all file lists from each stream
+2. Check for any file that appears in more than one stream
+3. If overlap is detected: fall back to sequential single-stream execution and log a warning: "PARALLEL ABORTED: file overlap detected in streams -- falling back to single-stream"
+4. If no overlap: proceed with parallel launch
+
+### Launch Mechanics
+
+Launch multiple `@team-craft` Task tool calls in a single message. Each receives its own stream-scoped handoff (see Parallel Craft Handoff Template below). All invocations launch simultaneously. When building the stream-scoped handoff, filter the Architect's Dependencies section to include only those steps and relationships that fall within the stream's assigned Implementation Steps. Omit cross-stream dependencies.
+
+### Completion Gate
+
+ALL parallel craft invocations must complete before proceeding to BUILD+TEST:
+
+- If all streams succeed: proceed to BUILD+TEST + REVIEW as normal
+- If any stream fails: follow Technical Failure Handling for that stream only -- other completed streams are preserved. Do not re-invoke successful streams.
+- If a stream fails 3 times total (initial + 2 retries), report the failure to the user. Completed streams are preserved.
+
+### File Merge Verification
+
+After all streams complete, perform a defensive verification:
+
+1. Collect all files actually changed across all streams (from engineer reports)
+2. Check for unexpected overlaps (a file modified by more than one stream)
+3. If overlap detected: warn the user with "FILE CONFLICT: [files] were modified by multiple streams" and ask how to proceed
+4. If no overlap: proceed normally
+
+### Parallel Craft Handoff Template
+
+When launching parallel `@team-craft` instances, each stream receives a stream-scoped variant of the Craft Handoff Template:
+
+```
+## Task
+[1-2 sentence task summary -- same for all streams]
+
+## Your Stream: "[stream name]"
+You are stream N of M running in parallel. You MUST only modify files assigned to your stream.
+
+## Assigned Files
+[Files from this stream's partition ONLY]
+
+## Relevant Files
+[Full Relevant Files from the Architect -- not limited to this stream. Provides project-wide context for understanding interfaces and relationships.]
+
+## Implementation Steps
+[Only the steps assigned to this stream]
+
+## Conventions Observed
+[Same as single-stream -- shared across all streams]
+
+## Reusable Components
+[Same as single-stream -- shared across all streams]
+
+## Dependencies
+[Only intra-stream dependencies]
+
+## File Boundary Rule
+You MUST NOT create or modify any file outside your Assigned Files list. If you discover a need to modify an unassigned file, STOP and report it -- do not modify the file.
+
+## Design Spec
+[Verbatim, if present. Shared across all streams.]
+
+## Skills
+[List of discovered skills from skills_discover, if any. Omit if none.]
+```
 
 ## Context Compression
 
@@ -219,6 +311,20 @@ After the Engineer returns, perform a 3-point drift check before proceeding to B
 
 This check runs in addition to the MCP `drift_check` tool (see Ensemble MCP Integration). The prompt-based check catches structural issues (wrong files, scope creep) while the MCP tool catches semantic drift (changes unrelated to the task description).
 
+### Parallel Stream Drift
+
+When parallel IMPLEMENT was used, run the 3-point drift check independently for each stream, plus one additional check:
+
+1. **Scope match** -- per stream: do the files changed match the stream's assigned files?
+2. **File relevance** -- per stream: are the changes related to the task?
+3. **No scope creep** -- per stream: did the engineer add unrequested features?
+4. **File boundary violation** -- did any engineer modify files NOT in its assigned stream?
+
+**On file boundary violation:**
+- This is a **hard block** -- do NOT proceed to BUILD+TEST
+- Report the violation: "BOUNDARY VIOLATION: Stream [N] modified [files] outside its assignment"
+- Ask the user how to proceed: "Revert the out-of-scope changes, reassign the files, or continue anyway?"
+
 ## Technical Failure Handling
 
 If a subagent returns a 400 error, empty result, timeout, or other technical failure:
@@ -267,6 +373,16 @@ When BUILD+TEST or REVIEW returns **code issues** (failing tests, lint errors, r
 
 Each loop iteration (engineer + forge/inspector) counts as 2 invocations against the Pipeline Budget.
 
+### Parallel Stream Remediation
+
+When parallel IMPLEMENT was used, remediation is stream-aware:
+
+- **Map failures to streams** -- attribute each failing test or review finding to the stream that owns the affected file(s)
+- **Re-invoke only the affected stream's engineer** -- do not re-invoke all engineers. Pass only the errors scoped to that stream's files.
+- **After fixes, re-invoke @team-forge for the full project** -- build and test is always global, not per-stream
+- **Max remediation cycles apply per-stream** -- 2 for test failures, 1 for review findings, per stream independently
+- **Integration failures** -- if a failure cannot be attributed to a single stream (e.g., cross-stream integration issue), re-invoke a SINGLE engineer with ALL affected files and context from both streams. This engineer operates outside the stream boundary for that remediation pass only.
+
 ## Pipeline Budget
 
 Each task classification has a maximum number of subagent invocations (including retries). Track invocations as you go. These defaults can be overridden via User Configuration (`pipeline.budgets`).
@@ -275,6 +391,8 @@ Each task classification has a maximum number of subagent invocations (including
 - **Simple**: max 6
 - **Standard**: max 8
 - **Complex**: max 12
+
+Each parallel `@team-craft` invocation counts as 1 invocation. When parallel IMPLEMENT is used, the effective budget formula is: `base_budget + (num_streams - 1) * 2`. For example, a standard task with 2 streams has a budget of 10 (8 + 1 × 2). The complex budget (12) naturally accommodates 2 parallel streams (budget stays 12 + 2 = 14); for 3+ streams the budget scales accordingly.
 
 If budget is exhausted before pipeline completes, stop immediately and report: "Pipeline budget exhausted (X/Y invocations). Remaining steps: [list]." Then ask user whether to continue or abort.
 
@@ -287,6 +405,7 @@ After the pipeline completes (or stops due to failure), provide a concise summar
 - Critical issues found by inspector (if any)
 - Efficiency: `Pipeline: X/Y steps | Z invocations (budget: N) | useful-work: A, validation: B, overhead: C`
 - If the task was classified as standard/complex but only touched 1-2 files with no design needed, note: "Retrospective: task could have been classified as [simpler level]."
+- When parallel IMPLEMENT was used, include: `Parallel: N streams | [stream-1: status, stream-2: status]` and note any file boundary violations or cross-stream issues
 - Final status: **SUCCESS** / **PARTIAL** / **FAILED**
 
 ## Hooks
@@ -343,6 +462,10 @@ session_save({
   completed_steps: ["Step 1: Plan", ...],
   remaining_steps: ["Step 3: Test", ...],
   files_changed: ["src/foo.py", ...],
+  streams: {                           // only when parallel IMPLEMENT was used
+    "stream-1-name": { status: "completed", files: ["src/a.py"] },
+    "stream-2-name": { status: "completed", files: ["src/b.py"] }
+  },
   errors: ["Error message if any", ...],
   context_for_resume: "Key context needed to avoid re-deriving work",
   task_classification: "standard",  // trivial/simple/standard/complex
@@ -453,6 +576,8 @@ Call `drift_check` with:
 - Ask: "Proceed, revert, or adjust?"
 
 **If `verdict` is `"aligned"` or `"minor_drift"`:** proceed normally.
+
+**Parallel streams:** When parallel IMPLEMENT was used, call `drift_check` once per stream with that stream's `changed_files` and a scoped `diff_summary` describing only that stream's changes. Then call `drift_check` once more with ALL changed files combined and a holistic `diff_summary` for cross-stream coherence. If any individual stream or the combined check returns `"significant_drift"`, follow the drift handling rules above.
 
 ### Post-Pipeline
 
