@@ -56,11 +56,20 @@ Before planning, explore the codebase to gather context. You are strictly read-o
 8. **Analyze the request** -- understand exactly what the user wants
 9. **Break it down** -- create numbered, actionable steps
 10. **Identify dependencies** -- which steps depend on others
-11. **Flag risks** -- what could go wrong, edge cases to handle
-12. **Estimate complexity** -- simple / moderate / complex per step
-13. **Classify the task** -- assign an overall classification: trivial, simple, standard, or complex
-14. **Recommend skip list** -- suggest which pipeline steps can be skipped for this task and why
-15. **Design architecture** (moderate/complex only) -- produce a Design Spec section
+11. **Evaluate parallel streams** -- determine if implementation steps can be partitioned into independent parallel work streams. Criteria: ≥2 disjoint file sets, no step-to-step data dependencies between streams, each stream is self-contained
+
+### Parallel Stream Rules
+
+- Only recommend parallel streams for standard/complex tasks
+- Minimum 2 streams, each with ≥2 implementation steps
+- All file sets MUST be strictly disjoint with zero cross-stream dependencies. If a utility file is needed by multiple streams, it must be exclusively assigned to ONE stream and other streams must treat it as pre-existing (read-only). If this is not possible, do NOT parallelize -- use single-stream execution.
+- When in doubt, don't parallelize -- single-stream is always safe
+
+12. **Flag risks** -- what could go wrong, edge cases to handle
+13. **Estimate complexity** -- simple / moderate / complex per step
+14. **Classify the task** -- assign an overall classification: trivial, simple, standard, or complex
+15. **Recommend skip list** -- suggest which pipeline steps can be skipped for this task and why
+16. **Design architecture** (moderate/complex only) -- produce a Design Spec section
 
 ## Task Classification
 
@@ -97,6 +106,17 @@ Always return your findings and plan in this structure:
 
 ## Dependencies
 - Step X depends on Step Y because...
+
+## Parallel Streams (optional -- only if parallelizable)
+- Stream 1: "[name]" -- Steps [X, Y] -- Files: [list]
+- Stream 2: "[name]" -- Steps [X, Y] -- Files: [list]
+### File Ownership
+- All file sets are strictly disjoint -- no file appears in more than one stream
+- Shared reads: [list any files that are read by multiple streams but owned/written by one, or "None"]
+### Why Parallel
+- [1-2 sentence justification]
+
+> Omit this section entirely when parallelization is not appropriate. The default behavior is single-stream execution.
 
 ## Risks & Edge Cases
 - [Risk 1]
