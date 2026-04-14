@@ -39,7 +39,7 @@ dependencies = [
     "onnxruntime>=1.17",
     "numpy>=1.26",
     "tokenizers>=0.15",
-    "rich>=13.0",
+    "rich>=15.0.0",
     "aiohttp>=3.9",
 ]
 
