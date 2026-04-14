@@ -1,21 +1,32 @@
-"""Indexer tools: project_index, project_query, project_dependencies.
+"""Indexer tools: project_index, project_query, project_dependencies, project_snapshot.
 
 Lightweight file-level codebase index stored in SQLite, refreshed
 incrementally using file modification times. Extracts exports, imports,
 language, and file role per file.
+
+``project_snapshot`` generates a compact project baseline summary from
+the indexed data, cached in SQLite with mtime-based invalidation.
 """
 
 from __future__ import annotations
 
 import contextlib
 import fnmatch
+import hashlib
+import json
 import re
 import sqlite3
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ..config.defaults import INDEXER_IGNORED_DIRS, INDEXER_IGNORED_EXTENSIONS
+from ..config.defaults import (
+    INDEXER_IGNORED_DIRS,
+    INDEXER_IGNORED_EXTENSIONS,
+    SNAPSHOT_DEFAULT_EXPIRY_HOURS,
+    SNAPSHOT_MAX_FILES_IN_SUMMARY,
+)
 from ..contracts.envelope import tool_handler
 from ..contracts.errors import ErrorCode, ToolError
 from ..state.idempotency import check_idempotency, store_idempotency
@@ -808,3 +819,358 @@ async def project_dependencies(
         "imported_by": imported_by,
         "related": related,
     }
+
+
+# ── Snapshot helpers ──────────────────────────────────────────────
+
+# Framework detection: map indicator file → framework name
+_FRAMEWORK_INDICATORS: list[tuple[str, str, str]] = [
+    # (file pattern, language, framework)
+    ("pyproject.toml", "python", ""),
+    ("setup.py", "python", ""),
+    ("manage.py", "python", "django"),
+    ("artisan", "php", "laravel"),
+    ("composer.json", "php", ""),
+    ("package.json", "javascript", ""),
+    ("next.config", "javascript", "next.js"),
+    ("nuxt.config", "javascript", "nuxt"),
+    ("angular.json", "typescript", "angular"),
+    ("Cargo.toml", "rust", ""),
+    ("go.mod", "go", ""),
+    ("Gemfile", "ruby", ""),
+    ("pom.xml", "java", "maven"),
+    ("build.gradle", "java", "gradle"),
+]
+
+# Build tool detection: map file → build tool
+_BUILD_TOOL_FILES: dict[str, str] = {
+    "pyproject.toml": "pyproject.toml",
+    "setup.py": "setup.py",
+    "setup.cfg": "setup.cfg",
+    "Makefile": "make",
+    "package.json": "npm",
+    "Cargo.toml": "cargo",
+    "go.mod": "go modules",
+    "Gemfile": "bundler",
+    "composer.json": "composer",
+    "pom.xml": "maven",
+    "build.gradle": "gradle",
+    "Dockerfile": "docker",
+    "docker-compose.yml": "docker-compose",
+    "docker-compose.yaml": "docker-compose",
+}
+
+# Test framework detection: map file/dir pattern → test framework
+_TEST_FRAMEWORK_PATTERNS: list[tuple[str, str]] = [
+    ("pytest.ini", "pytest"),
+    ("conftest.py", "pytest"),
+    ("jest.config", "jest"),
+    ("vitest.config", "vitest"),
+    ("phpunit.xml", "phpunit"),
+    (".rspec", "rspec"),
+]
+
+# Directory role heuristics
+_DIR_ROLE_MAP: list[tuple[str, str]] = [
+    ("src", "source"),
+    ("lib", "library"),
+    ("app", "application"),
+    ("tests", "tests"),
+    ("test", "tests"),
+    ("spec", "tests"),
+    ("docs", "documentation"),
+    ("config", "configuration"),
+    ("scripts", "scripts"),
+    ("migrations", "migrations"),
+    ("public", "public assets"),
+    ("static", "static assets"),
+    ("templates", "templates"),
+    ("views", "views"),
+    ("components", "components"),
+    ("pages", "pages"),
+    ("api", "api"),
+    ("models", "models"),
+    ("services", "services"),
+    ("utils", "utilities"),
+    ("helpers", "helpers"),
+]
+
+
+def _compute_files_hash(conn: sqlite3.Connection, project_path: str) -> str:
+    """Compute a hash of all indexed file mtimes for cache invalidation."""
+    rows = conn.execute(
+        "SELECT file_path, modified_at FROM project_files "
+        "WHERE project_path = ? ORDER BY file_path",
+        (project_path,),
+    ).fetchall()
+    hasher = hashlib.sha256()
+    for row in rows:
+        hasher.update(f"{row[0]}:{row[1]}\n".encode())
+    return hasher.hexdigest()[:16]
+
+
+def _generate_snapshot(conn: sqlite3.Connection, project_path: str) -> dict[str, Any]:
+    """Generate a compact project baseline summary from indexed data.
+
+    Queries the ``project_files``, ``file_exports``, and ``file_imports``
+    tables to build a summary of the project's language, framework,
+    conventions, directory structure, test setup, build tools, and key files.
+
+    Returns:
+        Dict with project metadata suitable for embedding in agent prompts.
+    """
+    # ── Gather indexed files ──────────────────────────────────────
+    rows = conn.execute(
+        "SELECT id, file_path, language, role, size_bytes FROM project_files "
+        "WHERE project_path = ? ORDER BY file_path",
+        (project_path,),
+    ).fetchall()
+
+    if not rows:
+        return {
+            "project_path": project_path,
+            "language": "unknown",
+            "framework": None,
+            "conventions": [],
+            "structure": {},
+            "test_setup": {"framework": "unknown", "pattern_dir": ""},
+            "build_tools": [],
+            "key_files": [],
+        }
+
+    # ── Language detection ─────────────────────────────────────────
+    lang_counts: Counter[str] = Counter()
+    for row in rows:
+        if row[2]:  # language column
+            lang_counts[row[2]] += 1
+
+    primary_language = lang_counts.most_common(1)[0][0] if lang_counts else "unknown"
+
+    # ── Framework detection ───────────────────────────────────────
+    file_paths = {row[1] for row in rows}
+    file_basenames = {Path(fp).name for fp in file_paths}
+    # Top-level files only (files with no parent directory in the relative path)
+    top_level_basenames = {Path(fp).name for fp in file_paths if len(Path(fp).parts) == 1}
+    detected_framework: str | None = None
+
+    # Indicator files that must be at the project root to count
+    _ROOT_ONLY_INDICATORS: set[str] = {"manage.py", "artisan"}
+
+    for indicator_file, _lang, framework in _FRAMEWORK_INDICATORS:
+        # For root-only indicators, only match top-level files
+        if indicator_file in _ROOT_ONLY_INDICATORS:
+            names_to_check = top_level_basenames
+        else:
+            names_to_check = file_basenames
+        if any(bn.startswith(indicator_file) for bn in names_to_check) and framework:
+            detected_framework = framework
+            break
+
+    # ── Build tools ───────────────────────────────────────────────
+    build_tools: list[str] = []
+    for build_file, tool_name in _BUILD_TOOL_FILES.items():
+        if build_file in file_basenames and tool_name not in build_tools:
+            build_tools.append(tool_name)
+
+    # ── Directory structure ───────────────────────────────────────
+    structure: dict[str, str] = {}
+    top_dirs: set[str] = set()
+    for row in rows:
+        parts = Path(row[1]).parts
+        if len(parts) > 1:
+            top_dirs.add(parts[0])
+
+    for dirname in sorted(top_dirs):
+        for pattern, role in _DIR_ROLE_MAP:
+            if dirname.lower() == pattern:
+                structure[dirname] = role
+                break
+        else:
+            # Default: use dirname as-is (no role detected)
+            if dirname not in structure:
+                structure[dirname] = ""
+
+    # Remove dirs with no detected role to keep compact
+    structure = {k: v for k, v in structure.items() if v}
+
+    # ── Test setup ────────────────────────────────────────────────
+    test_framework = "unknown"
+    test_dir = ""
+
+    for pattern, fw in _TEST_FRAMEWORK_PATTERNS:
+        if any(pattern in fp for fp in file_paths):
+            test_framework = fw
+            break
+
+    # Find the test directory (explicit preference order for determinism)
+    for candidate in ["tests", "test", "spec", "__tests__"]:
+        matching = [d for d in top_dirs if d.lower() == candidate]
+        if matching:
+            test_dir = matching[0]
+            break
+
+    # ── Conventions ───────────────────────────────────────────────
+    conventions: list[str] = []
+
+    # Naming conventions
+    snake_count = sum(1 for fp in file_paths if "_" in Path(fp).stem)
+    camel_count = sum(1 for fp in file_paths if re.search(r"[a-z][A-Z]", Path(fp).stem))
+    if snake_count > camel_count and snake_count > 3:
+        conventions.append("snake_case file naming")
+    elif camel_count > snake_count and camel_count > 3:
+        conventions.append("camelCase file naming")
+
+    # Check for common patterns
+    role_counts: Counter[str] = Counter()
+    for row in rows:
+        if row[3]:  # role column
+            role_counts[row[3]] += 1
+
+    if role_counts.get("test", 0) > 0:
+        conventions.append(f"test files present ({role_counts['test']} files)")
+    if role_counts.get("config", 0) > 0:
+        conventions.append("configuration files present")
+    if any(fp.endswith("__init__.py") for fp in file_paths):
+        conventions.append("Python package structure (__init__.py)")
+
+    # ── Key files ─────────────────────────────────────────────────
+    key_files: list[dict[str, Any]] = []
+
+    # Get files with exports (most likely important)
+    export_file_ids = conn.execute(
+        "SELECT DISTINCT file_id FROM file_exports WHERE file_id IN "
+        "(SELECT id FROM project_files WHERE project_path = ?)",
+        (project_path,),
+    ).fetchall()
+    export_file_id_set = {r[0] for r in export_file_ids}
+
+    # Batch-fetch exports for all relevant files in a single query to avoid N+1
+    if export_file_id_set:
+        placeholders = ",".join("?" for _ in export_file_id_set)
+        all_export_rows = conn.execute(
+            f"SELECT file_id, name FROM file_exports WHERE file_id IN ({placeholders})",  # noqa: S608
+            list(export_file_id_set),
+        ).fetchall()
+
+        # Group exports by file_id, keeping at most 10 per file
+        exports_by_file: dict[int, list[str]] = {}
+        for file_id_val, export_name in all_export_rows:
+            file_exports = exports_by_file.setdefault(file_id_val, [])
+            if len(file_exports) < 10:
+                file_exports.append(export_name)
+    else:
+        exports_by_file = {}
+
+    for row in rows:
+        file_id, fp, lang, role, size_bytes = row
+        if file_id not in export_file_id_set:
+            continue
+
+        key_files.append(
+            {
+                "path": fp,
+                "role": role or "",
+                "exports": exports_by_file.get(file_id, []),
+            }
+        )
+
+        if len(key_files) >= SNAPSHOT_MAX_FILES_IN_SUMMARY:
+            break
+
+    return {
+        "project_path": project_path,
+        "language": primary_language,
+        "framework": detected_framework,
+        "conventions": conventions,
+        "structure": structure,
+        "test_setup": {"framework": test_framework, "pattern_dir": test_dir},
+        "build_tools": build_tools,
+        "key_files": key_files,
+    }
+
+
+@tool_handler(source="sqlite", confidence="exact")
+async def project_snapshot(
+    conn: sqlite3.Connection,
+    *,
+    project_path: str,
+    force: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    """Generate or return a cached compact project baseline summary.
+
+    Queries the codebase index to build a summary of the project's
+    language, framework, conventions, directory structure, test setup,
+    build tools, and key files. Results are cached in the
+    ``project_snapshots`` table with mtime-based invalidation.
+
+    Args:
+        conn: SQLite connection.
+        project_path: Absolute or relative path to the project root.
+        force: If True, regenerate even if a valid cache entry exists.
+        idempotency_key: Optional idempotency key for cache writes.
+
+    Returns:
+        Dict with ``snapshot``, ``cached`` flag, and ``files_hash``.
+    """
+    cached_result = check_idempotency(conn, idempotency_key)
+    if cached_result is not None:
+        return cached_result
+
+    project = str(Path(project_path).resolve())
+
+    # Check if project has been indexed
+    file_count = conn.execute(
+        "SELECT COUNT(*) FROM project_files WHERE project_path = ?",
+        (project,),
+    ).fetchone()[0]
+
+    if file_count == 0:
+        raise ToolError(
+            code=ErrorCode.NOT_FOUND_PROJECT,
+            message=f"Project not indexed: {project_path}. Run project_index first.",
+            details={"project_path": project_path},
+        )
+
+    # Compute current files hash
+    current_hash = _compute_files_hash(conn, project)
+
+    # Check cache (unless force refresh)
+    if not force:
+        cache_row = conn.execute(
+            "SELECT snapshot_json, files_hash, expires_at FROM project_snapshots "
+            "WHERE project_path = ? AND expires_at > datetime('now')",
+            (project,),
+        ).fetchone()
+
+        if cache_row and cache_row[1] == current_hash:
+            snapshot = json.loads(cache_row[0])
+            result: dict[str, Any] = {
+                "snapshot": snapshot,
+                "cached": True,
+                "files_hash": current_hash,
+            }
+            store_idempotency(conn, idempotency_key, result)
+            return result
+
+    # Generate fresh snapshot
+    snapshot = _generate_snapshot(conn, project)
+
+    # Store in cache
+    assert isinstance(SNAPSHOT_DEFAULT_EXPIRY_HOURS, int) and SNAPSHOT_DEFAULT_EXPIRY_HOURS > 0
+    expiry_clause = f"+{SNAPSHOT_DEFAULT_EXPIRY_HOURS} hours"
+    conn.execute(
+        "INSERT OR REPLACE INTO project_snapshots "
+        "(project_path, snapshot_json, files_hash, created_at, expires_at) "
+        "VALUES (?, ?, ?, datetime('now'), datetime('now', ?))",
+        (project, json.dumps(snapshot), current_hash, expiry_clause),
+    )
+    conn.commit()
+
+    result = {
+        "snapshot": snapshot,
+        "cached": False,
+        "files_hash": current_hash,
+    }
+    store_idempotency(conn, idempotency_key, result)
+    return result
