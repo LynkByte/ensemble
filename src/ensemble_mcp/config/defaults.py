@@ -137,4 +137,4 @@ COMPRESS_MIN_INPUT_LENGTH = 10  # chars
 
 # ── Server Metadata ───────────────────────────────────────────────
 SERVER_NAME = "ensemble-mcp"
-SERVER_VERSION = "0.1.0a6"
+SERVER_VERSION = "0.1.0a9"
