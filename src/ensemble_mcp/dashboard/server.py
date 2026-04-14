@@ -6,7 +6,9 @@ Binds to 127.0.0.1 only — local access, no auth required.
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import sqlite3
 import webbrowser
 from pathlib import Path
 
@@ -113,6 +115,26 @@ def _ensure_db_ready(db_path: Path) -> None:
                 project TEXT,
                 UNIQUE(session_id)
             );
+        """)
+
+        # Forward-only migrations: if session_checkpoints was created by
+        # an older schema (memory/store.py <v7), it lacks the newer
+        # columns.  ALTER TABLE ADD COLUMN is idempotent when wrapped in
+        # contextlib.suppress — the OperationalError fires if the column
+        # already exists.
+        _alter_stmts = [
+            "ALTER TABLE session_checkpoints ADD COLUMN embedding BLOB",
+            "ALTER TABLE session_checkpoints ADD COLUMN original_request TEXT",
+            "ALTER TABLE session_checkpoints ADD COLUMN task_classification TEXT",
+            "ALTER TABLE session_checkpoints ADD COLUMN status TEXT DEFAULT 'in_progress'",
+            "ALTER TABLE session_checkpoints ADD COLUMN project TEXT",
+        ]
+        for stmt in _alter_stmts:
+            with contextlib.suppress(sqlite3.OperationalError):
+                conn.execute(stmt)
+
+        # Now safe to create indexes — columns are guaranteed to exist.
+        conn.executescript("""
             CREATE INDEX IF NOT EXISTS idx_session_checkpoints_status
                 ON session_checkpoints(status);
             CREATE INDEX IF NOT EXISTS idx_session_checkpoints_project
