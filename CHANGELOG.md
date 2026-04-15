@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0b1] - 2026-04-15
+
+First closed beta release. Transitions from alpha with significant security hardening, new tools, and dashboard improvements.
+
+### Added
+- **Prompt Caching Tools** — `context_prepare` and `project_snapshot` MCP tools for agent prompt tiering and caching
+
+### Fixed
+- **Path traversal vulnerability** in `skills_generate` MCP tool — added validation to reject absolute paths and `..` segments in `output_dir`, plus `proposed_name` sanitization in both MCP tool and dashboard API
+- **Cross-thread SQLite corruption risk** in dashboard reindex — connection now created inside worker thread instead of passed from async context
+- **Prune logic type mismatch** in dashboard API — aligned with `store.py` to use `match_count = 0` instead of comparing integer with float
+- **Naive `datetime.now()` calls** in skills suggest — fixed 3 instances to use `datetime.now(tz=UTC)` for correct age calculations
+- **`urlopen` without timeout** in ONNX model download — added `timeout=30` to prevent indefinite server startup hang
+
+### Changed
+- Development status upgraded from Alpha to Beta
+
+### Test Suite
+- 543 tests passing
+
+## [0.1.0a9] - 2026-04-14
+
+### Added
+- **Prompt Caching Tools** — `context_prepare` and `project_snapshot` for efficient agent prompt construction
+
+### Fixed
+- **Dashboard schema migration** — crash on older `session_checkpoints` schema missing `status` column
+
+## [0.1.0a8] - 2026-04-14
+
+### Added
+- **Web Dashboard v2** — full management UI with mutation endpoints, pattern/skill/session management, and frontend helpers
+- **Vector-enhanced session persistence** with semantic search for session recall
+- **Parallel IMPLEMENT support** for independent work streams in agent pipeline
+- **UI/UX clarification rule** added to architect agent
+
+### Changed
+- Updated dependencies: mypy >=1.20.1, pytest-asyncio >=1.3.0, pytest-cov >=7.1.0, numpy >=2.4.4, rich >=15.0.0
+
+### Fixed
+- Long SQL string lint violation (E501)
+
 ## [0.1.0a7] - 2026-04-13
 
 ### Added
@@ -145,6 +187,10 @@ Initial release with all 15 MCP tools across 3 implementation phases.
 - Shared fixtures: `tmp_db`, `test_conn`, `test_store`, `MockEmbeddingModel`
 - Full lint (ruff) and format compliance
 
+[0.1.0b1]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0b1
+[0.1.0a9]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0a9
+[0.1.0a8]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0a8
+[0.1.0a7]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0a7
 [0.1.0a6]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0a6
 [0.1.0a5]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0a5
 [0.1.0a3]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0a3
