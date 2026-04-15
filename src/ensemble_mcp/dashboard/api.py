@@ -907,11 +907,11 @@ async def handle_pattern_prune(request: web.Request) -> web.Response:
 
     conn = _get_write_conn(request)
     try:
-        # Replicate VectorStore.prune_patterns() logic with min_score threshold
+        # Replicate VectorStore.prune_patterns() logic: delete old patterns with zero matches
         cursor = conn.execute(
             "DELETE FROM patterns WHERE "
-            "created_at < datetime('now', ? || ' days') AND match_count < ?",
-            (f"-{max_age_days}", min_score),
+            "created_at < datetime('now', ? || ' days') AND match_count = 0",
+            (f"-{max_age_days}",),
         )
         pruned = cursor.rowcount
         remaining = int(conn.execute("SELECT COUNT(*) FROM patterns").fetchone()[0])
@@ -1005,7 +1005,8 @@ async def handle_skill_action(request: web.Request) -> web.Response:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        file_name = f"{proposed_name}.md"
+        safe_name = proposed_name.replace("/", "_").replace("\\", "_")
+        file_name = f"{safe_name}.md"
         file_path = output_path / file_name
         file_path.write_text(proposed_content, encoding="utf-8")
 
@@ -1205,12 +1206,15 @@ async def handle_reset(request: web.Request) -> web.Response:
         conn.close()
 
 
-def _sync_reindex_project(project: Path, conn: sqlite3.Connection) -> int:
+def _sync_reindex_project(project: Path, db_path: str | Path) -> int:
     """Synchronous file scan and DB indexing for a project.
 
     Clears the existing index and re-scans the filesystem. Designed to
     run in a thread pool via ``asyncio.to_thread`` to avoid blocking the
     event loop.
+
+    Creates its own SQLite connection (required because ``sqlite3``
+    connections must not cross thread boundaries).
     """
     from datetime import UTC, datetime
 
@@ -1224,86 +1228,90 @@ def _sync_reindex_project(project: Path, conn: sqlite3.Connection) -> int:
         _load_gitignore_patterns,
     )
 
-    project_str = str(project)
+    conn = get_connection(Path(db_path))
+    try:
+        project_str = str(project)
 
-    # Clear existing index (force re-index)
-    conn.execute(
-        "DELETE FROM file_exports WHERE file_id IN "
-        "(SELECT id FROM project_files WHERE project_path = ?)",
-        (project_str,),
-    )
-    conn.execute(
-        "DELETE FROM file_imports WHERE file_id IN "
-        "(SELECT id FROM project_files WHERE project_path = ?)",
-        (project_str,),
-    )
-    conn.execute(
-        "DELETE FROM project_files WHERE project_path = ?",
-        (project_str,),
-    )
-
-    gitignore_patterns = _load_gitignore_patterns(project)
-
-    indexed_count = 0
-    for fp in project.rglob("*"):
-        if not fp.is_file():
-            continue
-
-        rel = str(fp.relative_to(project))
-
-        if _is_ignored(rel, INDEXER_IGNORED_DIRS, gitignore_patterns):
-            continue
-
-        if fp.suffix.lower() in INDEXER_IGNORED_EXTENSIONS:
-            continue
-
-        stat = fp.stat()
-        mtime = datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat()
-        size = stat.st_size
-
-        language = _detect_language(fp)
-        role = _detect_role(rel)
-
-        content = ""
-        if language and size < 500_000:
-            with contextlib.suppress(OSError):
-                content = fp.read_text(encoding="utf-8", errors="replace")
-
-        cursor = conn.execute(
-            "INSERT INTO project_files "
-            "(project_path, file_path, language, role, size_bytes, modified_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (project_str, rel, language, role, size, mtime),
+        # Clear existing index (force re-index)
+        conn.execute(
+            "DELETE FROM file_exports WHERE file_id IN "
+            "(SELECT id FROM project_files WHERE project_path = ?)",
+            (project_str,),
         )
-        file_id = cursor.lastrowid or 0
+        conn.execute(
+            "DELETE FROM file_imports WHERE file_id IN "
+            "(SELECT id FROM project_files WHERE project_path = ?)",
+            (project_str,),
+        )
+        conn.execute(
+            "DELETE FROM project_files WHERE project_path = ?",
+            (project_str,),
+        )
 
-        exports = _extract_exports(content, language)
-        for exp in exports:
-            conn.execute(
-                "INSERT OR IGNORE INTO file_exports "
-                "(file_id, name, kind, line_number, signature, docstring) "
+        gitignore_patterns = _load_gitignore_patterns(project)
+
+        indexed_count = 0
+        for fp in project.rglob("*"):
+            if not fp.is_file():
+                continue
+
+            rel = str(fp.relative_to(project))
+
+            if _is_ignored(rel, INDEXER_IGNORED_DIRS, gitignore_patterns):
+                continue
+
+            if fp.suffix.lower() in INDEXER_IGNORED_EXTENSIONS:
+                continue
+
+            stat = fp.stat()
+            mtime = datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat()
+            size = stat.st_size
+
+            language = _detect_language(fp)
+            role = _detect_role(rel)
+
+            content = ""
+            if language and size < 500_000:
+                with contextlib.suppress(OSError):
+                    content = fp.read_text(encoding="utf-8", errors="replace")
+
+            cursor = conn.execute(
+                "INSERT INTO project_files "
+                "(project_path, file_path, language, role, size_bytes, modified_at) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
-                (
-                    file_id,
-                    exp["name"],
-                    exp["kind"],
-                    exp.get("line_number"),
-                    exp.get("signature"),
-                    exp.get("docstring"),
-                ),
+                (project_str, rel, language, role, size, mtime),
             )
+            file_id = cursor.lastrowid or 0
 
-        imports = _extract_imports(content, language)
-        for imp in imports:
-            conn.execute(
-                "INSERT INTO file_imports (file_id, import_path, raw_import) VALUES (?, ?, ?)",
-                (file_id, imp["import_path"], imp["raw"]),
-            )
+            exports = _extract_exports(content, language)
+            for exp in exports:
+                conn.execute(
+                    "INSERT OR IGNORE INTO file_exports "
+                    "(file_id, name, kind, line_number, signature, docstring) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (
+                        file_id,
+                        exp["name"],
+                        exp["kind"],
+                        exp.get("line_number"),
+                        exp.get("signature"),
+                        exp.get("docstring"),
+                    ),
+                )
 
-        indexed_count += 1
+            imports = _extract_imports(content, language)
+            for imp in imports:
+                conn.execute(
+                    "INSERT INTO file_imports (file_id, import_path, raw_import) VALUES (?, ?, ?)",
+                    (file_id, imp["import_path"], imp["raw"]),
+                )
 
-    conn.commit()
-    return indexed_count
+            indexed_count += 1
+
+        conn.commit()
+        return indexed_count
+    finally:
+        conn.close()
 
 
 async def handle_project_reindex(request: web.Request) -> web.Response:
@@ -1318,17 +1326,14 @@ async def handle_project_reindex(request: web.Request) -> web.Response:
             code="NOT_FOUND_PROJECT",
         )
 
-    conn = _get_write_conn(request)
-    try:
-        indexed_count = await asyncio.to_thread(_sync_reindex_project, project, conn)
+    db_path = request.app["db_path"]
+    indexed_count = await asyncio.to_thread(_sync_reindex_project, project, db_path)
 
-        elapsed = int((time.monotonic() - start) * 1000)
-        return _json_mutated(
-            {"indexed": True, "files": indexed_count, "project_path": str(project)},
-            duration_ms=elapsed,
-        )
-    finally:
-        conn.close()
+    elapsed = int((time.monotonic() - start) * 1000)
+    return _json_mutated(
+        {"indexed": True, "files": indexed_count, "project_path": str(project)},
+        duration_ms=elapsed,
+    )
 
 
 async def handle_project_delete(request: web.Request) -> web.Response:
