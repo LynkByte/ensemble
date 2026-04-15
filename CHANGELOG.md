@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0b2] - 2026-04-15
+
+Closed beta 2 release with Bug Hunter reports dashboard integration.
+
+### Added
+- **Bug Hunter Reports Dashboard** — new "Reports" page in the web dashboard displaying Bug Hunter agent scan results
+- **3 new API endpoints** — `/api/reports/markdown`, `/api/reports/history`, `/api/reports/summary` for serving report files from disk
+- **Health trend chart** — Chart.js line chart showing health score, bug count, and test results over time from `history.json`
+- **Markdown report rendering** — client-side rendering via `marked.js` (pinned v15.0.7) with DOMPurify (v3.2.4) XSS sanitization
+- **Reports overview card** — summary card on the Overview page showing latest health score and bug count
+- **`--reports-dir` CLI argument** — configurable reports directory for the `web` command (default `./reports`)
+
+### Security
+- **DOMPurify sanitization** for rendered markdown to prevent XSS from untrusted report content
+- **50MB size guard** on `history.json` reads to prevent memory exhaustion
+
+### Fixed
+- **TOCTOU race condition** in report file reads — `stat()` and `read_text()` now execute together in thread pool
+- **Blocking `stat()` on event loop** — moved filesystem operations into `asyncio.to_thread()`
+
+### Test Suite
+- 562 tests passing (13 new tests for reports endpoints)
+
 ## [0.1.0b1] - 2026-04-15
 
 First closed beta release. Transitions from alpha with significant security hardening, new tools, and dashboard improvements.
