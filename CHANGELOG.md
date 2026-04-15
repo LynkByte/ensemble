@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0b3] - 2026-04-15
+
+Closed beta 3 release with reports directory auto-discovery fix.
+
+### Fixed
+- **Reports directory auto-discovery** — `ensemble-mcp web` now automatically finds the `reports/` folder by checking CWD then git root, so `--reports-dir` is no longer required
+- Removed broken `Path("./reports")` default that only worked when launched from the project root
+
+### Test Suite
+- 573 tests passing (11 new tests for `_resolve_reports_dir()`)
+
 ## [0.1.0b2] - 2026-04-15
 
 Closed beta 2 release with Bug Hunter reports dashboard integration.
