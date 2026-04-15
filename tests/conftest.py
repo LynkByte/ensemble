@@ -219,6 +219,19 @@ def test_conn(tmp_db: Path) -> Generator[sqlite3.Connection, None, None]:
             ON drift_history(project);
         CREATE INDEX IF NOT EXISTS idx_drift_history_created
             ON drift_history(created_at);
+
+        CREATE TABLE IF NOT EXISTS project_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_path TEXT NOT NULL UNIQUE,
+            snapshot_json TEXT NOT NULL,
+            files_hash TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now')),
+            expires_at TEXT DEFAULT (datetime('now', '+24 hours'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_project_snapshots_path
+            ON project_snapshots(project_path);
+        CREATE INDEX IF NOT EXISTS idx_project_snapshots_expires
+            ON project_snapshots(expires_at);
     """)
     ensure_idempotency_table(conn)
     conn.commit()

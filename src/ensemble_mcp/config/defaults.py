@@ -135,6 +135,10 @@ DASHBOARD_HOST = "127.0.0.1"
 COMPRESS_MAX_INPUT_LENGTH = 100_000  # chars
 COMPRESS_MIN_INPUT_LENGTH = 10  # chars
 
+# ── Project Snapshot ──────────────────────────────────────────────
+SNAPSHOT_DEFAULT_EXPIRY_HOURS = 24
+SNAPSHOT_MAX_FILES_IN_SUMMARY = 50
+
 # ── Server Metadata ───────────────────────────────────────────────
 SERVER_NAME = "ensemble-mcp"
 SERVER_VERSION = "0.1.0a9"

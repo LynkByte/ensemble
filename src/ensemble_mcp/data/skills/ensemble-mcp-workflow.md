@@ -26,6 +26,9 @@ This skill tells you **when and how** to call ensemble-mcp tools during your wor
 | `project_index` | Start of task (first time per project) | `project_path` |
 | `project_query` | During codebase exploration | `project_path` |
 | `project_dependencies` | When understanding file relationships | `project_path`, `file_path` |
+| `project_snapshot` | After indexing, before planning | `project_path` |
+| `context_prepare` | Before sending multi-section prompts | `sections` |
+| `context_compress` | When compressing verbose text | `text` |
 | `session_save` | After each major step (standard/complex) | `session_id`, `state` |
 | `session_load` | When resuming interrupted work | `session_id` (optional) |
 | `health` | When checking server status | *(none)* |
@@ -46,10 +49,15 @@ When working within the multi-agent pipeline (Captain orchestrating Architect, E
 2. project_index(project_path=<project root>)
    → Only needed once per project, or when force=true for refresh
 
-3. skills_discover(project_path=<project root>, query=<task-relevant keywords>)
+3. project_snapshot(project_path=<project root>)
+   → Returns compact baseline: language, framework, conventions, structure
+   → Pass the snapshot to the Architect as a "## Project Baseline" section
+   → Cached across runs — only regenerated when files change
+
+4. skills_discover(project_path=<project root>, query=<task-relevant keywords>)
    → Pass discovered skills to the Architect and Engineer
 
-4. model_recommend(agent="scope", task_classification=<trivial|simple|standard|complex>)
+5. model_recommend(agent="scope", task_classification=<trivial|simple|standard|complex>)
    → Use the returned tier (best/mid/cheapest) as a routing hint when invoking each agent
    → Call model_recommend before each subsequent agent invocation as well
    → If User Configuration defines model overrides, those take precedence
@@ -131,17 +139,22 @@ When working as a single agent (no pipeline, just one AI assistant), use a simpl
    → Use findings to inform your approach
 2. project_index(project_path=<project root>)
    → If not already indexed
+3. project_snapshot(project_path=<project root>)
+   → Get a compact baseline summary of the project
+   → Use to understand language, framework, conventions without full exploration
 ```
 
 ### During Work
 
 ```
-3. project_query(project_path=<root>, query=<what you're looking for>)
+4. project_query(project_path=<root>, query=<what you're looking for>)
    → Use instead of raw file searches when possible
-4. project_dependencies(project_path=<root>, file_path=<file>)
+5. project_dependencies(project_path=<root>, file_path=<file>)
    → Before making structural changes to understand import/export graph
-5. skills_discover(project_path=<root>, query=<relevant domain>)
+6. skills_discover(project_path=<root>, query=<relevant domain>)
    → Find and load project-specific skills
+7. context_prepare(sections=[...])
+   → When assembling multi-section prompts, order sections for cache optimization
 ```
 
 ### After Implementation
@@ -196,6 +209,22 @@ When classifying tasks:
 ---
 
 ## Parameter Tips
+
+### context_prepare — optimize prompt caching
+
+- **sections**: Array of `{name, content, priority}` dicts
+- **priority tiers**: `"static"` (system prompts, agent instructions — never change), `"project"` (project baseline, conventions — change between projects), `"task"` (task-specific context — changes every call)
+- **compress_sections**: Set to `true` to also compress each section via the compression engine
+- **Output**: `prepared_text` (concatenated, ordered), `prefix_stable_bytes` (cacheable prefix size), per-section metadata
+- **When to use**: Before any multi-section prompt where you want to maximize LLM prefix caching
+
+### project_snapshot — precomputed project context
+
+- **project_path**: Project root (must be indexed first via `project_index`)
+- **force**: Set to `true` to regenerate even if cached
+- **Output**: Compact baseline with `language`, `framework`, `conventions`, `structure`, `test_setup`, `build_tools`, `key_files`
+- **Caching**: Results are cached for 24 hours and invalidated when indexed files change
+- **When to use**: After `project_index`, pass the snapshot to the Architect as a `## Project Baseline` section to skip redundant exploration
 
 ### patterns_store — write good patterns
 

@@ -27,7 +27,7 @@ from ..state.locks import get_connection
 logger = logging.getLogger(__name__)
 
 # Current schema version — bump when adding new migrations.
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 
 class VectorStore:
@@ -233,6 +233,20 @@ class VectorStore:
                 created_at TEXT DEFAULT (datetime('now')),
                 UNIQUE(session_id)
             );
+
+            -- Project Snapshots (cached project baseline summaries)
+            CREATE TABLE IF NOT EXISTS project_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_path TEXT NOT NULL UNIQUE,
+                snapshot_json TEXT NOT NULL,
+                files_hash TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                expires_at TEXT DEFAULT (datetime('now', '+24 hours'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_project_snapshots_path
+                ON project_snapshots(project_path);
+            CREATE INDEX IF NOT EXISTS idx_project_snapshots_expires
+                ON project_snapshots(expires_at);
         """)
 
         # Idempotency table in its own module
@@ -274,6 +288,13 @@ class VectorStore:
                 "CREATE INDEX IF NOT EXISTS idx_session_checkpoints_project "
                 "ON session_checkpoints(project)"
             )
+
+        # v8: project_snapshots table (created in executescript above for new DBs;
+        # existing DBs get it via CREATE TABLE IF NOT EXISTS in the script).
+        if existing < 8:
+            # No additional ALTER TABLE needed — the table is created idempotently
+            # by CREATE TABLE IF NOT EXISTS in the executescript block above.
+            pass
 
         if existing < SCHEMA_VERSION:
             self.conn.execute(

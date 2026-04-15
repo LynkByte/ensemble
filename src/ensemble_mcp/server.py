@@ -1,6 +1,6 @@
 """MCP server setup and tool registration.
 
-Registers all 17 tools with the MCP protocol and runs the stdio server.
+Registers all 19 tools with the MCP protocol and runs the stdio server.
 """
 
 from __future__ import annotations
@@ -309,6 +309,27 @@ TOOL_DEFINITIONS: list[Tool] = [
             "required": ["project_path", "file_path"],
         },
     ),
+    Tool(
+        name="project_snapshot",
+        description=(
+            "Generate a compact project baseline summary from the codebase index. "
+            "Returns language, framework, conventions, directory structure, test setup, "
+            "build tools, and key files. Cached with mtime-based invalidation."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "project_path": {"type": "string"},
+                "force": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Force regeneration even if cached",
+                },
+                "idempotency_key": {"type": "string"},
+            },
+            "required": ["project_path"],
+        },
+    ),
     # ── Utility ──
     Tool(
         name="health",
@@ -345,6 +366,46 @@ TOOL_DEFINITIONS: list[Tool] = [
                 "idempotency_key": {"type": "string", "description": "Optional idempotency key"},
             },
             "required": ["text"],
+        },
+    ),
+    Tool(
+        name="context_prepare",
+        description=(
+            "Prepare and order prompt sections for optimal LLM cache hit rates. "
+            "Sorts sections by priority (static → project → task) to maximize "
+            "the stable prefix that LLM providers can cache across calls."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "Section name"},
+                            "content": {"type": "string", "description": "Section content"},
+                            "priority": {
+                                "type": "string",
+                                "enum": ["static", "project", "task"],
+                                "description": "Cache priority tier",
+                            },
+                        },
+                        "required": ["name", "content", "priority"],
+                    },
+                    "description": "Sections to prepare and order",
+                },
+                "compress_sections": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Optionally compress each section via the compression engine",
+                },
+                "idempotency_key": {
+                    "type": "string",
+                    "description": "Optional idempotency key",
+                },
+            },
+            "required": ["sections"],
         },
     ),
 ]
@@ -399,6 +460,8 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]
             return cast(dict[str, Any], await indexer.project_query(conn, **arguments))
         case "project_dependencies":
             return cast(dict[str, Any], await indexer.project_dependencies(conn, **arguments))
+        case "project_snapshot":
+            return cast(dict[str, Any], await indexer.project_snapshot(conn, **arguments))
 
         # Utility
         case "health":
@@ -409,6 +472,8 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]
         # Compress
         case "context_compress":
             return cast(dict[str, Any], await compress.context_compress(conn, **arguments))
+        case "context_prepare":
+            return cast(dict[str, Any], await compress.context_prepare(conn, **arguments))
 
         case _:
             return {
@@ -466,6 +531,7 @@ async def _reset(store: VectorStore, *, confirm: bool = False, **_: Any) -> dict
         "skill_usage_tracking",
         "drift_history",
         "session_checkpoints",
+        "project_snapshots",
         "idempotency_keys",
     ]
     for table in tables:
