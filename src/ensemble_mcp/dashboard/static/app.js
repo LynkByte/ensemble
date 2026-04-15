@@ -111,7 +111,7 @@ function dashboard() {
             switch (pageId) {
                 case 'overview':
                     await Promise.all([this.loadSummary(), this.loadDrift(), this.loadReportSummary()]);
-                    this.$nextTick(() => this.renderDriftChart());
+                    this.$nextTick(() => requestAnimationFrame(() => this.renderDriftChart()));
                     break;
                 case 'patterns':
                     await this.loadPatterns();
@@ -137,7 +137,7 @@ function dashboard() {
                         this.loadReportHistory(),
                         this.loadReportSummary(),
                     ]);
-                    this.$nextTick(() => this.renderHealthChart());
+                    this.$nextTick(() => requestAnimationFrame(() => this.renderHealthChart()));
                     break;
             }
         },
@@ -563,8 +563,12 @@ function dashboard() {
             const canvas = document.getElementById('driftChart');
             if (!canvas) return;
 
+            const ctx = canvas.getContext('2d');
+            if (!ctx || canvas.clientWidth === 0 || canvas.clientHeight === 0) return;
+
             if (this._driftChart) {
                 this._driftChart.destroy();
+                this._driftChart = null;
             }
 
             // Reverse to show chronological order (oldest first)
@@ -572,51 +576,60 @@ function dashboard() {
             const labels = sorted.map(d => this.formatDateShort(d.created_at));
             const scores = sorted.map(d => d.score);
 
-            this._driftChart = new Chart(canvas, {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: 'Drift Score',
-                        data: scores,
-                        borderColor: '#F97316',
-                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
-                        fill: true,
-                        tension: 0.3,
-                        pointRadius: 3,
-                        pointBackgroundColor: scores.map(s =>
-                            s < 0.3 ? '#10B981' : s < 0.6 ? '#F59E0B' : '#EF4444'
-                        ),
-                    }],
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            min: 0,
-                            max: 1,
-                            ticks: { color: '#9CA3AF' },
-                            grid: { color: '#374151' },
+            try {
+                this._driftChart = new Chart(canvas, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Drift Score',
+                            data: scores,
+                            borderColor: '#F97316',
+                            backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 3,
+                            pointBackgroundColor: scores.map(s =>
+                                s < 0.3 ? '#10B981' : s < 0.6 ? '#F59E0B' : '#EF4444'
+                            ),
+                        }],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        scales: {
+                            y: {
+                                min: 0,
+                                max: 1,
+                                ticks: { color: '#9CA3AF' },
+                                grid: { color: '#374151' },
+                            },
+                            x: {
+                                ticks: { color: '#9CA3AF', maxTicksLimit: 15 },
+                                grid: { color: '#374151' },
+                            },
                         },
-                        x: {
-                            ticks: { color: '#9CA3AF', maxTicksLimit: 15 },
-                            grid: { color: '#374151' },
+                        plugins: {
+                            legend: { labels: { color: '#D1D5DB' } },
                         },
                     },
-                    plugins: {
-                        legend: { labels: { color: '#D1D5DB' } },
-                    },
-                },
-            });
+                });
+            } catch (e) {
+                console.warn('Failed to render drift chart:', e);
+            }
         },
 
         renderLangChart() {
             const canvas = document.getElementById('langChart');
             if (!canvas || !this.projectDetail.languages) return;
 
+            const ctx = canvas.getContext('2d');
+            if (!ctx || canvas.clientWidth === 0 || canvas.clientHeight === 0) return;
+
             if (this._langChart) {
                 this._langChart.destroy();
+                this._langChart = null;
             }
 
             const data = this.projectDetail.languages.slice(0, 10);
@@ -625,67 +638,81 @@ function dashboard() {
                 '#F59E0B', '#06B6D4', '#EF4444', '#84CC16', '#6366F1',
             ];
 
-            this._langChart = new Chart(canvas, {
-                type: 'doughnut',
-                data: {
-                    labels: data.map(l => l.language),
-                    datasets: [{
-                        data: data.map(l => l.count),
-                        backgroundColor: colors.slice(0, data.length),
-                    }],
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: { color: '#D1D5DB', font: { size: 11 } },
+            try {
+                this._langChart = new Chart(canvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.map(l => l.language),
+                        datasets: [{
+                            data: data.map(l => l.count),
+                            backgroundColor: colors.slice(0, data.length),
+                        }],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { color: '#D1D5DB', font: { size: 11 } },
+                            },
                         },
                     },
-                },
-            });
+                });
+            } catch (e) {
+                console.warn('Failed to render language chart:', e);
+            }
         },
 
         renderRoleChart() {
             const canvas = document.getElementById('roleChart');
             if (!canvas || !this.projectDetail.roles) return;
 
+            const ctx = canvas.getContext('2d');
+            if (!ctx || canvas.clientWidth === 0 || canvas.clientHeight === 0) return;
+
             if (this._roleChart) {
                 this._roleChart.destroy();
+                this._roleChart = null;
             }
 
             const data = this.projectDetail.roles.slice(0, 10);
 
-            this._roleChart = new Chart(canvas, {
-                type: 'bar',
-                data: {
-                    labels: data.map(r => r.role),
-                    datasets: [{
-                        label: 'Files',
-                        data: data.map(r => r.count),
-                        backgroundColor: '#3B82F6',
-                    }],
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    indexAxis: 'y',
-                    scales: {
-                        x: {
-                            ticks: { color: '#9CA3AF' },
-                            grid: { color: '#374151' },
+            try {
+                this._roleChart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: data.map(r => r.role),
+                        datasets: [{
+                            label: 'Files',
+                            data: data.map(r => r.count),
+                            backgroundColor: '#3B82F6',
+                        }],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        indexAxis: 'y',
+                        scales: {
+                            x: {
+                                ticks: { color: '#9CA3AF' },
+                                grid: { color: '#374151' },
+                            },
+                            y: {
+                                ticks: { color: '#9CA3AF' },
+                                grid: { display: false },
+                            },
                         },
-                        y: {
-                            ticks: { color: '#9CA3AF' },
-                            grid: { display: false },
+                        plugins: {
+                            legend: { display: false },
                         },
                     },
-                    plugins: {
-                        legend: { display: false },
-                    },
-                },
-            });
+                });
+            } catch (e) {
+                console.warn('Failed to render role chart:', e);
+            }
         },
 
         renderHealthChart() {
@@ -694,8 +721,12 @@ function dashboard() {
             const canvas = document.getElementById('healthChart');
             if (!canvas) return;
 
+            const ctx = canvas.getContext('2d');
+            if (!ctx || canvas.clientWidth === 0 || canvas.clientHeight === 0) return;
+
             if (this._healthChart) {
                 this._healthChart.destroy();
+                this._healthChart = null;
             }
 
             const labels = this.reportHistory.map(h => {
@@ -703,86 +734,91 @@ function dashboard() {
                 return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             });
 
-            this._healthChart = new Chart(canvas, {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [
-                        {
-                            label: 'Health Score',
-                            data: this.reportHistory.map(h => h.health),
-                            borderColor: '#10B981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            fill: true,
-                            tension: 0.3,
-                            pointRadius: 4,
-                            yAxisID: 'y',
-                        },
-                        {
-                            label: 'Bugs',
-                            data: this.reportHistory.map(h => h.bugs),
-                            borderColor: '#EF4444',
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            fill: false,
-                            tension: 0.3,
-                            pointRadius: 4,
-                            yAxisID: 'y1',
-                        },
-                        {
-                            label: 'Tests Passed',
-                            data: this.reportHistory.map(h => h.tests_passed),
-                            borderColor: '#3B82F6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            fill: false,
-                            tension: 0.3,
-                            pointRadius: 4,
-                            yAxisID: 'y1',
-                        },
-                    ],
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
-                    scales: {
-                        y: {
-                            type: 'linear',
-                            position: 'left',
-                            min: 0,
-                            max: 100,
-                            title: {
-                                display: true,
-                                text: 'Health Score',
-                                color: '#9CA3AF',
+            try {
+                this._healthChart = new Chart(canvas, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [
+                            {
+                                label: 'Health Score',
+                                data: this.reportHistory.map(h => h.health),
+                                borderColor: '#10B981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 4,
+                                yAxisID: 'y',
                             },
-                            ticks: { color: '#9CA3AF' },
-                            grid: { color: '#374151' },
-                        },
-                        y1: {
-                            type: 'linear',
-                            position: 'right',
-                            min: 0,
-                            title: {
-                                display: true,
-                                text: 'Count',
-                                color: '#9CA3AF',
+                            {
+                                label: 'Bugs',
+                                data: this.reportHistory.map(h => h.bugs),
+                                borderColor: '#EF4444',
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                fill: false,
+                                tension: 0.3,
+                                pointRadius: 4,
+                                yAxisID: 'y1',
                             },
-                            ticks: { color: '#9CA3AF' },
-                            grid: { drawOnChartArea: false },
+                            {
+                                label: 'Tests Passed',
+                                data: this.reportHistory.map(h => h.tests_passed),
+                                borderColor: '#3B82F6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                fill: false,
+                                tension: 0.3,
+                                pointRadius: 4,
+                                yAxisID: 'y1',
+                            },
+                        ],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
                         },
-                        x: {
-                            ticks: { color: '#9CA3AF', maxTicksLimit: 10 },
-                            grid: { color: '#374151' },
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                position: 'left',
+                                min: 0,
+                                max: 100,
+                                title: {
+                                    display: true,
+                                    text: 'Health Score',
+                                    color: '#9CA3AF',
+                                },
+                                ticks: { color: '#9CA3AF' },
+                                grid: { color: '#374151' },
+                            },
+                            y1: {
+                                type: 'linear',
+                                position: 'right',
+                                min: 0,
+                                title: {
+                                    display: true,
+                                    text: 'Count',
+                                    color: '#9CA3AF',
+                                },
+                                ticks: { color: '#9CA3AF' },
+                                grid: { drawOnChartArea: false },
+                            },
+                            x: {
+                                ticks: { color: '#9CA3AF', maxTicksLimit: 10 },
+                                grid: { color: '#374151' },
+                            },
+                        },
+                        plugins: {
+                            legend: { labels: { color: '#D1D5DB' } },
                         },
                     },
-                    plugins: {
-                        legend: { labels: { color: '#D1D5DB' } },
-                    },
-                },
-            });
+                });
+            } catch (e) {
+                console.warn('Failed to render health chart:', e);
+            }
         },
 
         // ── Formatting helpers ───────────────────────────────────
