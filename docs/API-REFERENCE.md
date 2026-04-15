@@ -1,6 +1,6 @@
 # API Reference
 
-Complete reference for all 16 MCP tools provided by **ensemble-mcp** (14 core tools + `health` + `reset`).
+Complete reference for all 19 MCP tools provided by **ensemble-mcp** across 8 categories: Patterns (3), Drift (1), Routing (1), Skills (3), Session (3), Indexer (4), Compress (2), and Utility (2).
 
 ## Response Envelope
 
@@ -97,7 +97,6 @@ Remove old/unused patterns that have zero match count and are older than the con
 | Name | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `max_age_days` | integer | no | 90 | Age threshold in days |
-| `min_score` | number | no | 0.3 | Minimum score threshold |
 | `idempotency_key` | string | no | null | Dedup key |
 
 **Response `data`:**
@@ -333,7 +332,7 @@ Pipeline checkpoint state with optimistic versioning.
 
 ### `session_save`
 
-Save pipeline checkpoint state. Supports optimistic versioning to prevent concurrent overwrites.
+Save pipeline checkpoint state. Supports optimistic versioning to prevent concurrent overwrites. When `original_request` is provided, an embedding is generated for semantic search via `session_search`.
 
 **Parameters:**
 
@@ -342,6 +341,16 @@ Save pipeline checkpoint state. Supports optimistic versioning to prevent concur
 | `session_id` | string | yes | — | Session identifier |
 | `state` | object | yes | — | Arbitrary pipeline state to checkpoint |
 | `version` | integer | no | null | Expected version for optimistic lock |
+| `original_request` | string | no | null | The user's original request (enables semantic search) |
+| `decisions` | array[string] | no | null | Key decisions made during the pipeline |
+| `completed_steps` | array[string] | no | null | Steps completed so far |
+| `remaining_steps` | array[string] | no | null | Steps remaining to complete |
+| `files_changed` | array[string] | no | null | Files modified during the pipeline |
+| `errors` | array[string] | no | null | Errors encountered during the pipeline |
+| `context_for_resume` | string | no | null | Key context needed to resume without re-deriving |
+| `task_classification` | string | no | null | `trivial`, `simple`, `standard`, `complex` |
+| `status` | string | no | `running` | Pipeline status |
+| `project` | string | no | null | Project path for scoped search |
 | `idempotency_key` | string | no | null | Dedup key |
 
 **Version behavior:**
@@ -380,9 +389,15 @@ Load the latest checkpoint, or a specific session's checkpoint.
   "found": true,
   "session_id": "sess_a1b2c3d4e5f6",
   "state": { "step": 3, "files_processed": ["a.py", "b.py"] },
-  "version": 2
+  "version": 2,
+  "original_request": "Add user authentication",
+  "task_classification": "standard",
+  "status": "running",
+  "project": "/path/to/project"
 }
 ```
+
+Fields `original_request`, `task_classification`, `status`, and `project` are included only when non-null (backward compatible with older data).
 
 **Response `data` (not found):**
 
@@ -393,6 +408,45 @@ Load the latest checkpoint, or a specific session's checkpoint.
 ```
 
 **Possible errors:** None (returns `found: false` instead of erroring)
+
+---
+
+### `session_search`
+
+Search sessions by semantic similarity to a query string. Embeds the query and compares against stored session embeddings using cosine similarity.
+
+**Parameters:**
+
+| Name | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `query` | string | yes | — | Semantic search query |
+| `top_k` | integer | no | 5 | Maximum results to return |
+| `project` | string | no | null | Filter by project |
+| `status` | string | no | null | Filter by status (e.g., `running`, `completed`) |
+| `idempotency_key` | string | no | null | Dedup key |
+
+**Response `data`:**
+
+```json
+{
+  "matches": [
+    {
+      "session_id": "sess_a1b2c3d4e5f6",
+      "score": 0.823,
+      "version": 3,
+      "created_at": "2026-04-15T10:00:00",
+      "original_request": "Add user authentication",
+      "task_classification": "standard",
+      "status": "completed",
+      "project": "/path/to/project"
+    }
+  ]
+}
+```
+
+**Note:** Only sessions saved with an `original_request` (which generates an embedding) are searchable. Sessions without embeddings are excluded from search results.
+
+**Possible errors:** None (returns empty matches on no results)
 
 ---
 
@@ -504,9 +558,64 @@ Get the import/dependency graph for a specific file: what it imports, what impor
 
 ---
 
-## Context Compression
+### `project_snapshot`
 
-Rule-based text compression for reducing token usage.
+Generate or return a cached compact project baseline summary from the codebase index. Returns language, framework, conventions, directory structure, test setup, build tools, and key files. Results are cached with mtime-based invalidation.
+
+**Parameters:**
+
+| Name | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `project_path` | string | yes | — | Path to project root |
+| `force` | boolean | no | false | Force regeneration even if cached |
+| `idempotency_key` | string | no | null | Dedup key |
+
+**Response `data`:**
+
+```json
+{
+  "snapshot": {
+    "project_path": "/path/to/project",
+    "language": "python",
+    "framework": null,
+    "conventions": [
+      "snake_case file naming",
+      "test files present (12 files)",
+      "Python package structure (__init__.py)"
+    ],
+    "structure": {
+      "src": "source",
+      "tests": "tests",
+      "docs": "documentation"
+    },
+    "test_setup": {
+      "framework": "pytest",
+      "pattern_dir": "tests"
+    },
+    "build_tools": ["pyproject.toml", "docker"],
+    "key_files": [
+      {
+        "path": "src/ensemble_mcp/server.py",
+        "role": "",
+        "exports": ["serve", "_dispatch_tool", "_health"]
+      }
+    ]
+  },
+  "cached": false,
+  "files_hash": "a1b2c3d4e5f6g7h8"
+}
+```
+
+**Note:** Requires `project_index` to have been run first. The snapshot is cached for 24 hours (configurable) and invalidated when file modification times change.
+
+**Possible errors:**
+- `NOT_FOUND_PROJECT` — project not indexed (run `project_index` first)
+
+---
+
+## Context Compression & Prompt Caching
+
+Rule-based text compression and prompt section ordering for reducing token usage and optimizing LLM cache hit rates.
 
 ### `context_compress`
 
@@ -543,6 +652,69 @@ Compress verbose natural language text into terse, token-efficient form while pr
 
 ---
 
+### `context_prepare`
+
+Prepare and order prompt sections for optimal LLM cache hit rates. Sorts sections by priority (static → project → task) to maximize the stable prefix that LLM providers can cache across calls. Optionally compresses each section through the compression engine.
+
+**Parameters:**
+
+| Name | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `sections` | array[object] | yes | — | Sections to prepare, each with `name`, `content`, and `priority` |
+| `compress_sections` | boolean | no | false | Optionally compress each section via the compression engine |
+| `idempotency_key` | string | no | null | Dedup key |
+
+Each section object requires:
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | Section name |
+| `content` | string | Section content |
+| `priority` | string | Cache priority tier: `"static"`, `"project"`, or `"task"` |
+
+**Priority tiers:**
+- `static` — System prompt, rules, instructions (most cacheable, placed first)
+- `project` — Project conventions, structure, context (medium cacheability)
+- `task` — Current request, diff, task-specific content (least cacheable, placed last)
+
+**Response `data`:**
+
+```json
+{
+  "prepared_text": "...(ordered and optionally compressed sections)...",
+  "section_count": 3,
+  "prefix_stable_bytes": 2048,
+  "sections": [
+    {
+      "name": "system-prompt",
+      "priority": "static",
+      "original_bytes": 1200,
+      "prepared_bytes": 1100
+    },
+    {
+      "name": "project-conventions",
+      "priority": "project",
+      "original_bytes": 800,
+      "prepared_bytes": 750
+    },
+    {
+      "name": "current-task",
+      "priority": "task",
+      "original_bytes": 500,
+      "prepared_bytes": 480
+    }
+  ]
+}
+```
+
+`prefix_stable_bytes` indicates the byte count of the stable prefix (static + project sections) that LLM providers can cache across calls.
+
+**Possible errors:**
+- `VALIDATION_MISSING_FIELD` — sections list is empty
+- `VALIDATION_INVALID_VALUE` — section missing required keys or invalid priority
+
+---
+
 ## Utility
 
 ### `health`
@@ -556,7 +728,7 @@ Server health check. Returns status, version, database size, and pattern count.
 ```json
 {
   "status": "ok",
-  "version": "0.1.0a4",
+  "version": "0.1.0b4",
   "db_size_bytes": 524288,
   "pattern_count": 42,
   "server_name": "ensemble-mcp"
@@ -569,7 +741,7 @@ Server health check. Returns status, version, database size, and pattern count.
 
 ### `reset`
 
-Reset all stored data. This is a **destructive operation** — it deletes all patterns, sessions, steps, checkpoints, and other data from all 12 tables.
+Reset all stored data. This is a **destructive operation** — it deletes all patterns, sessions, steps, checkpoints, and other data from all tables.
 
 **Parameters:**
 

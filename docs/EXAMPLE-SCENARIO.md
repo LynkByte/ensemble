@@ -344,12 +344,13 @@ A fast, accurate AI agent that:
 
 | Capability | Tool | Developer Benefit |
 |---|---|---|
-| Pattern memory | `patterns_search` / `patterns_store` | Agent reuses approaches that worked before |
+| Pattern memory | `patterns_search` / `patterns_store` / `patterns_prune` | Agent reuses approaches that worked before |
 | Cost optimization | `model_recommend` | Cheapest viable model per task — ~60% savings vs always using opus |
 | Scope control | `drift_check` | Changes stay on-task, no silent scope creep |
-| Crash recovery | `session_save` / `session_load` | Resume mid-task after terminal close or crash |
-| Codebase awareness | `project_index` / `project_query` / `project_dependencies` | Agent navigates the codebase without re-exploring from scratch |
-| Learned skills | `skills_suggest` / `skills_generate` | Patterns crystallize into permanent project skills |
+| Crash recovery | `session_save` / `session_load` / `session_search` | Resume mid-task after terminal close or crash; find past sessions semantically |
+| Codebase awareness | `project_index` / `project_query` / `project_dependencies` / `project_snapshot` | Agent navigates the codebase without re-exploring from scratch |
+| Learned skills | `skills_discover` / `skills_suggest` / `skills_generate` | Patterns crystallize into permanent project skills |
+| Token efficiency | `context_compress` / `context_prepare` | Reduce token usage and optimize LLM cache hits |
 
 ### Key point
 

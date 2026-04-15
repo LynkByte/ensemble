@@ -28,10 +28,12 @@ This installs the package in editable mode plus development tools:
 | Tool | Version | Purpose |
 |---|---|---|
 | pytest | >= 8.0 | Test runner |
-| pytest-asyncio | >= 0.24 | Async test support |
-| pytest-cov | >= 5.0 | Coverage reporting |
+| pytest-asyncio | >= 1.3.0 | Async test support |
+| pytest-aiohttp | >= 1.0 | aiohttp test support |
+| pytest-cov | >= 7.1.0 | Coverage reporting |
 | ruff | >= 0.4 | Linting and formatting |
-| mypy | >= 1.10 | Static type checking |
+| mypy | >= 1.20.1 | Static type checking |
+| build | >= 1.0 | Package building |
 
 ## Running Tests
 
@@ -70,26 +72,34 @@ Tests are async by default (`asyncio_mode = "auto"` in pyproject.toml).
 
 The project has test files covering all implemented features:
 
-| Test File | Tests | Coverage |
-|---|---|---|
-| `test_contracts.py` | 30 | Envelope, ToolError, tool_handler decorator |
-| `test_lifecycle.py` | 18 | Session/step state machine transitions |
-| `test_idempotency.py` | 8 | Key storage, expiry, replay |
-| `test_redaction.py` | 15 | All 9 secret patterns + edge cases |
-| `test_trust.py` | 14 | Validators, confirmation enforcement |
-| `test_similarity.py` | 13 | Cosine similarity, search, pairwise matrix |
-| `test_embeddings.py` | 6 | Model loading, embed, normalize |
-| `test_patterns.py` | 11 | Store, search, prune tools |
-| `test_drift.py` | 5 | Drift check, verdicts, flags |
-| `test_routing.py` | 9 | All agent/classification combinations |
-| `test_session.py` | 9 | Save, load, optimistic versioning |
-| `test_indexer.py` | 34 | Index, query, dependencies, language parsers |
-| `test_skills.py` | 12 | Discover, suggest, generate, clustering |
-| `test_config.py` | 16 | Settings loading, TOML, env overrides |
-| `test_installer.py` | 50 | Tool detection, registration, config read/write, CLI |
-| `test_mcp_tracking.py` | 5 | MCP call recording |
-| `test_banner.py` | 4 | Server startup banner |
-| `test_download_progress.py` | 7 | Model download with progress bar |
+| Test File | Coverage |
+|---|---|
+| `test_contracts.py` | Envelope, ToolError, tool_handler decorator |
+| `test_lifecycle.py` | Session/step state machine transitions |
+| `test_idempotency.py` | Key storage, expiry, replay |
+| `test_redaction.py` | All 9 secret patterns + edge cases |
+| `test_trust.py` | Validators, confirmation enforcement |
+| `test_similarity.py` | Cosine similarity, search, pairwise matrix |
+| `test_embeddings.py` | Model loading, embed, normalize |
+| `test_patterns.py` | Store, search, prune tools |
+| `test_drift.py` | Drift check, verdicts, flags |
+| `test_drift_history.py` | Drift history persistence and querying |
+| `test_routing.py` | All agent/classification combinations |
+| `test_session.py` | Save, load, search, optimistic versioning |
+| `test_indexer.py` | Index, query, dependencies, language parsers |
+| `test_project_snapshot.py` | Snapshot generation, caching, invalidation |
+| `test_skills.py` | Discover, suggest, generate, clustering |
+| `test_config.py` | Settings loading, TOML, env overrides |
+| `test_schema.py` | Schema creation, migrations |
+| `test_installer.py` | Tool detection, registration, config read/write, CLI |
+| `test_mcp_tracking.py` | MCP call recording |
+| `test_banner.py` | Server startup banner |
+| `test_download_progress.py` | Model download with progress bar |
+| `test_compress.py` | Context compression tool |
+| `test_compress_engine.py` | Compression engine pipeline |
+| `test_context_prepare.py` | Prompt section ordering and cache optimization |
+| `test_dashboard_api.py` | Dashboard JSON API endpoints |
+| `test___main__.py` | CLI entry point and subcommand dispatch |
 
 ## Linting and Formatting
 
@@ -144,7 +154,7 @@ warn_return_any = true
 disallow_untyped_defs = true
 ```
 
-External libraries `onnxruntime`, `tokenizers`, `mcp`, and `rich` have `ignore_missing_imports = true`.
+External libraries `onnxruntime`, `tokenizers`, `mcp`, `rich`, and `aiohttp` have `ignore_missing_imports = true`.
 
 ## Code Conventions
 
@@ -282,12 +292,19 @@ ensemble/
 ├── README.md              # Project overview
 ├── pyproject.toml         # Package config, deps, tool settings
 ├── docs/
-│   ├── DESIGN-SPEC.md         # Executive design spec
-│   ├── DESIGN-SPEC-PHASE-01.md # MCP server design spec
-│   ├── SETUP.md               # Installation and setup guide
 │   ├── ARCHITECTURE.md        # Technical architecture
 │   ├── API-REFERENCE.md       # MCP tool API reference
-│   └── CONTRIBUTING.md        # This file
+│   ├── BUSINESS-CASE.md       # Business case and value proposition
+│   ├── CONTRIBUTING.md        # This file
+│   ├── DASHBOARD-DESIGN.md    # Dashboard design system
+│   ├── DESIGN-SPEC.md         # Executive design spec
+│   ├── DESIGN-SPEC-PHASE-01.md # MCP server design spec
+│   ├── EXAMPLE-SCENARIO.md    # End-to-end usage walkthrough
+│   ├── FUTURE-PLANS.md        # Future roadmap
+│   ├── RELEASING.md           # Release process guide
+│   ├── SETUP.md               # Installation and setup guide
+│   └── UNINSTALL.md           # Uninstallation guide
+├── evals/                # Eval framework and benchmarks
 ├── src/ensemble_mcp/     # Source code
 └── tests/                # Test suite
 ```
@@ -313,7 +330,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ensemble-mcp
 
 ### Check what the server exposes
 
-All 15 tools are defined in `src/ensemble_mcp/server.py` in the `TOOL_DEFINITIONS` list. The tool names, descriptions, and JSON schemas are all there.
+All 19 tools are defined in `src/ensemble_mcp/server.py` in the `TOOL_DEFINITIONS` list. The tool names, descriptions, and JSON schemas are all there.
 
 ## Docker (CI / Isolation Only)
 

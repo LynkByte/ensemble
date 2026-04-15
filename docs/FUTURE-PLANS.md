@@ -6,7 +6,7 @@ title: Future Plans
 
 > Features planned for post-Phase 6 development. These are documented for visibility and to guide architectural decisions in the current implementation so we don't paint ourselves into a corner.
 
-**Last updated:** 2026-04-10
+**Last updated:** 2026-04-15
 
 ---
 
@@ -63,13 +63,13 @@ This stays consistent with the project's zero-external-dependency philosophy and
 
 | Layer | Choice | Rationale |
 |-------|--------|-----------|
-| HTTP Server | Python stdlib `http.server` or `aiohttp` | Already in the Python process. stdlib = zero new deps. `aiohttp` (~2MB) if async is needed |
+| HTTP Server | `aiohttp` | Already a runtime dependency for async HTTP; ~2MB |
 | Frontend | Alpine.js + Chart.js (CDN or vendored) | No build step, ~30KB total, sufficient for read-only dashboards |
 | Templating | Single HTML file with inline Alpine.js | No template engine dependency |
 | Data | Direct SQLite reads (same `data.db`) | Zero additional infrastructure |
-| Styling | Tailwind CSS (CDN) or minimal custom CSS | Clean look, no build step |
+| Styling | Custom CSS (Kinetic Architect design system) | Clean look, no build step |
 
-**Dependency impact:** If using stdlib — zero new dependencies. If using `aiohttp` — adds ~2MB to the existing ~90MB package. Either is acceptable.
+**Dependency impact:** `aiohttp` is already a runtime dependency (used by the dashboard server), so the dashboard adds zero new dependencies.
 
 **Future frontend migration:** The initial implementation uses Alpine.js for simplicity and zero build tooling. If the dashboard grows in complexity, migrating to React, Vue, or Svelte is straightforward since the backend is a clean JSON API. The API contract won't change — only the frontend would be swapped.
 
@@ -671,19 +671,16 @@ Stale detection works by tracking when `skills_discover` last matched each skill
 
 ### 11.9 Configuration
 
-All thresholds are configurable via `team-config.json`:
+All thresholds are configurable via `~/.config/ensemble-mcp/config.toml` (global) or `.ensemble-mcp.toml` (project-level):
 
-```json
-{
-  "skill_intelligence": {
-    "enabled": true,
-    "min_cluster_size": 3,
-    "cluster_similarity_threshold": 0.75,
-    "stale_threshold_days": 60,
-    "output_dir": ".ai/skills/",
-    "auto_suggest_after_pipeline": true
-  }
-}
+```toml
+[skill_intelligence]
+enabled = true
+min_cluster_size = 3
+cluster_similarity_threshold = 0.75
+stale_threshold_days = 60
+output_dir = ".ai/skills/"
+auto_suggest_after_pipeline = true
 ```
 
 | Parameter | Default | Description |
