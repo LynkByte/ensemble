@@ -6,6 +6,8 @@
     <title>ensemble-mcp Dashboard</title>
     <script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2/dist/tailwind.min.css" rel="stylesheet">
     <link href="/static/style.css" rel="stylesheet">
 </head>
@@ -92,6 +94,36 @@
                 <div class="card">
                     <div class="text-3xl font-bold text-pink-400" x-text="summary.session_count || 0"></div>
                     <div class="text-gray-400 text-sm mt-1">Sessions</div>
+                </div>
+            </div>
+
+            <!-- Bug Hunter Reports Card -->
+            <div class="card mb-8" x-show="reportSummary.available">
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-lg font-semibold">Bug Hunter Report</h2>
+                    <button @click="navigate('reports')" class="btn btn-sm">View Full Report</button>
+                </div>
+                <div class="flex items-center gap-6">
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-400 text-sm">Health Score:</span>
+                        <span class="text-2xl font-bold"
+                            :class="(reportSummary.health_score || 0) >= 80 ? 'text-green-400' :
+                                    (reportSummary.health_score || 0) >= 60 ? 'text-yellow-400' : 'text-red-400'"
+                            x-text="reportSummary.health_score != null ? reportSummary.health_score + '/100' : 'N/A'"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-400 text-sm">Bugs:</span>
+                        <span class="text-2xl font-bold text-red-400"
+                            x-text="reportSummary.latest ? reportSummary.latest.bugs : 'N/A'"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-400 text-sm">Trend:</span>
+                        <span class="text-sm font-medium px-2 py-0.5 rounded"
+                            :class="reportSummary.trend === 'improving' ? 'bg-green-900 text-green-300' :
+                                    reportSummary.trend === 'declining' ? 'bg-red-900 text-red-300' :
+                                    'bg-gray-700 text-gray-300'"
+                            x-text="reportSummary.trend || 'unknown'"></span>
+                    </div>
                 </div>
             </div>
 
@@ -612,6 +644,54 @@
                         <h3 class="text-sm font-semibold text-gray-400 mb-2">State</h3>
                         <pre class="bg-gray-800 rounded p-4 overflow-x-auto text-sm text-gray-300" x-text="JSON.stringify(sessionDetail.state, null, 2)"></pre>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Page -->
+        <div x-show="page === 'reports'" x-cloak>
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-2xl font-bold">Bug Hunter Reports</h1>
+                <div class="flex items-center gap-4" x-show="reportSummary.available">
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-400 text-sm">Health:</span>
+                        <span class="text-xl font-bold"
+                            :class="(reportSummary.health_score || 0) >= 80 ? 'text-green-400' :
+                                    (reportSummary.health_score || 0) >= 60 ? 'text-yellow-400' : 'text-red-400'"
+                            x-text="reportSummary.health_score != null ? reportSummary.health_score + '/100' : 'N/A'"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-400 text-sm">Bugs:</span>
+                        <span class="text-xl font-bold text-red-400"
+                            x-text="reportSummary.latest ? reportSummary.latest.bugs : '0'"></span>
+                    </div>
+                    <span class="text-sm font-medium px-2 py-0.5 rounded"
+                        :class="reportSummary.trend === 'improving' ? 'bg-green-900 text-green-300' :
+                                reportSummary.trend === 'declining' ? 'bg-red-900 text-red-300' :
+                                'bg-gray-700 text-gray-300'"
+                        x-text="reportSummary.trend || 'unknown'"></span>
+                </div>
+            </div>
+
+            <!-- Health Trend Chart -->
+            <div class="card mb-6" x-show="reportHistory.length > 0">
+                <h2 class="text-lg font-semibold mb-4">Health Trend</h2>
+                <div class="chart-container">
+                    <canvas id="healthChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Rendered Markdown Report -->
+            <div class="card" x-show="reportMarkdown">
+                <h2 class="text-lg font-semibold mb-4">Full Report</h2>
+                <div class="report-markdown" x-html="renderedMarkdown"></div>
+            </div>
+
+            <!-- No reports available -->
+            <div x-show="!reportSummary.available && !reportLoading" class="card">
+                <div class="text-gray-500 text-center py-8">
+                    <p class="text-lg mb-2">No reports available</p>
+                    <p class="text-sm">Run Bug Hunter to generate reports, or configure <code>--reports-dir</code> when starting the dashboard.</p>
                 </div>
             </div>
         </div>

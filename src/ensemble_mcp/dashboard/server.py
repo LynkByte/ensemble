@@ -36,7 +36,7 @@ def _ensure_db_ready(db_path: Path) -> None:
         conn.close()
 
 
-def _create_app(db_path: Path = DB_PATH) -> web.Application:
+def _create_app(db_path: Path = DB_PATH, reports_dir: Path | None = None) -> web.Application:
     """Build the aiohttp application with all routes."""
     # Ensure DB directory and tables exist before serving requests
     _ensure_db_ready(db_path)
@@ -45,6 +45,9 @@ def _create_app(db_path: Path = DB_PATH) -> web.Application:
 
     # Store db_path in app state for handlers to access
     app["db_path"] = db_path
+
+    # Store reports_dir in app state for report handlers
+    app["reports_dir"] = reports_dir
 
     # Register JSON API routes
     register_api_routes(app)
@@ -68,6 +71,7 @@ def start_dashboard(  # pragma: no cover — blocking server + browser open
     port: int = DASHBOARD_DEFAULT_PORT,
     open_browser: bool = True,
     db_path: Path = DB_PATH,
+    reports_dir: Path | None = None,
 ) -> None:
     """Start the dashboard HTTP server.
 
@@ -75,8 +79,9 @@ def start_dashboard(  # pragma: no cover — blocking server + browser open
         port: Port to bind on (default 8787).
         open_browser: Whether to auto-open the browser.
         db_path: Path to the SQLite database.
+        reports_dir: Directory containing Bug Hunter report files.
     """
-    app = _create_app(db_path=db_path)
+    app = _create_app(db_path=db_path, reports_dir=reports_dir)
     url = f"http://{DASHBOARD_HOST}:{port}"
 
     logger.info("Starting ensemble-mcp dashboard v%s", SERVER_VERSION)

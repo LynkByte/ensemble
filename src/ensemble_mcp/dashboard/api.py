@@ -15,6 +15,7 @@ import json
 import logging
 import sqlite3
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
@@ -230,6 +231,11 @@ def register_api_routes(app: web.Application) -> None:
     app.router.add_post("/api/reset", handle_reset)
     app.router.add_post("/api/projects/{path:.+}/reindex", handle_project_reindex)
     app.router.add_delete("/api/projects/{path:.+}", handle_project_delete)
+
+    # Reports endpoints (filesystem-backed, read-only)
+    app.router.add_get("/api/reports/markdown", handle_reports_markdown)
+    app.router.add_get("/api/reports/history", handle_reports_history)
+    app.router.add_get("/api/reports/summary", handle_reports_summary)
 
 
 # ── Endpoint handlers ─────────────────────────────────────────────
@@ -1422,3 +1428,224 @@ async def handle_project_health(request: web.Request) -> web.Response:
         )
     finally:
         conn.close()
+
+
+# ── Reports endpoint handlers ─────────────────────────────────────
+
+
+def _sync_read_text(path: Path, *, max_size: int | None = None) -> tuple[str, int, str]:
+    """Read a text file from disk (blocking) and return content with metadata.
+
+    Designed to run via ``asyncio.to_thread`` to avoid blocking the
+    event loop. Performs ``stat()`` and ``read_text()`` atomically
+    within the same thread to avoid TOCTOU races.
+
+    Args:
+        path: File to read.
+        max_size: Optional maximum file size in bytes. If the file exceeds
+            this limit a ``ValueError`` is raised *before* reading.
+
+    Returns:
+        A tuple of ``(content, file_size, modified_at_iso)``.
+
+    Raises:
+        ValueError: If the file exceeds *max_size* bytes.
+    """
+    stat = path.stat()
+    file_size = stat.st_size
+    modified_at = datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat()
+
+    if max_size is not None and file_size > max_size:
+        raise ValueError(
+            f"File size ({file_size} bytes) exceeds maximum allowed ({max_size} bytes)"
+        )
+
+    content = path.read_text(encoding="utf-8")
+    return content, file_size, modified_at
+
+
+async def handle_reports_markdown(request: web.Request) -> web.Response:
+    """Read ``bug-hunter-report.md`` from the reports directory.
+
+    Returns the raw markdown string, file size, and modification time
+    inside the standard response envelope.
+    """
+    start = time.monotonic()
+    reports_dir: Path | None = request.app.get("reports_dir")
+
+    if reports_dir is None or not reports_dir.is_dir():
+        return _error_envelope(
+            "Reports directory not found or not configured",
+            code="NOT_FOUND_REPORTS_DIR",
+        )
+
+    report_path = reports_dir / "bug-hunter-report.md"
+    if not report_path.is_file():
+        return _error_envelope(
+            "Report file not found: bug-hunter-report.md",
+            code="NOT_FOUND_REPORT_FILE",
+        )
+
+    try:
+        markdown, file_size, modified_at = await asyncio.to_thread(_sync_read_text, report_path)
+    except OSError as exc:
+        return _error_envelope(
+            f"Failed to read report file: {exc}",
+            code="IO_READ_ERROR",
+            status=500,
+        )
+
+    elapsed = int((time.monotonic() - start) * 1000)
+    return _json_ok(
+        {
+            "markdown": markdown,
+            "file_size": file_size,
+            "modified_at": modified_at,
+        },
+        duration_ms=elapsed,
+    )
+
+
+async def handle_reports_history(request: web.Request) -> web.Response:
+    """Read and parse ``history.json`` from the reports directory.
+
+    Returns the parsed JSON array of scan objects and a count.
+    """
+    start = time.monotonic()
+    reports_dir: Path | None = request.app.get("reports_dir")
+
+    if reports_dir is None or not reports_dir.is_dir():
+        return _error_envelope(
+            "Reports directory not found or not configured",
+            code="NOT_FOUND_REPORTS_DIR",
+        )
+
+    history_path = reports_dir / "history.json"
+    if not history_path.is_file():
+        return _error_envelope(
+            "History file not found: history.json",
+            code="NOT_FOUND_REPORT_FILE",
+        )
+
+    try:
+        raw, _, _ = await asyncio.to_thread(_sync_read_text, history_path, max_size=50_000_000)
+        history = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        return _error_envelope(
+            f"Failed to read or parse history file: {exc}",
+            code="IO_READ_ERROR",
+            status=500,
+        )
+    except ValueError as exc:
+        return _error_envelope(
+            f"History file too large: {exc}",
+            code="VALIDATION_CONSTRAINT",
+            status=413,
+        )
+    except OSError as exc:
+        return _error_envelope(
+            f"Failed to read or parse history file: {exc}",
+            code="IO_READ_ERROR",
+            status=500,
+        )
+
+    if not isinstance(history, list):
+        return _error_envelope(
+            "history.json must contain a JSON array",
+            code="VALIDATION_INVALID_TYPE",
+            status=500,
+        )
+
+    elapsed = int((time.monotonic() - start) * 1000)
+    return _json_ok(
+        {"history": history, "count": len(history)},
+        duration_ms=elapsed,
+    )
+
+
+async def handle_reports_summary(request: web.Request) -> web.Response:
+    """Compute a summary from ``history.json`` for the overview card.
+
+    Returns whether reports are available, the latest scan entry,
+    a trend direction (improving/declining/stable), and the current
+    health score.
+    """
+    start = time.monotonic()
+    reports_dir: Path | None = request.app.get("reports_dir")
+
+    if reports_dir is None or not reports_dir.is_dir():
+        elapsed = int((time.monotonic() - start) * 1000)
+        return _json_ok(
+            {
+                "available": False,
+                "latest": None,
+                "trend": "unknown",
+                "health_score": None,
+            },
+            duration_ms=elapsed,
+        )
+
+    history_path = reports_dir / "history.json"
+    if not history_path.is_file():
+        elapsed = int((time.monotonic() - start) * 1000)
+        return _json_ok(
+            {
+                "available": False,
+                "latest": None,
+                "trend": "unknown",
+                "health_score": None,
+            },
+            duration_ms=elapsed,
+        )
+
+    try:
+        raw, _, _ = await asyncio.to_thread(_sync_read_text, history_path)
+        history = json.loads(raw)
+    except (OSError, json.JSONDecodeError):
+        elapsed = int((time.monotonic() - start) * 1000)
+        return _json_ok(
+            {
+                "available": False,
+                "latest": None,
+                "trend": "unknown",
+                "health_score": None,
+            },
+            duration_ms=elapsed,
+        )
+
+    if not isinstance(history, list) or len(history) == 0:
+        elapsed = int((time.monotonic() - start) * 1000)
+        return _json_ok(
+            {
+                "available": False,
+                "latest": None,
+                "trend": "unknown",
+                "health_score": None,
+            },
+            duration_ms=elapsed,
+        )
+
+    latest = history[-1]
+    health_score = latest.get("health")
+
+    # Determine trend from the last two entries
+    trend = "stable"
+    if len(history) >= 2:
+        prev = history[-2]
+        prev_health = prev.get("health", 0)
+        curr_health = latest.get("health", 0)
+        if curr_health > prev_health:
+            trend = "improving"
+        elif curr_health < prev_health:
+            trend = "declining"
+
+    elapsed = int((time.monotonic() - start) * 1000)
+    return _json_ok(
+        {
+            "available": True,
+            "latest": latest,
+            "trend": trend,
+            "health_score": health_score,
+        },
+        duration_ms=elapsed,
+    )
