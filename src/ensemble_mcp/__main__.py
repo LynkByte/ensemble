@@ -50,8 +50,8 @@ def main() -> None:
     web_parser.add_argument(
         "--reports-dir",
         type=Path,
-        default=Path("./reports"),
-        help="Directory containing Bug Hunter report files (default: ./reports).",
+        default=None,
+        help="Directory containing Bug Hunter report files (auto-detected if not set).",
     )
 
     # ── install ───────────────────────────────────────────────────
@@ -267,6 +267,46 @@ def _run_serve() -> None:
     serve()
 
 
+def _resolve_reports_dir(explicit: Path | None) -> Path | None:
+    """Auto-discover the Bug Hunter reports directory.
+
+    Resolution order:
+      1. Explicitly provided path (via ``--reports-dir``)
+      2. ``./reports`` relative to the current working directory
+      3. ``<git-root>/reports`` if inside a git repository
+    """
+    import subprocess
+
+    # 1. Explicit path from CLI
+    if explicit is not None:
+        resolved = explicit.resolve()
+        if resolved.is_dir():
+            return resolved
+        return None
+
+    # 2. CWD / reports
+    cwd_reports = Path.cwd() / "reports"
+    if cwd_reports.is_dir():
+        return cwd_reports.resolve()
+
+    # 3. Git root / reports
+    try:
+        result = subprocess.run(  # noqa: S603, S607
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            git_reports = Path(result.stdout.strip()) / "reports"
+            if git_reports.is_dir():
+                return git_reports.resolve()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    return None
+
+
 def _run_web(args: argparse.Namespace) -> None:
     """Start the web dashboard."""
     from ensemble_mcp.config.defaults import DASHBOARD_DEFAULT_PORT
@@ -274,7 +314,7 @@ def _run_web(args: argparse.Namespace) -> None:
 
     port = args.port if args.port is not None else DASHBOARD_DEFAULT_PORT
     open_browser = not args.no_open
-    reports_dir = args.reports_dir.resolve() if args.reports_dir else None
+    reports_dir = _resolve_reports_dir(args.reports_dir)
     start_dashboard(port=port, open_browser=open_browser, reports_dir=reports_dir)
 
 
