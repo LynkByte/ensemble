@@ -169,9 +169,11 @@ class TestSkillsGenerate:
         self,
         test_conn: sqlite3.Connection,
         tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ):
+        monkeypatch.chdir(tmp_path)
         sid = await self._create_suggestion(test_conn)
-        output_dir = str(tmp_path / "skills")
+        output_dir = "skills"
 
         env = await skills_generate(
             test_conn,
@@ -231,6 +233,32 @@ class TestSkillsGenerate:
             test_conn,
             suggestion_id=sid,
             action="invalid",
+        )
+        assert env["ok"] is False
+        assert env["error"]["code"] == "VALIDATION_INVALID_VALUE"
+
+    @pytest.mark.asyncio
+    async def test_path_traversal_rejected(self, test_conn: sqlite3.Connection):
+        """Reject output_dir values that contain '..' path traversal segments."""
+        sid = await self._create_suggestion(test_conn)
+        env = await skills_generate(
+            test_conn,
+            suggestion_id=sid,
+            action="accept",
+            output_dir="../../etc",
+        )
+        assert env["ok"] is False
+        assert env["error"]["code"] == "VALIDATION_INVALID_VALUE"
+
+    @pytest.mark.asyncio
+    async def test_absolute_path_rejected(self, test_conn: sqlite3.Connection):
+        """Reject output_dir values that are absolute paths."""
+        sid = await self._create_suggestion(test_conn)
+        env = await skills_generate(
+            test_conn,
+            suggestion_id=sid,
+            action="accept",
+            output_dir="/etc",
         )
         assert env["ok"] is False
         assert env["error"]["code"] == "VALIDATION_INVALID_VALUE"

@@ -247,7 +247,7 @@ def _generate_skill_content(patterns: list[dict[str, Any]], proposed_name: str) 
 
 ---
 *Source patterns: {", ".join(str(p["id"]) for p in patterns)}*
-*Generated: {datetime.now().strftime("%Y-%m-%d")}*
+*Generated: {datetime.now(tz=UTC).strftime("%Y-%m-%d")}*
 """
 
 
@@ -434,7 +434,7 @@ async def skills_suggest(
     conn.commit()
 
     # Detect stale skills
-    stale_cutoff = (datetime.now() - timedelta(days=stale_threshold_days)).isoformat()
+    stale_cutoff = (datetime.now(tz=UTC) - timedelta(days=stale_threshold_days)).isoformat()
     stale_rows = conn.execute(
         "SELECT skill_path, last_matched_at, match_count "
         "FROM skill_usage_tracking "
@@ -446,7 +446,9 @@ async def skills_suggest(
     for r in stale_rows:
         last_matched = r[1]
         if last_matched:
-            days_unused = (datetime.now() - datetime.fromisoformat(last_matched)).days
+            # SQLite stores naive UTC strings; make aware before comparing
+            parsed = datetime.fromisoformat(last_matched).replace(tzinfo=UTC)
+            days_unused = (datetime.now(tz=UTC) - parsed).days
         else:
             days_unused = stale_threshold_days
         stale_skills.append(
@@ -535,10 +537,21 @@ async def skills_generate(
     proposed_content = row[2]
     project = row[4]
 
+    # Validate output_dir: reject absolute paths and path traversal
+    if Path(output_dir).is_absolute() or ".." in Path(output_dir).parts:
+        raise ToolError(
+            code=ErrorCode.VALIDATION_INVALID_VALUE,
+            message="output_dir must be a relative path without '..' segments",
+            details={"output_dir": output_dir},
+        )
+
+    # Sanitize proposed_name to prevent path injection via DB-sourced values
+    safe_name = proposed_name.replace("/", "_").replace("\\", "_")
+
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    file_name = f"{proposed_name}.md"
+    file_name = f"{safe_name}.md"
     file_path = output_path / file_name
     file_path.write_text(proposed_content, encoding="utf-8")
 

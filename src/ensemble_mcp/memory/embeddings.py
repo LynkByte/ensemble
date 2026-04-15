@@ -51,7 +51,7 @@ def _download_with_progress(url: str, dest: Path, label: str) -> None:
     Raises ``ToolError(IO_MODEL_DOWNLOAD)`` on any network failure.
     """
     try:
-        response = urllib.request.urlopen(url)  # noqa: S310
+        response = urllib.request.urlopen(url, timeout=30)  # noqa: S310
     except (urllib.error.URLError, OSError) as exc:
         raise ToolError(
             code=ErrorCode.IO_MODEL_DOWNLOAD,
