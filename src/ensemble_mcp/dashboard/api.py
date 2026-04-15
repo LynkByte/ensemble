@@ -889,18 +889,10 @@ async def handle_pattern_prune(request: web.Request) -> web.Response:
     body = await _parse_json_body(request)
 
     max_age_days = body.get("max_age_days", 90)
-    min_score = body.get("min_score", 0.3)
 
     if not isinstance(max_age_days, int) or isinstance(max_age_days, bool) or max_age_days < 1:
         return _error_envelope(
             "max_age_days must be a positive integer",
-            code="VALIDATION_INVALID_VALUE",
-            status=400,
-        )
-
-    if not isinstance(min_score, (int, float)) or isinstance(min_score, bool) or min_score < 0:
-        return _error_envelope(
-            "min_score must be a non-negative number",
             code="VALIDATION_INVALID_VALUE",
             status=400,
         )
@@ -923,7 +915,6 @@ async def handle_pattern_prune(request: web.Request) -> web.Response:
                 "pruned": pruned,
                 "remaining": remaining,
                 "max_age_days": max_age_days,
-                "min_score": min_score,
             },
             duration_ms=elapsed,
         )

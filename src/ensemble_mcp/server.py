@@ -6,6 +6,7 @@ Registers all 19 tools with the MCP protocol and runs the stdio server.
 from __future__ import annotations
 
 import asyncio
+import atexit
 import json
 import logging
 import time
@@ -16,6 +17,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
 from .config.defaults import SERVER_NAME, SERVER_VERSION
+from .config.settings import load_settings
 from .memory.store import VectorStore
 from .security.trust import require_confirmation
 from .tools import (
@@ -36,9 +38,15 @@ _store: VectorStore | None = None
 
 
 def _get_store() -> VectorStore:
+    """Lazily initialize the global VectorStore.
+
+    Uses ``load_settings()`` to resolve the database path from the
+    layered config (defaults → global config → project config → env).
+    """
     global _store
     if _store is None:
-        _store = VectorStore()
+        settings = load_settings()
+        _store = VectorStore(db_path=settings.db_path)
     return _store
 
 
@@ -48,12 +56,22 @@ TOOL_DEFINITIONS: list[Tool] = [
     # ── Patterns ──
     Tool(
         name="patterns_search",
-        description="Search stored patterns by semantic similarity. Returns top-K matches.",
+        description=(
+            "Search stored patterns by semantic similarity. Returns top-K matches. "
+            "Note: has write side effects — increments match_count and updates "
+            "last_matched_at on returned patterns (used by prune to identify unused patterns)."
+        ),
         inputSchema={
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "Semantic search query"},
-                "top_k": {"type": "integer", "default": 3, "description": "Max results"},
+                "top_k": {
+                    "type": "integer",
+                    "default": 3,
+                    "description": "Max results",
+                    "minimum": 1,
+                    "maximum": 100,
+                },
                 "project": {"type": "string", "description": "Optional project scope"},
                 "idempotency_key": {"type": "string", "description": "Optional idempotency key"},
             },
@@ -82,8 +100,12 @@ TOOL_DEFINITIONS: list[Tool] = [
         inputSchema={
             "type": "object",
             "properties": {
-                "max_age_days": {"type": "integer", "default": 90},
-                "min_score": {"type": "number", "default": 0.3},
+                "max_age_days": {
+                    "type": "integer",
+                    "default": 90,
+                    "minimum": 1,
+                    "maximum": 3650,
+                },
                 "idempotency_key": {"type": "string"},
             },
         },
@@ -144,8 +166,18 @@ TOOL_DEFINITIONS: list[Tool] = [
             "type": "object",
             "properties": {
                 "project_path": {"type": "string"},
-                "min_cluster_size": {"type": "integer", "default": 3},
-                "stale_threshold_days": {"type": "integer", "default": 60},
+                "min_cluster_size": {
+                    "type": "integer",
+                    "default": 3,
+                    "minimum": 2,
+                    "maximum": 50,
+                },
+                "stale_threshold_days": {
+                    "type": "integer",
+                    "default": 60,
+                    "minimum": 1,
+                    "maximum": 3650,
+                },
                 "idempotency_key": {"type": "string"},
             },
             "required": ["project_path"],
@@ -157,7 +189,7 @@ TOOL_DEFINITIONS: list[Tool] = [
         inputSchema={
             "type": "object",
             "properties": {
-                "suggestion_id": {"type": "integer"},
+                "suggestion_id": {"type": "integer", "minimum": 1},
                 "action": {"type": "string", "enum": ["accept", "dismiss", "defer"]},
                 "output_dir": {"type": "string", "default": ".ai/skills/"},
                 "idempotency_key": {"type": "string"},
@@ -217,7 +249,7 @@ TOOL_DEFINITIONS: list[Tool] = [
                 },
                 "status": {
                     "type": "string",
-                    "description": "Pipeline status (default: in_progress)",
+                    "description": "Pipeline status (default: running)",
                 },
                 "project": {
                     "type": "string",
@@ -255,6 +287,8 @@ TOOL_DEFINITIONS: list[Tool] = [
                     "type": "integer",
                     "default": 5,
                     "description": "Max results",
+                    "minimum": 1,
+                    "maximum": 100,
                 },
                 "project": {
                     "type": "string",
@@ -262,7 +296,7 @@ TOOL_DEFINITIONS: list[Tool] = [
                 },
                 "status": {
                     "type": "string",
-                    "description": "Filter by status (e.g. in_progress, completed)",
+                    "description": "Filter by status (e.g. running, completed)",
                 },
                 "idempotency_key": {"type": "string"},
             },
@@ -557,6 +591,9 @@ def serve() -> None:
     from .cli.banner import print_banner
 
     print_banner()
+
+    # Register cleanup handler to close the database connection on exit
+    atexit.register(lambda: _store.close() if _store is not None else None)
 
     app = Server(SERVER_NAME)
 

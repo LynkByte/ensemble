@@ -70,7 +70,6 @@ async def patterns_prune(
     store: VectorStore,
     *,
     max_age_days: int = 90,
-    min_score: float = 0.3,
     idempotency_key: str | None = None,
 ) -> dict[str, Any]:
     """Remove old/unused patterns (zero match_count, older than max_age_days)."""
@@ -80,7 +79,6 @@ async def patterns_prune(
 
     pruned, remaining = store.prune_patterns(
         max_age_days=max_age_days,
-        min_score=min_score,
     )
 
     result = {"pruned": pruned, "remaining": remaining}
