@@ -405,3 +405,137 @@ input:focus {
         padding: 1rem;
     }
 }
+
+/* ── Rendered markdown styles (dark theme) ────────────────────── */
+
+.report-markdown {
+    line-height: 1.7;
+    color: #D1D5DB;
+}
+
+.report-markdown h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #F3F4F6;
+    margin: 1.5rem 0 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid #374151;
+}
+
+.report-markdown h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #F3F4F6;
+    margin: 1.25rem 0 0.5rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid #374151;
+}
+
+.report-markdown h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #E5E7EB;
+    margin: 1rem 0 0.4rem;
+}
+
+.report-markdown h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #E5E7EB;
+    margin: 0.75rem 0 0.3rem;
+}
+
+.report-markdown p {
+    margin: 0.5rem 0;
+}
+
+.report-markdown ul,
+.report-markdown ol {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.report-markdown li {
+    margin: 0.25rem 0;
+}
+
+.report-markdown table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75rem 0;
+    font-size: 0.875rem;
+}
+
+.report-markdown th {
+    background-color: #374151;
+    color: #E5E7EB;
+    text-transform: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: normal;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border: 1px solid #4B5563;
+}
+
+.report-markdown td {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #4B5563;
+    color: #D1D5DB;
+}
+
+.report-markdown tr:nth-child(even) {
+    background-color: rgba(55, 65, 81, 0.3);
+}
+
+.report-markdown code {
+    background-color: #374151;
+    color: #10B981;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.85em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.report-markdown pre {
+    background-color: #111827;
+    border: 1px solid #374151;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+    max-height: 400px;
+}
+
+.report-markdown pre code {
+    background: none;
+    padding: 0;
+    color: #D1D5DB;
+}
+
+.report-markdown hr {
+    border: none;
+    border-top: 1px solid #374151;
+    margin: 1.5rem 0;
+}
+
+.report-markdown blockquote {
+    border-left: 3px solid #4B5563;
+    padding-left: 1rem;
+    margin: 0.75rem 0;
+    color: #9CA3AF;
+}
+
+.report-markdown strong {
+    color: #F3F4F6;
+    font-weight: 600;
+}
+
+.report-markdown a {
+    color: #3B82F6;
+    text-decoration: underline;
+}
+
+.report-markdown a:hover {
+    color: #60A5FA;
+}

@@ -47,6 +47,12 @@ def main() -> None:
         default=False,
         help="Don't auto-open browser.",
     )
+    web_parser.add_argument(
+        "--reports-dir",
+        type=Path,
+        default=Path("./reports"),
+        help="Directory containing Bug Hunter report files (default: ./reports).",
+    )
 
     # ── install ───────────────────────────────────────────────────
     install_parser = subparsers.add_parser(
@@ -268,7 +274,8 @@ def _run_web(args: argparse.Namespace) -> None:
 
     port = args.port if args.port is not None else DASHBOARD_DEFAULT_PORT
     open_browser = not args.no_open
-    start_dashboard(port=port, open_browser=open_browser)
+    reports_dir = args.reports_dir.resolve() if args.reports_dir else None
+    start_dashboard(port=port, open_browser=open_browser, reports_dir=reports_dir)
 
 
 def _run_install(args: argparse.Namespace) -> None:

@@ -19,6 +19,7 @@ function dashboard() {
             { id: 'projects', label: 'Projects' },
             { id: 'drift', label: 'Drift' },
             { id: 'sessions', label: 'Sessions' },
+            { id: 'reports', label: 'Reports' },
             { id: 'settings', label: 'Settings' },
         ],
 
@@ -82,6 +83,13 @@ function dashboard() {
         _driftChart: null,
         _langChart: null,
         _roleChart: null,
+        _healthChart: null,
+
+        // Reports
+        reportMarkdown: '',
+        reportHistory: [],
+        reportSummary: {},
+        reportLoading: false,
 
         async init() {
             await this.loadHealth();
@@ -102,7 +110,7 @@ function dashboard() {
         async loadPage(pageId) {
             switch (pageId) {
                 case 'overview':
-                    await Promise.all([this.loadSummary(), this.loadDrift()]);
+                    await Promise.all([this.loadSummary(), this.loadDrift(), this.loadReportSummary()]);
                     this.$nextTick(() => this.renderDriftChart());
                     break;
                 case 'patterns':
@@ -122,6 +130,14 @@ function dashboard() {
                     break;
                 case 'settings':
                     await Promise.all([this.loadSettings(), this.loadSettingsSchema()]);
+                    break;
+                case 'reports':
+                    await Promise.all([
+                        this.loadReportMarkdown(),
+                        this.loadReportHistory(),
+                        this.loadReportSummary(),
+                    ]);
+                    this.$nextTick(() => this.renderHealthChart());
                     break;
             }
         },
@@ -308,6 +324,47 @@ function dashboard() {
             const data = await this.api(`/api/projects/${encodeURIComponent(projectPath)}/health`);
             if (data) {
                 this.projectHealth = data;
+            }
+        },
+
+        // ── Report loaders ──────────────────────────────────────
+
+        async loadReportMarkdown() {
+            this.reportLoading = true;
+            const data = await this.api('/api/reports/markdown');
+            this.reportLoading = false;
+            if (data) {
+                this.reportMarkdown = data.markdown || '';
+            } else {
+                this.reportMarkdown = '';
+            }
+        },
+
+        async loadReportHistory() {
+            const data = await this.api('/api/reports/history');
+            if (data) {
+                this.reportHistory = data.history || [];
+            } else {
+                this.reportHistory = [];
+            }
+        },
+
+        async loadReportSummary() {
+            const data = await this.api('/api/reports/summary');
+            if (data) {
+                this.reportSummary = data;
+            } else {
+                this.reportSummary = {};
+            }
+        },
+
+        get renderedMarkdown() {
+            if (!this.reportMarkdown) return '';
+            try {
+                const raw = typeof marked !== 'undefined' ? marked.parse(this.reportMarkdown) : this.reportMarkdown;
+                return typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(raw) : raw;
+            } catch {
+                return this.reportMarkdown;
             }
         },
 
@@ -626,6 +683,103 @@ function dashboard() {
                     },
                     plugins: {
                         legend: { display: false },
+                    },
+                },
+            });
+        },
+
+        renderHealthChart() {
+            if (this.reportHistory.length === 0) return;
+
+            const canvas = document.getElementById('healthChart');
+            if (!canvas) return;
+
+            if (this._healthChart) {
+                this._healthChart.destroy();
+            }
+
+            const labels = this.reportHistory.map(h => {
+                const d = new Date(h.date);
+                return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            });
+
+            this._healthChart = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Health Score',
+                            data: this.reportHistory.map(h => h.health),
+                            borderColor: '#10B981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 4,
+                            yAxisID: 'y',
+                        },
+                        {
+                            label: 'Bugs',
+                            data: this.reportHistory.map(h => h.bugs),
+                            borderColor: '#EF4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            fill: false,
+                            tension: 0.3,
+                            pointRadius: 4,
+                            yAxisID: 'y1',
+                        },
+                        {
+                            label: 'Tests Passed',
+                            data: this.reportHistory.map(h => h.tests_passed),
+                            borderColor: '#3B82F6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: false,
+                            tension: 0.3,
+                            pointRadius: 4,
+                            yAxisID: 'y1',
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            min: 0,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Health Score',
+                                color: '#9CA3AF',
+                            },
+                            ticks: { color: '#9CA3AF' },
+                            grid: { color: '#374151' },
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            min: 0,
+                            title: {
+                                display: true,
+                                text: 'Count',
+                                color: '#9CA3AF',
+                            },
+                            ticks: { color: '#9CA3AF' },
+                            grid: { drawOnChartArea: false },
+                        },
+                        x: {
+                            ticks: { color: '#9CA3AF', maxTicksLimit: 10 },
+                            grid: { color: '#374151' },
+                        },
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#D1D5DB' } },
                     },
                 },
             });

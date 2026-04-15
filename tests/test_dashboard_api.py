@@ -19,10 +19,15 @@ from ensemble_mcp.state.idempotency import ensure_idempotency_table
 from ensemble_mcp.state.locks import get_connection
 
 
-def _create_test_app(db_path: Path, global_config_path: Path | None = None) -> web.Application:
+def _create_test_app(
+    db_path: Path,
+    global_config_path: Path | None = None,
+    reports_dir: Path | None = None,
+) -> web.Application:
     """Create a minimal dashboard app for testing."""
     app = web.Application()
     app["db_path"] = db_path
+    app["reports_dir"] = reports_dir
     if global_config_path is not None:
         app["global_config_path"] = global_config_path
     register_api_routes(app)
@@ -902,3 +907,243 @@ class TestIndexMutations:
         assert resp.status == 404
         body = await resp.json()
         assert body["ok"] is False
+
+
+class TestReportsEndpoints:
+    """Tests for Bug Hunter reports endpoints."""
+
+    @pytest.fixture()
+    def reports_dir(self, tmp_path):
+        """Create a temporary reports directory with mock report files."""
+        rdir = tmp_path / "reports"
+        rdir.mkdir()
+
+        # Write a mock markdown report
+        (rdir / "bug-hunter-report.md").write_text(
+            "# Bug Hunter Report\n\n"
+            "## Summary\n\n"
+            "| Metric | Value |\n"
+            "|--------|-------|\n"
+            "| **Total Bugs** | 5 |\n"
+            "| **Health Score** | 90 |\n",
+            encoding="utf-8",
+        )
+
+        # Write a mock history file
+        history = [
+            {
+                "date": "2026-04-15 12:00:00",
+                "health": 70,
+                "bugs": 10,
+                "smells": 8,
+                "critical": 0,
+                "high": 2,
+                "medium": 5,
+                "low_info": 3,
+                "tests_passed": 400,
+                "tests_errors": 5,
+            },
+            {
+                "date": "2026-04-15 18:00:00",
+                "health": 85,
+                "bugs": 5,
+                "smells": 4,
+                "critical": 0,
+                "high": 0,
+                "medium": 3,
+                "low_info": 2,
+                "tests_passed": 450,
+                "tests_errors": 0,
+            },
+        ]
+        (rdir / "history.json").write_text(json.dumps(history), encoding="utf-8")
+
+        return rdir
+
+    @pytest.fixture()
+    async def reports_client(self, seeded_db, reports_dir, aiohttp_client):
+        """Create an aiohttp test client with reports_dir configured."""
+        app = _create_test_app(seeded_db, reports_dir=reports_dir)
+        return await aiohttp_client(app)
+
+    @pytest.fixture()
+    async def no_reports_client(self, seeded_db, aiohttp_client):
+        """Create an aiohttp test client without reports_dir configured."""
+        app = _create_test_app(seeded_db, reports_dir=None)
+        return await aiohttp_client(app)
+
+    # ── /api/reports/markdown ─────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_markdown_returns_content(self, reports_client):
+        resp = await reports_client.get("/api/reports/markdown")
+        assert resp.status == 200
+        body = await resp.json()
+        assert body["ok"] is True
+        assert "# Bug Hunter Report" in body["data"]["markdown"]
+        assert body["data"]["file_size"] > 0
+        assert "modified_at" in body["data"]
+
+    @pytest.mark.asyncio
+    async def test_markdown_404_when_reports_dir_missing(self, no_reports_client):
+        resp = await no_reports_client.get("/api/reports/markdown")
+        assert resp.status == 404
+        body = await resp.json()
+        assert body["ok"] is False
+        assert "NOT_FOUND_REPORTS_DIR" in body["error"]["code"]
+
+    @pytest.mark.asyncio
+    async def test_markdown_404_when_file_missing(self, seeded_db, tmp_path, aiohttp_client):
+        """Reports dir exists but the markdown file is not present."""
+        empty_dir = tmp_path / "empty_reports"
+        empty_dir.mkdir()
+        app = _create_test_app(seeded_db, reports_dir=empty_dir)
+        client = await aiohttp_client(app)
+
+        resp = await client.get("/api/reports/markdown")
+        assert resp.status == 404
+        body = await resp.json()
+        assert body["ok"] is False
+        assert "NOT_FOUND_REPORT_FILE" in body["error"]["code"]
+
+    # ── /api/reports/history ──────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_history_returns_parsed_json(self, reports_client):
+        resp = await reports_client.get("/api/reports/history")
+        assert resp.status == 200
+        body = await resp.json()
+        assert body["ok"] is True
+        assert body["data"]["count"] == 2
+        history = body["data"]["history"]
+        assert len(history) == 2
+        assert history[0]["health"] == 70
+        assert history[1]["health"] == 85
+
+    @pytest.mark.asyncio
+    async def test_history_404_when_reports_dir_missing(self, no_reports_client):
+        resp = await no_reports_client.get("/api/reports/history")
+        assert resp.status == 404
+        body = await resp.json()
+        assert body["ok"] is False
+        assert "NOT_FOUND_REPORTS_DIR" in body["error"]["code"]
+
+    @pytest.mark.asyncio
+    async def test_history_404_when_file_missing(self, seeded_db, tmp_path, aiohttp_client):
+        """Reports dir exists but history.json is missing."""
+        dir_no_history = tmp_path / "no_history"
+        dir_no_history.mkdir()
+        app = _create_test_app(seeded_db, reports_dir=dir_no_history)
+        client = await aiohttp_client(app)
+
+        resp = await client.get("/api/reports/history")
+        assert resp.status == 404
+        body = await resp.json()
+        assert body["ok"] is False
+        assert "NOT_FOUND_REPORT_FILE" in body["error"]["code"]
+
+    @pytest.mark.asyncio
+    async def test_history_500_when_invalid_json(self, seeded_db, tmp_path, aiohttp_client):
+        """Returns error when history.json contains invalid JSON."""
+        bad_dir = tmp_path / "bad_reports"
+        bad_dir.mkdir()
+        (bad_dir / "history.json").write_text("not valid json{{{", encoding="utf-8")
+        app = _create_test_app(seeded_db, reports_dir=bad_dir)
+        client = await aiohttp_client(app)
+
+        resp = await client.get("/api/reports/history")
+        assert resp.status == 500
+        body = await resp.json()
+        assert body["ok"] is False
+        assert "IO_READ_ERROR" in body["error"]["code"]
+
+    @pytest.mark.asyncio
+    async def test_history_500_when_root_is_not_list(self, seeded_db, tmp_path, aiohttp_client):
+        """Returns VALIDATION_INVALID_TYPE when history.json root is a dict, not a list."""
+        bad_dir = tmp_path / "nonlist_reports"
+        bad_dir.mkdir()
+        (bad_dir / "history.json").write_text("{}", encoding="utf-8")
+        app = _create_test_app(seeded_db, reports_dir=bad_dir)
+        client = await aiohttp_client(app)
+
+        resp = await client.get("/api/reports/history")
+        assert resp.status == 500
+        body = await resp.json()
+        assert body["ok"] is False
+        assert "VALIDATION_INVALID_TYPE" in body["error"]["code"]
+
+    # ── /api/reports/summary ──────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_summary_returns_computed_data(self, reports_client):
+        resp = await reports_client.get("/api/reports/summary")
+        assert resp.status == 200
+        body = await resp.json()
+        assert body["ok"] is True
+        data = body["data"]
+        assert data["available"] is True
+        assert data["health_score"] == 85
+        assert data["trend"] == "improving"
+        assert data["latest"]["bugs"] == 5
+
+    @pytest.mark.asyncio
+    async def test_summary_unavailable_when_no_dir(self, no_reports_client):
+        """Summary returns available=False when reports dir is not configured."""
+        resp = await no_reports_client.get("/api/reports/summary")
+        assert resp.status == 200
+        body = await resp.json()
+        assert body["ok"] is True
+        data = body["data"]
+        assert data["available"] is False
+        assert data["latest"] is None
+        assert data["health_score"] is None
+
+    @pytest.mark.asyncio
+    async def test_summary_stable_trend(self, seeded_db, tmp_path, aiohttp_client):
+        """Trend is 'stable' when health scores are equal."""
+        rdir = tmp_path / "stable_reports"
+        rdir.mkdir()
+        history = [
+            {"date": "2026-04-15 12:00:00", "health": 80, "bugs": 5},
+            {"date": "2026-04-15 18:00:00", "health": 80, "bugs": 5},
+        ]
+        (rdir / "history.json").write_text(json.dumps(history), encoding="utf-8")
+        app = _create_test_app(seeded_db, reports_dir=rdir)
+        client = await aiohttp_client(app)
+
+        resp = await client.get("/api/reports/summary")
+        body = await resp.json()
+        assert body["data"]["trend"] == "stable"
+
+    @pytest.mark.asyncio
+    async def test_summary_declining_trend(self, seeded_db, tmp_path, aiohttp_client):
+        """Trend is 'declining' when health score drops."""
+        rdir = tmp_path / "declining_reports"
+        rdir.mkdir()
+        history = [
+            {"date": "2026-04-15 12:00:00", "health": 90, "bugs": 2},
+            {"date": "2026-04-15 18:00:00", "health": 75, "bugs": 8},
+        ]
+        (rdir / "history.json").write_text(json.dumps(history), encoding="utf-8")
+        app = _create_test_app(seeded_db, reports_dir=rdir)
+        client = await aiohttp_client(app)
+
+        resp = await client.get("/api/reports/summary")
+        body = await resp.json()
+        assert body["data"]["trend"] == "declining"
+
+    @pytest.mark.asyncio
+    async def test_summary_single_entry(self, seeded_db, tmp_path, aiohttp_client):
+        """Trend is 'stable' when only one history entry exists."""
+        rdir = tmp_path / "single_reports"
+        rdir.mkdir()
+        history = [{"date": "2026-04-15 12:00:00", "health": 80, "bugs": 5}]
+        (rdir / "history.json").write_text(json.dumps(history), encoding="utf-8")
+        app = _create_test_app(seeded_db, reports_dir=rdir)
+        client = await aiohttp_client(app)
+
+        resp = await client.get("/api/reports/summary")
+        body = await resp.json()
+        assert body["data"]["available"] is True
+        assert body["data"]["trend"] == "stable"
+        assert body["data"]["health_score"] == 80
