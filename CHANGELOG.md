@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0b4] - 2026-04-15
+
+First public beta release with full Kinetic Architect dashboard redesign.
+
+### Added
+- **Kinetic Architect dashboard redesign** — complete visual overhaul of the web dashboard to match the Linear-style dark mode design system
+- **Glassmorphic Cmd+K search bar** — decorative search bar with keyboard shortcut hints in the header
+- **SVG donut ring health score** — replaces plain text health score on the Bug Hunter card with a circular progress visualization
+- **SVG sparklines** — inline sparkline charts next to each metric in the overview status bar
+- **Right-side pattern drawer** — 450px slide-out drawer panel replaces inline expanded rows for pattern detail view and editing
+- **Bottom bento summary cards** — Skills + Projects summary cards with gradient overlays and decorative node visualizations
+- **Floating action button (FAB)** — pulsing bolt icon at bottom-right
+- **Row action hover-reveal** — table action buttons hidden by default, revealed on row hover
+- **Status bar instrument panel** — metrics strip with `surface-container-low` background and wider spacing
+
+### Changed
+- **Sidebar active indicator** — uses `border-l-2` accent bar instead of background-only highlight
+- **Sidebar inactive text** — dimmed `slate-500` ghost text for inactive nav items
+- **Drift chart title** — large sentence-case typography replacing small uppercase style
+- **Bug Hunter CTA** — full-width styled button replacing small inline button
+- **Header depth** — added `shadow-2xl` for visual separation from content
+- **Heading colors** — `text-white` for card section headings across all pages
+
+### Fixed
+- **Tailwind Forms plugin dark mode** — added type-level CSS overrides for all form elements (`input`, `textarea`, `select`) to prevent white backgrounds from the `@tailwindcss/forms` plugin
+- **Form placeholder colors** — fixed placeholder text visibility on dark backgrounds
+- **Form focus rings** — neutralized Tailwind Forms plugin ring styles, applied design system indigo glow
+- **Number input spinners** — added `color-scheme: dark` for native dark mode controls
+- **Chart.js rendering race condition** — resolved timing issue with Alpine.js initialization (from PR #51)
+
+### Technical Notes
+- Zero changes to `app.js`, `api.py`, or `server.py`
+- All 227 Alpine.js directives preserved
+- All 4 Chart.js canvas IDs preserved
+- All 29 CSS class names preserved
+- 573 tests passing
+
 ## [0.1.0b3] - 2026-04-15
 
 Closed beta 3 release with reports directory auto-discovery fix.
