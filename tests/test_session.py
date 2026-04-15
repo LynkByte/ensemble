@@ -101,7 +101,7 @@ class TestSessionSave:
             errors=[],
             context_for_resume="Using Django paginator",
             task_classification="standard",
-            status="in_progress",
+            status="running",
             project="/home/user/myproject",
         )
         assert env["ok"] is True
@@ -116,7 +116,7 @@ class TestSessionSave:
         ).fetchone()
         assert row[0] == "Add pagination to user list"
         assert row[1] == "standard"
-        assert row[2] == "in_progress"
+        assert row[2] == "running"
         assert row[3] == "/home/user/myproject"
 
     @pytest.mark.asyncio
@@ -208,7 +208,7 @@ class TestSessionSave:
 
     @pytest.mark.asyncio
     async def test_save_default_status(self, test_store: VectorStore):
-        """New sessions without explicit status get 'in_progress'."""
+        """New sessions without explicit status get 'running'."""
         await session_save(
             test_store,
             session_id="sess_default_status",
@@ -218,7 +218,7 @@ class TestSessionSave:
             "SELECT status FROM session_checkpoints WHERE session_id = ?",
             ("sess_default_status",),
         ).fetchone()
-        assert row[0] == "in_progress"
+        assert row[0] == "running"
 
 
 # ── session_load ─────────────────────────────────────────────────
@@ -289,14 +289,14 @@ class TestSessionLoad:
             state={"step": 1},
             original_request="Refactor auth module",
             task_classification="complex",
-            status="in_progress",
+            status="running",
             project="/home/user/proj",
         )
         env = await session_load(test_store, session_id="sess_new_cols")
         data = env["data"]
         assert data["original_request"] == "Refactor auth module"
         assert data["task_classification"] == "complex"
-        assert data["status"] == "in_progress"
+        assert data["status"] == "running"
         assert data["project"] == "/home/user/proj"
 
     @pytest.mark.asyncio
@@ -311,8 +311,8 @@ class TestSessionLoad:
         data = env["data"]
         assert "original_request" not in data
         assert "task_classification" not in data
-        # status has DEFAULT 'in_progress' so it will be present
-        assert data["status"] == "in_progress"
+        # status has DEFAULT 'running' so it will be present
+        assert data["status"] == "running"
         assert "project" not in data
 
 
@@ -403,7 +403,7 @@ class TestSessionSearch:
             session_id="sess_active",
             state={"step": 1},
             original_request="build feature",
-            status="in_progress",
+            status="running",
         )
         await session_save(
             test_store,

@@ -41,14 +41,25 @@ def _ensure_tokenizer() -> Tokenizer:
         tokenizer_path = MODEL_DIR / "tokenizer.json"
 
         if not tokenizer_path.exists():
-            # Download to a temp file then atomically rename on success
+            # Download to a temp file then atomically rename on success.
+            # Uses urlopen with timeout instead of urlretrieve (which
+            # has no timeout support).
             import urllib.request
 
             MODEL_DIR.mkdir(parents=True, exist_ok=True)
             tmp_path = tokenizer_path.with_suffix(".tmp")
             logger.info("Downloading tokenizer to %s", tokenizer_path)
             try:
-                urllib.request.urlretrieve(TOKENIZER_URL, tmp_path)  # noqa: S310
+                response = urllib.request.urlopen(TOKENIZER_URL, timeout=30)  # noqa: S310
+                try:
+                    with tmp_path.open("wb") as fp:
+                        while True:
+                            chunk = response.read(64 * 1024)  # 64 KB chunks
+                            if not chunk:
+                                break
+                            fp.write(chunk)
+                finally:
+                    response.close()
                 os.replace(tmp_path, tokenizer_path)
             except Exception:
                 # Clean up partial download on any failure

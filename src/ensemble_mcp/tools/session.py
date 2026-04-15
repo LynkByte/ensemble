@@ -17,6 +17,7 @@ from ..memory.similarity import search_similar
 from ..memory.store import VectorStore
 from ..security.redaction import redact
 from ..state.idempotency import check_idempotency, store_idempotency
+from ..state.lifecycle import SessionState
 
 
 @tool_handler(source="sqlite", confidence="exact")
@@ -53,6 +54,16 @@ async def session_save(
     cached = check_idempotency(conn, idempotency_key)
     if cached is not None:
         return cached
+
+    # Validate status against SessionState enum values
+    if status is not None:
+        valid_values = [s.value for s in SessionState]
+        if status not in valid_values:
+            raise ToolError(
+                code=ErrorCode.VALIDATION_INVALID_VALUE,
+                message=f"Invalid status '{status}'. Valid values: {valid_values}",
+                details={"status": status, "valid_values": valid_values},
+            )
 
     # Build resume sub-dict from optional structured fields
     resume: dict[str, Any] = {}
@@ -94,10 +105,10 @@ async def session_save(
         embedding = store.model.embed(original_request)
         emb_blob = embedding.tobytes()
 
-    # Default status: "in_progress" when caller omits status.
+    # Default status: "running" when caller omits status.
     # Applied to both INSERT and UPDATE so behaviour is consistent —
-    # passing status=None always means "in_progress", not "keep old".
-    effective_status = status or "in_progress"
+    # passing status=None always means "running", not "keep old".
+    effective_status = status or SessionState.RUNNING.value
 
     # Check for existing checkpoint
     existing = conn.execute(

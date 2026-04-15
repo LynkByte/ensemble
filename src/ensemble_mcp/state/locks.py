@@ -6,11 +6,15 @@ manager for operations that need exclusive access.
 
 from __future__ import annotations
 
-import fcntl
 import sqlite3
+import sys
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
+
+_HAS_FCNTL = sys.platform != "win32"
+if _HAS_FCNTL:
+    import fcntl
 
 
 def enable_wal(conn: sqlite3.Connection) -> None:
@@ -33,11 +37,18 @@ def get_connection(db_path: Path) -> sqlite3.Connection:
 def advisory_lock(lock_path: Path) -> Generator[None, None, None]:
     """File-based advisory lock for operations needing exclusive access.
 
+    On Windows (where ``fcntl`` is unavailable), this is a no-op —
+    the body executes without locking.
+
     Usage::
 
         with advisory_lock(Path("/tmp/ensemble-mcp.lock")):
             # exclusive operation
     """
+    if not _HAS_FCNTL:
+        yield
+        return
+
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     lock_file = open(lock_path, "w")  # noqa: SIM115
     try:

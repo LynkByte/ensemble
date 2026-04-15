@@ -228,7 +228,7 @@ def seeded_db(tmp_path):
             embedding BLOB,
             original_request TEXT,
             task_classification TEXT,
-            status TEXT DEFAULT 'in_progress',
+            status TEXT DEFAULT 'running',
             project TEXT,
             UNIQUE(session_id)
         );

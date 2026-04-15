@@ -141,4 +141,9 @@ SNAPSHOT_MAX_FILES_IN_SUMMARY = 50
 
 # ── Server Metadata ───────────────────────────────────────────────
 SERVER_NAME = "ensemble-mcp"
-SERVER_VERSION = "0.1.0a9"
+try:
+    from importlib.metadata import version as _pkg_version
+
+    SERVER_VERSION = _pkg_version("ensemble-mcp")
+except Exception:
+    SERVER_VERSION = "0.0.0-dev"

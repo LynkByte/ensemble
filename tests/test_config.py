@@ -1,9 +1,10 @@
-"""Tests for config modules (settings)."""
+"""Tests for config modules (settings, defaults)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from ensemble_mcp.config.defaults import SERVER_VERSION
 from ensemble_mcp.config.settings import Settings, load_settings
 
 # ── Settings ──────────────────────────────────────────────────────
@@ -47,3 +48,22 @@ class TestSettings:
         assert len(s.source_map) > 0
         for key in ("max_patterns", "default_top_k", "db_path"):
             assert key in s.source_map
+
+
+# ── Version ───────────────────────────────────────────────────────
+
+
+class TestVersion:
+    def test_server_version_is_non_empty_string(self):
+        """SERVER_VERSION should be a non-empty string from importlib.metadata."""
+        assert isinstance(SERVER_VERSION, str)
+        assert len(SERVER_VERSION) > 0
+
+    def test_server_version_is_semver_like(self):
+        """SERVER_VERSION should look like a version string, not a dev fallback."""
+        import re
+
+        assert re.match(r"^\d+\.\d+\.\d+", SERVER_VERSION), (
+            f"Unexpected version format: {SERVER_VERSION}"
+        )
+        assert SERVER_VERSION != "0.0.0-dev", "Should not be the dev fallback"

@@ -18,8 +18,8 @@ import numpy as np
 import pytest
 
 from ensemble_mcp.memory.embeddings import EmbeddingModel
+from ensemble_mcp.memory.schema import ensure_schema
 from ensemble_mcp.memory.store import VectorStore
-from ensemble_mcp.state.idempotency import ensure_idempotency_table
 from ensemble_mcp.state.locks import get_connection
 
 # ── Mock Embedding Model ──────────────────────────────────────────
@@ -75,166 +75,12 @@ def tmp_db(tmp_path: Path) -> Generator[Path, None, None]:
 
 @pytest.fixture()
 def test_conn(tmp_db: Path) -> Generator[sqlite3.Connection, None, None]:
-    """Yield a SQLite connection with all tables created."""
+    """Yield a SQLite connection with all tables created.
+
+    Delegates to ``ensure_schema()`` — the single source of truth for DDL.
+    """
     conn = get_connection(tmp_db)
-
-    # Create all tables (mirror VectorStore._create_tables)
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS schema_version (
-            version INTEGER PRIMARY KEY,
-            applied_at TEXT DEFAULT (datetime('now'))
-        );
-
-        CREATE TABLE IF NOT EXISTS patterns (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            context TEXT NOT NULL,
-            approach TEXT NOT NULL,
-            outcome TEXT NOT NULL,
-            project TEXT,
-            embedding BLOB NOT NULL,
-            created_at TEXT DEFAULT (datetime('now')),
-            last_matched_at TEXT,
-            match_count INTEGER DEFAULT 0
-        );
-
-        CREATE TABLE IF NOT EXISTS mcp_calls (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tool_name TEXT NOT NULL,
-            input_bytes INTEGER DEFAULT 0,
-            output_bytes INTEGER DEFAULT 0,
-            duration_ms INTEGER,
-            called_at TEXT DEFAULT (datetime('now'))
-        );
-
-        CREATE TABLE IF NOT EXISTS project_files (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project_path TEXT NOT NULL,
-            file_path TEXT NOT NULL,
-            language TEXT,
-            role TEXT,
-            size_bytes INTEGER DEFAULT 0,
-            modified_at TEXT NOT NULL,
-            indexed_at TEXT DEFAULT (datetime('now')),
-            UNIQUE(project_path, file_path)
-        );
-
-        CREATE TABLE IF NOT EXISTS file_exports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            file_id INTEGER NOT NULL
-                REFERENCES project_files(id) ON DELETE CASCADE,
-            name TEXT NOT NULL,
-            kind TEXT NOT NULL,
-            line_number INTEGER,
-            signature TEXT,
-            docstring TEXT,
-            UNIQUE(file_id, name, kind)
-        );
-
-        CREATE TABLE IF NOT EXISTS file_imports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            file_id INTEGER NOT NULL
-                REFERENCES project_files(id) ON DELETE CASCADE,
-            import_path TEXT NOT NULL,
-            raw_import TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS skill_suggestions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project TEXT NOT NULL,
-            proposed_name TEXT NOT NULL,
-            proposed_content TEXT NOT NULL,
-            theme TEXT NOT NULL,
-            confidence REAL DEFAULT 0.0,
-            status TEXT DEFAULT 'pending',
-            created_at TEXT DEFAULT (datetime('now')),
-            resolved_at TEXT,
-            generated_path TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS skill_suggestion_patterns (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            suggestion_id INTEGER NOT NULL
-                REFERENCES skill_suggestions(id) ON DELETE CASCADE,
-            pattern_id INTEGER NOT NULL
-                REFERENCES patterns(id) ON DELETE CASCADE,
-            UNIQUE(suggestion_id, pattern_id)
-        );
-
-        CREATE TABLE IF NOT EXISTS skill_usage_tracking (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            skill_path TEXT NOT NULL,
-            project TEXT NOT NULL,
-            first_seen_at TEXT DEFAULT (datetime('now')),
-            last_matched_at TEXT,
-            match_count INTEGER DEFAULT 0,
-            UNIQUE(skill_path, project)
-        );
-
-        CREATE TABLE IF NOT EXISTS skill_file_cache (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project_path TEXT NOT NULL,
-            file_path TEXT NOT NULL,
-            name TEXT NOT NULL,
-            source_tool TEXT NOT NULL,
-            content TEXT NOT NULL,
-            embedding BLOB NOT NULL,
-            modified_at TEXT NOT NULL,
-            cached_at TEXT DEFAULT (datetime('now')),
-            UNIQUE(project_path, file_path)
-        );
-        CREATE INDEX IF NOT EXISTS idx_skill_cache_project
-            ON skill_file_cache(project_path);
-
-        CREATE TABLE IF NOT EXISTS session_checkpoints (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT NOT NULL,
-            state_json TEXT NOT NULL,
-            version INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT DEFAULT (datetime('now')),
-            embedding BLOB,
-            original_request TEXT,
-            task_classification TEXT,
-            status TEXT DEFAULT 'in_progress',
-            project TEXT,
-            UNIQUE(session_id)
-        );
-        CREATE INDEX IF NOT EXISTS idx_session_checkpoints_status
-            ON session_checkpoints(status);
-        CREATE INDEX IF NOT EXISTS idx_session_checkpoints_project
-            ON session_checkpoints(project);
-
-        CREATE TABLE IF NOT EXISTS drift_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            task_description TEXT NOT NULL,
-            changed_files TEXT NOT NULL,
-            score REAL NOT NULL,
-            similarity REAL NOT NULL,
-            verdict TEXT NOT NULL,
-            flags TEXT NOT NULL,
-            project TEXT,
-            created_at TEXT DEFAULT (datetime('now'))
-        );
-        CREATE INDEX IF NOT EXISTS idx_drift_history_project
-            ON drift_history(project);
-        CREATE INDEX IF NOT EXISTS idx_drift_history_created
-            ON drift_history(created_at);
-
-        CREATE TABLE IF NOT EXISTS project_snapshots (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project_path TEXT NOT NULL UNIQUE,
-            snapshot_json TEXT NOT NULL,
-            files_hash TEXT NOT NULL,
-            created_at TEXT DEFAULT (datetime('now')),
-            expires_at TEXT DEFAULT (datetime('now', '+24 hours'))
-        );
-        CREATE INDEX IF NOT EXISTS idx_project_snapshots_path
-            ON project_snapshots(project_path);
-        CREATE INDEX IF NOT EXISTS idx_project_snapshots_expires
-            ON project_snapshots(expires_at);
-    """)
-    ensure_idempotency_table(conn)
-    conn.commit()
+    ensure_schema(conn)
 
     yield conn
     conn.close()
