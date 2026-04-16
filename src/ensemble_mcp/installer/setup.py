@@ -21,6 +21,7 @@ from . import (
     ToolDefinition,
     UninstallPlan,
     UninstallResult,
+    detect_server_command,
 )
 from .agents import (
     _resolve_agents_dir,
@@ -176,6 +177,11 @@ def display_plan(plan: InstallPlan) -> str:
     lines.append("╔══════════════════════════════════════════════════════════╗")
     lines.append("║  ENSEMBLE-MCP INSTALL PLAN                              ║")
     lines.append("╠══════════════════════════════════════════════════════════╣")
+
+    cmd_parts = detect_server_command()
+    cmd_display = " ".join(cmd_parts)
+    lines.append(f"║  Using command: {cmd_display}".ljust(59) + "║")
+    lines.append("║                                                          ║")
 
     if plan.tools_to_register:
         lines.append("║                                                          ║")

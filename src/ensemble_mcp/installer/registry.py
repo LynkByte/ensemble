@@ -12,7 +12,7 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-from . import MCP_SERVER_NAME, ConfigFormat, ToolDefinition
+from . import MCP_SERVER_NAME, ConfigFormat, ToolDefinition, build_server_entry
 
 # ── Public API ────────────────────────────────────────────────────
 
@@ -106,7 +106,7 @@ def register_mcp(
             node[key] = {}
         node = node[key]
 
-    node[MCP_SERVER_NAME] = dict(definition.server_entry)
+    node[MCP_SERVER_NAME] = build_server_entry(definition)
     return config
 
 

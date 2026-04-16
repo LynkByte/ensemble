@@ -3,10 +3,17 @@
 Detects installed AI tools (OpenCode, Claude Code, GitHub Copilot, Cursor,
 Windsurf, Devin CLI), registers ensemble-mcp in their configs, and copies
 agent files into the project.
+
+At registration time the installer dynamically detects how ``ensemble-mcp``
+is available on the system (direct PATH entry, ``uvx``, or
+``sys.executable -m``) so the registered command always matches the user's
+install method.
 """
 
 from __future__ import annotations
 
+import shutil
+import sys
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -72,6 +79,49 @@ class ToolDefinition:
 
 # ── Server name used as the key in MCP configs ───────────────────
 MCP_SERVER_NAME = "ensemble"
+
+
+def detect_server_command() -> list[str]:
+    """Detect how ``ensemble-mcp`` is available on the system.
+
+    Uses a three-tier fallback that prefers the most specific match:
+
+    1. ``ensemble-mcp`` found on PATH → ``["ensemble-mcp"]``
+       Most reliable — the binary was installed directly via pip/pipx.
+    2. ``uvx`` found on PATH → ``["uvx", "ensemble-mcp"]``
+       Can auto-fetch from PyPI, but may fail on private networks or
+       if the package is not yet published.
+    3. Neither found → ``[sys.executable, "-m", "ensemble_mcp"]``
+       Fallback using the current Python interpreter's full path.
+    """
+    if shutil.which("ensemble-mcp"):
+        return ["ensemble-mcp"]
+    if shutil.which("uvx"):
+        return ["uvx", "ensemble-mcp"]
+    return [sys.executable, "-m", "ensemble_mcp"]
+
+
+def build_server_entry(definition: ToolDefinition) -> dict[str, object]:
+    """Build an MCP server entry dict with the runtime-detected command.
+
+    Inspects *definition.server_entry* for format cues:
+
+    - **OpenCode format** (has ``"type"`` key): returns
+      ``{"type": <type>, "command": <parts>}``
+    - **Standard format** (no ``"type"`` key): returns
+      ``{"command": <parts[0]>, "args": <parts[1:]>}`` — ``"args"`` is
+      omitted when empty.
+    """
+    parts = detect_server_command()
+
+    if "type" in definition.server_entry:
+        return {"type": definition.server_entry["type"], "command": parts}
+
+    entry: dict[str, object] = {"command": parts[0]}
+    if parts[1:]:
+        entry["args"] = parts[1:]
+    return entry
+
 
 _UVXENTRY: dict[str, object] = {
     "command": "uvx",

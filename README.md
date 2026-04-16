@@ -224,6 +224,14 @@ ensemble-mcp install --dry-run
 ensemble-mcp install --yes
 ```
 
+The installer automatically detects how `ensemble-mcp` is available on your system and registers the appropriate command:
+
+| Priority | Detection | Registered Command |
+|----------|-----------|-------------------|
+| 1st | `ensemble-mcp` on PATH (pip/pipx install) | `ensemble-mcp` |
+| 2nd | `uvx` on PATH | `uvx ensemble-mcp` |
+| 3rd | Neither found | `/path/to/python -m ensemble_mcp` (current interpreter) |
+
 ## 19 MCP Tools
 
 ### Patterns (semantic memory)

@@ -40,8 +40,6 @@ With [uv](https://docs.astral.sh/uv/), you can run without installing:
 uvx ensemble-mcp
 ```
 
-This is the default command used when registering with AI tools.
-
 ### Using pipx (Isolated Install)
 
 For a globally available, isolated installation:
@@ -49,6 +47,18 @@ For a globally available, isolated installation:
 ```bash
 pipx install ensemble-mcp
 ```
+
+### Command Detection During Registration
+
+When you run `ensemble-mcp install`, the installer automatically detects how `ensemble-mcp` is available and registers the appropriate command in each AI tool's config:
+
+| Priority | Detection | Registered Command |
+|----------|-----------|-------------------|
+| 1st | `ensemble-mcp` on PATH (pip/pipx) | `ensemble-mcp` |
+| 2nd | `uvx` on PATH | `uvx ensemble-mcp` |
+| 3rd | Neither found | `/path/to/python -m ensemble_mcp` (full `sys.executable` path) |
+
+The installer prefers a direct `ensemble-mcp` binary first because it's the most specific and reliable — it confirms the package is actually installed locally. The `uvx` fallback can auto-fetch from PyPI but may fail on private networks or if the package hasn't been published yet. The final fallback uses the current Python interpreter's absolute path (e.g. `/home/user/.venv/bin/python`), not the bare `python` command, to ensure the correct environment is used.
 
 ## Install from Source
 
