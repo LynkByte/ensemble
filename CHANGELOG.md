@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0b5] - 2026-04-16
+
+### Fixed
+- **Installer command detection** — the installer previously hardcoded `uvx` as the MCP server command, causing registration to fail for users who installed via `pip` or `pipx`. Now uses a three-tier runtime detection: (1) `ensemble-mcp` on PATH, (2) `uvx` fallback, (3) `sys.executable -m ensemble_mcp` last resort
+
 ## [0.1.0b4] - 2026-04-15
 
 First public beta release with full Kinetic Architect dashboard redesign.
@@ -258,6 +263,11 @@ Initial release with all 15 MCP tools across 3 implementation phases.
 - Shared fixtures: `tmp_db`, `test_conn`, `test_store`, `MockEmbeddingModel`
 - Full lint (ruff) and format compliance
 
+[Unreleased]: https://github.com/LynkByte/ensemble/compare/v0.1.0b5...HEAD
+[0.1.0b5]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0b5
+[0.1.0b4]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0b4
+[0.1.0b3]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0b3
+[0.1.0b2]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0b2
 [0.1.0b1]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0b1
 [0.1.0a9]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0a9
 [0.1.0a8]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0a8
