@@ -46,11 +46,13 @@ Runs before building to catch issues early.
 - **Linting**: `ruff check src/ tests/`
 - **Type checking**: `mypy src/`
 - **Test suite**: `pytest tests/` (582 tests)
+- **Changelog validation**: Checks that `CHANGELOG.md` contains a section for the release version (e.g., `## [0.1.0b5]`) with content under a sub-heading (e.g., `### Added`)
 
 **Fails if**:
 - Linting issues found
 - Type errors detected
 - Any test fails
+- `CHANGELOG.md` is missing a section for the release version
 
 ### Stage 2: Build
 Builds both source and wheel distributions.
@@ -118,14 +120,16 @@ Use semantic versioning per [PEP 440](https://peps.python.org/pep-0440/):
 - [ ] All tests pass locally: `pytest tests/ -v`
 - [ ] Linting passes: `ruff check src/ tests/`
 - [ ] Type checking passes: `mypy src/`
-- [ ] CHANGELOG.md is updated with release notes
+- [ ] **CHANGELOG.md is updated with release notes** ⚠️ *(enforced by the workflow — release will fail without it)*
 - [ ] Version number is decided (e.g., `0.1.0b5` or `1.0.0`)
 
 > ℹ️ **Version Management**: The workflow automatically updates `pyproject.toml` with the version you provide and commits it back to `main` after publishing. No manual version edits needed.
 
 ### Update CHANGELOG
 
-Add an entry to `CHANGELOG.md` **before** releasing:
+Add an entry to `CHANGELOG.md` **before** releasing. The workflow **will fail** if a section for the release version is missing.
+
+The section header must match the exact version being released:
 
 ```markdown
 ## [0.1.0b5] - 2026-04-16
@@ -142,6 +146,8 @@ Public beta release.
 ### Changed
 - API improvements...
 ```
+
+> ⚠️ **Enforced**: The workflow checks for `## [X.Y.Z]` in `CHANGELOG.md` and will **block the release** if it's missing. An empty section (no `### Added`, `### Fixed`, etc.) produces a warning but does not block.
 
 ---
 
@@ -213,6 +219,15 @@ This adds an extra protection layer before publishing to PyPI.
 ---
 
 ## Troubleshooting
+
+### Workflow Fails at Changelog Validation
+
+**Problem**: Workflow fails with "CHANGELOG.md is missing a section for version X.Y.Z"  
+**Solution**:
+1. Add a section to `CHANGELOG.md` with the exact version: `## [X.Y.Z] - YYYY-MM-DD`
+2. Add at least one sub-heading (`### Added`, `### Fixed`, etc.) with entries
+3. Commit and push to `main`
+4. Re-trigger the workflow
 
 ### Workflow Fails at Validation
 
@@ -347,6 +362,9 @@ Result:
 2. In PyPI — check the project page
 3. In GitHub Releases — see the release details
 
+### Q: What if I forget to update CHANGELOG.md?
+**A**: The workflow will **fail** at the validation stage with a clear error message telling you exactly what to add. Update `CHANGELOG.md`, commit, push, and re-run the workflow.
+
 ---
 
 ## Comparison: Manual vs Automated
@@ -356,6 +374,7 @@ Result:
 | Run tests | Command line | Workflow stage |
 | Build distributions | Command line | Workflow stage |
 | Validate | Manual | Automatic |
+| Changelog check | None (easy to forget) | Enforced by workflow |
 | Upload to PyPI | Manual (with token) | OIDC automatic |
 | Create tag | Manual git commands | Workflow automatic |
 | Create GitHub Release | Manual `gh release create` | Workflow automatic |

@@ -45,6 +45,55 @@ jobs:
           python -m pytest tests/ -v --tb=short
           echo "✅ Test suite passed"
 
+      - name: Validate CHANGELOG.md
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+
+          # Check that CHANGELOG.md exists
+          if [ ! -f CHANGELOG.md ]; then
+            echo "❌ CHANGELOG.md not found in repository root"
+            exit 1
+          fi
+
+          # Check for a version section header: ## [X.Y.Z]
+          if grep -qE "^## \[${VERSION}\]" CHANGELOG.md; then
+            echo "✅ CHANGELOG.md contains section for version ${VERSION}"
+          else
+            echo "❌ CHANGELOG.md is missing a section for version ${VERSION}"
+            echo ""
+            echo "Please add a changelog entry before releasing. Example:"
+            echo ""
+            echo "  ## [${VERSION}] - $(date +%Y-%m-%d)"
+            echo ""
+            echo "  ### Added"
+            echo "  - Your new feature description"
+            echo ""
+            echo "  ### Fixed"
+            echo "  - Your bug fix description"
+            echo ""
+            echo "Add this to CHANGELOG.md, commit, push to main, then re-run the workflow."
+            exit 1
+          fi
+
+          # Check that the version section is not empty (has at least one sub-heading like ### Added)
+          VERSION_LINE=$(grep -nE "^## \[${VERSION}\]" CHANGELOG.md | head -1 | cut -d: -f1)
+          NEXT_VERSION_LINE=$(awk "NR>${VERSION_LINE} && /^## \[/" CHANGELOG.md | head -1)
+          if [ -z "$NEXT_VERSION_LINE" ]; then
+            # Last version in file — check from version line to end of file
+            SECTION_CONTENT=$(tail -n +"$((VERSION_LINE + 1))" CHANGELOG.md)
+          else
+            NEXT_LINE=$(grep -nE "^## \[" CHANGELOG.md | awk "NR>1{print; exit}" | cut -d: -f1)
+            SECTION_CONTENT=$(sed -n "$((VERSION_LINE + 1)),$((NEXT_LINE - 1))p" CHANGELOG.md)
+          fi
+
+          if echo "$SECTION_CONTENT" | grep -qE "^### (Added|Changed|Deprecated|Removed|Fixed|Security)"; then
+            echo "✅ Changelog section has content (sub-headings found)"
+          else
+            echo "⚠️ WARNING: Changelog section for ${VERSION} appears to be empty"
+            echo "Consider adding details under ### Added, ### Fixed, ### Changed, etc."
+            echo "Proceeding anyway — but please update the changelog after release."
+          fi
+
   build:
     name: Build Distribution
     runs-on: ubuntu-latest

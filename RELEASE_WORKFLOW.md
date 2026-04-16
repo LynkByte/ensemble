@@ -60,6 +60,7 @@ curl -X POST \
 - Runs `ruff check` (linting)
 - Runs `mypy` (type checking)
 - Runs full pytest suite (582 tests)
+- **Validates CHANGELOG.md** — checks that a `## [X.Y.Z]` section exists for the release version (blocks release if missing)
 - **Fails fast** if any validation fails
 
 ### 2. **Build** Job (after validation passes)
@@ -134,6 +135,10 @@ To configure approval (optional):
 
 ## Troubleshooting
 
+### CHANGELOG.md validation fails
+**Problem**: Workflow fails with "CHANGELOG.md is missing a section for version X.Y.Z"  
+**Solution**: Add `## [X.Y.Z] - YYYY-MM-DD` with at least one sub-heading (`### Added`, etc.) to `CHANGELOG.md`, commit, push, and retry.
+
 ### Workflow fails at validation
 **Problem**: Tests or linting fail  
 **Solution**: Fix the issue locally, push to main, then retry the workflow
@@ -164,7 +169,7 @@ To configure approval (optional):
 Ensure:
 1. ✅ `pyproject.toml` has correct metadata
 2. ✅ `README.md` is up to date
-3. ✅ `CHANGELOG.md` documents the version
+3. ✅ `CHANGELOG.md` documents the version *(enforced — workflow fails without it)*
 4. ✅ All tests pass locally
 5. ✅ PyPI environment is configured in GitHub
 6. ✅ PyPI has OIDC trusted publishers configured (it does)
@@ -191,7 +196,7 @@ What you should do:
 ## Example Workflow Run
 
 ```
-[Validate] ✅ Linting, typing, tests
+[Validate] ✅ Linting, typing, tests, changelog check
     ↓
 [Build] ✅ Build sdist + wheel, validate with twine
     ↓
@@ -239,7 +244,7 @@ A: PyPI rejects duplicate versions. Update the version number and retry.
 A: No, PyPI prevents re-uploading the same version. You can only yank it (mark as unsafe) from PyPI settings.
 
 **Q: Do I need to commit CHANGELOG.md changes first?**  
-A: No, the workflow only builds and publishes. Update CHANGELOG.md separately before releasing.
+A: **Yes.** The workflow validates that `CHANGELOG.md` has a section for the release version. If it's missing, the release is blocked. Update `CHANGELOG.md`, commit and push to `main`, then trigger the workflow.
 
 **Q: Can I test the workflow before a real release?**  
 A: Yes, use a test version like `0.1.0b999` and publish to TestPyPI (edit workflow to use `--repository testpypi`).
