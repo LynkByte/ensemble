@@ -40,9 +40,10 @@ This installs the `ensemble-mcp` CLI command and all runtime dependencies:
 |---|---|
 | `mcp>=1.0` | MCP protocol server |
 | `onnxruntime>=1.17` | ONNX model inference for embeddings |
-| `numpy>=1.26` | Vector math (cosine similarity) |
+| `numpy>=2.4.4` | Vector math (cosine similarity) |
 | `tokenizers>=0.15` | HuggingFace tokenizer for MiniLM |
-| `rich>=13.0` | Terminal formatting and startup banner |
+| `rich>=15.0.0` | Terminal formatting and startup banner |
+| `aiohttp>=3.9` | HTTP server for web dashboard |
 
 ## Running the Server
 
@@ -63,7 +64,7 @@ On first startup, ensemble-mcp will:
 1. Create `~/.cache/ensemble-mcp/` directory
 2. Download the ONNX MiniLM-L6-v2 model (~22 MB) to `~/.cache/ensemble-mcp/models/`
 3. Create the SQLite database at `~/.cache/ensemble-mcp/data.db` with WAL mode enabled
-4. Initialize all 12 tables and indexes
+4. Initialize all 14 tables (13 data tables + 1 schema version tracker) and indexes
 
 The model download is a one-time operation. Subsequent starts are fast (~50ms).
 

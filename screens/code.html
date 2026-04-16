@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Ensemble-MCP | Overview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-fixed-variant": "#006544",
+                    "inverse-surface": "#f9f9ff",
+                    "surface-container-low": "#10131a",
+                    "on-tertiary": "#573500",
+                    "on-background": "#ecedf6",
+                    "on-primary": "#0f00a4",
+                    "error-dim": "#d73357",
+                    "error": "#ff6e84",
+                    "tertiary-container": "#f8a010",
+                    "surface-bright": "#282c36",
+                    "primary-dim": "#6063ee",
+                    "primary-fixed": "#9396ff",
+                    "surface-container-high": "#1c2028",
+                    "surface-tint": "#a3a6ff",
+                    "on-secondary": "#005a3c",
+                    "tertiary": "#ffb148",
+                    "on-primary-fixed": "#000000",
+                    "outline-variant": "#45484f",
+                    "tertiary-fixed-dim": "#e79400",
+                    "surface-dim": "#0b0e14",
+                    "background": "#0b0e14",
+                    "secondary-container": "#006c49",
+                    "on-primary-container": "#0a0081",
+                    "on-tertiary-fixed": "#2a1700",
+                    "surface": "#0b0e14",
+                    "on-surface": "#ecedf6",
+                    "inverse-primary": "#494bd7",
+                    "surface-container-highest": "#22262f",
+                    "on-secondary-fixed": "#00452d",
+                    "on-secondary-container": "#e1ffec",
+                    "primary-container": "#9396ff",
+                    "on-surface-variant": "#a9abb3",
+                    "on-error-container": "#ffb2b9",
+                    "secondary": "#69f6b8",
+                    "inverse-on-surface": "#52555c",
+                    "outline": "#73757d",
+                    "on-tertiary-fixed-variant": "#563400",
+                    "primary": "#a3a6ff",
+                    "error-container": "#a70138",
+                    "surface-container": "#161a21",
+                    "surface-container-lowest": "#000000",
+                    "primary-fixed-dim": "#8387ff",
+                    "on-tertiary-container": "#4a2c00",
+                    "on-error": "#490013",
+                    "on-primary-fixed-variant": "#0e009d",
+                    "secondary-dim": "#58e7ab",
+                    "tertiary-fixed": "#f8a010",
+                    "tertiary-dim": "#e79400",
+                    "secondary-fixed-dim": "#58e7ab",
+                    "secondary-fixed": "#69f6b8",
+                    "surface-variant": "#22262f"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"],
+                    "mono": ["JetBrains Mono"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+            font-size: 20px;
+        }
+        .tonal-shift { background-color: #000000; }
+        .glass-card {
+            background: rgba(22, 26, 33, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(69, 72, 79, 0.15);
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #45484f; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-background text-on-surface selection:bg-primary/30">
+<!-- Slim SideNavBar (Predicted Component) -->
+<aside class="fixed left-0 top-0 h-full z-50 bg-[#000000] w-16 hover:w-64 transition-all duration-300 border-r-0 flex flex-col items-center group overflow-hidden">
+<div class="py-6 flex flex-col items-center w-full">
+<div class="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center mb-10 group-hover:px-4 group-hover:w-auto transition-all">
+<span class="material-symbols-outlined text-[#a3a6ff] font-bold" style="font-variation-settings: 'FILL' 1;">explore</span>
+<span class="hidden group-hover:block ml-3 text-[#a3a6ff] font-bold text-lg whitespace-nowrap">Kinetic Architect</span>
+</div>
+<nav class="flex flex-col w-full space-y-2 px-3">
+<!-- Workspace (Active) -->
+<a class="flex items-center h-10 w-full rounded-lg text-[#a3a6ff] bg-[#161a21] border-l-2 border-[#a3a6ff] transition-all duration-200" href="#">
+<div class="min-w-[40px] flex justify-center"><span class="material-symbols-outlined">grid_view</span></div>
+<span class="hidden group-hover:block font-inter tracking-tight text-xs ml-2">Workspace</span>
+</a>
+<a class="flex items-center h-10 w-full rounded-lg text-slate-500 hover:text-slate-200 hover:bg-[#10131a] transition-all duration-200" href="#">
+<div class="min-w-[40px] flex justify-center"><span class="material-symbols-outlined">psychology</span></div>
+<span class="hidden group-hover:block font-inter tracking-tight text-xs ml-2">Models</span>
+</a>
+<a class="flex items-center h-10 w-full rounded-lg text-slate-500 hover:text-slate-200 hover:bg-[#10131a] transition-all duration-200" href="#">
+<div class="min-w-[40px] flex justify-center"><span class="material-symbols-outlined">database</span></div>
+<span class="hidden group-hover:block font-inter tracking-tight text-xs ml-2">Datasets</span>
+</a>
+<a class="flex items-center h-10 w-full rounded-lg text-slate-500 hover:text-slate-200 hover:bg-[#10131a] transition-all duration-200" href="#">
+<div class="min-w-[40px] flex justify-center"><span class="material-symbols-outlined">rocket_launch</span></div>
+<span class="hidden group-hover:block font-inter tracking-tight text-xs ml-2">Deployments</span>
+</a>
+<a class="flex items-center h-10 w-full rounded-lg text-slate-500 hover:text-slate-200 hover:bg-[#10131a] transition-all duration-200" href="#">
+<div class="min-w-[40px] flex justify-center"><span class="material-symbols-outlined">settings</span></div>
+<span class="hidden group-hover:block font-inter tracking-tight text-xs ml-2">Settings</span>
+</a>
+</nav>
+</div>
+<div class="mt-auto py-6 flex flex-col w-full space-y-2 px-3">
+<a class="flex items-center h-10 w-full rounded-lg text-slate-500 hover:text-slate-200 hover:bg-[#10131a] transition-all" href="#">
+<div class="min-w-[40px] flex justify-center"><span class="material-symbols-outlined">help_outline</span></div>
+<span class="hidden group-hover:block font-inter tracking-tight text-xs ml-2">Support</span>
+</a>
+<div class="flex items-center h-10 w-full px-3">
+<div class="h-8 w-8 rounded-full overflow-hidden flex-shrink-0">
+<img class="h-full w-full object-cover" data-alt="professional portrait of a tech engineer in low lighting with cinematic blue and purple highlights" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8KrHR8OccFdbF0-GfbE7rDQEj6cAuGNp1_fLlRbJRK-BloRfqwvJnpH3iCiMbxJqcjt0fDAyRHKvD9I2ZstgBTaB4HBxLnONa9PJrZ5d_ywncH1Z87MJ7VU4EbiF5YA-PdXpJXQbYPCe95lcBJHGHi8n7KR6xl01D6ntrcpoe0dRQWyoYx7iCbhJUvB_UO10fyILDSHRTHLnkuMFKETLEEj9201ZKHsQFJx5VXD7qEzzf6O6CYRGvnYUEnI17BYgWB5kwC3iWF1LE"/>
+</div>
+<div class="hidden group-hover:block ml-3">
+<p class="text-[10px] text-on-surface-variant font-medium">Kinetic Architect</p>
+<p class="text-[9px] text-slate-500 uppercase tracking-widest">AI Engine</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-16 min-h-screen flex flex-col">
+<!-- TopNavBar (Predicted Component) -->
+<header class="flex justify-between items-center px-6 w-full sticky top-0 z-40 bg-[#0b0e14]/80 backdrop-blur-xl h-14 shadow-2xl shadow-black/40">
+<div class="flex items-center flex-1">
+<!-- Cmd+K Style Search -->
+<div class="relative w-full max-w-md group focus-within:ring-1 focus-within:ring-[#a3a6ff]/30 rounded-lg">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="w-full bg-surface-container-highest/40 border-none rounded-lg pl-10 pr-12 py-1.5 text-sm font-inter text-on-surface placeholder:text-outline focus:ring-0" placeholder="Search parameters, models, or logs..." type="text"/>
+<div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-40">
+<span class="text-[10px] border border-outline rounded px-1 font-mono">⌘</span>
+<span class="text-[10px] border border-outline rounded px-1 font-mono">K</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<nav class="hidden md:flex gap-6 items-center">
+<a class="text-[#a3a6ff] border-b border-[#a3a6ff] pb-1 font-inter text-sm font-medium tracking-wide" href="#">Dashboard</a>
+<a class="text-slate-400 hover:text-white transition-all font-inter text-sm font-medium tracking-wide" href="#">Incidents</a>
+<a class="text-slate-400 hover:text-white transition-all font-inter text-sm font-medium tracking-wide" href="#">Logs</a>
+</nav>
+<div class="flex items-center gap-4 text-slate-400 border-l border-outline-variant/20 pl-6">
+<button class="hover:text-[#a3a6ff] transition-all"><span class="material-symbols-outlined">notifications</span></button>
+<button class="hover:text-[#a3a6ff] transition-all"><span class="material-symbols-outlined">terminal</span></button>
+<button class="hover:text-[#a3a6ff] transition-all"><span class="material-symbols-outlined">account_circle</span></button>
+</div>
+</div>
+</header>
+<!-- Status Bar -->
+<section class="px-8 py-4 bg-surface-container-low flex items-center gap-12 overflow-x-auto no-scrollbar">
+<div class="flex items-center gap-4 flex-shrink-0">
+<div>
+<p class="text-[10px] text-on-surface-variant font-medium tracking-widest uppercase">Health Score</p>
+<div class="flex items-baseline gap-2">
+<span class="text-xl font-bold text-secondary">84<span class="text-xs text-secondary-dim font-normal">/100</span></span>
+<span class="text-[10px] text-secondary bg-secondary/10 px-1.5 rounded-full flex items-center"><span class="material-symbols-outlined !text-[12px]">trending_up</span> 2%</span>
+</div>
+</div>
+<!-- Micro Sparkline SVG -->
+<svg class="w-16 h-8 text-secondary" fill="none" viewbox="0 0 100 40">
+<path d="M0 35 Q 10 30, 20 32 T 40 25 T 60 28 T 80 15 T 100 20" fill="none" stroke="currentColor" stroke-width="2"></path>
+</svg>
+</div>
+<div class="h-8 w-px bg-outline-variant/20"></div>
+<div class="flex items-center gap-4 flex-shrink-0">
+<div>
+<p class="text-[10px] text-on-surface-variant font-medium tracking-widest uppercase">Active Skills</p>
+<div class="flex items-baseline gap-2">
+<span class="text-xl font-bold text-on-surface">8</span>
+<span class="text-[10px] text-on-surface-variant">Nominal</span>
+</div>
+</div>
+<svg class="w-16 h-8 text-primary" fill="none" viewbox="0 0 100 40">
+<path d="M0 35 L 20 25 L 40 30 L 60 10 L 80 15 L 100 5" fill="none" stroke="currentColor" stroke-width="2"></path>
+</svg>
+</div>
+<div class="h-8 w-px bg-outline-variant/20"></div>
+<div class="flex items-center gap-4 flex-shrink-0">
+<div>
+<p class="text-[10px] text-on-surface-variant font-medium tracking-widest uppercase">Projects</p>
+<div class="flex items-baseline gap-2">
+<span class="text-xl font-bold text-on-surface">3</span>
+<span class="text-[10px] text-tertiary">1 Active Sync</span>
+</div>
+</div>
+<svg class="w-16 h-8 text-tertiary" fill="none" viewbox="0 0 100 40">
+<path d="M0 20 L 20 20 L 40 20 L 60 20 L 80 20 L 100 20" fill="none" stroke="currentColor" stroke-dasharray="4 4" stroke-width="2"></path>
+</svg>
+</div>
+</section>
+<!-- Bento Layout Dashboard -->
+<div class="p-8 grid grid-cols-12 gap-6 flex-1">
+<!-- Large Drift Score Trend (Asymmetric Focus) -->
+<div class="col-span-12 lg:col-span-8 glass-card rounded-xl p-6 flex flex-col relative overflow-hidden group">
+<div class="flex justify-between items-start mb-8">
+<div>
+<h2 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                            Drift Score Trend
+                            <span class="material-symbols-outlined text-xs text-on-surface-variant">info</span>
+</h2>
+<p class="text-xs text-on-surface-variant">Aggregated drift analysis across all neural modules.</p>
+</div>
+<div class="flex gap-2">
+<button class="text-[10px] px-3 py-1 bg-surface-container-highest rounded-full text-on-surface hover:bg-primary/20 transition-all">7D</button>
+<button class="text-[10px] px-3 py-1 bg-surface-container-highest rounded-full text-on-surface-variant">30D</button>
+</div>
+</div>
+<div class="flex-1 min-h-[240px] relative">
+<!-- Smooth Area Chart Visualization (SVG) -->
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 800 240">
+<defs>
+<lineargradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#a3a6ff" stop-opacity="0.3"></stop>
+<stop offset="100%" stop-color="#a3a6ff" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<!-- Grid Lines -->
+<line stroke="#45484f" stroke-opacity="0.1" x1="0" x2="800" y1="60" y2="60"></line>
+<line stroke="#45484f" stroke-opacity="0.1" x1="0" x2="800" y1="120" y2="120"></line>
+<line stroke="#45484f" stroke-opacity="0.1" x1="0" x2="800" y1="180" y2="180"></line>
+<!-- Area -->
+<path d="M 0 240 L 0 180 Q 100 160, 200 190 T 400 120 T 600 150 T 800 80 L 800 240 Z" fill="url(#chartGradient)"></path>
+<!-- Line -->
+<path d="M 0 180 Q 100 160, 200 190 T 400 120 T 600 150 T 800 80" fill="none" stroke="#a3a6ff" stroke-linecap="round" stroke-width="3"></path>
+<!-- Pulse Point -->
+<circle cx="800" cy="80" fill="#a3a6ff" r="4"></circle>
+<circle class="animate-ping" cx="800" cy="80" fill="#a3a6ff" fill-opacity="0.3" r="8"></circle>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+<div class="bg-surface-container-highest/90 border border-outline-variant/30 px-3 py-2 rounded shadow-xl backdrop-blur-md">
+<p class="text-[10px] text-on-surface-variant uppercase">Current Drift</p>
+<p class="text-sm font-bold text-primary">0.024 RMS</p>
+</div>
+</div>
+</div>
+<div class="mt-6 flex gap-8">
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant font-medium tracking-tighter uppercase">Mean Deviation</span>
+<span class="text-sm font-mono text-white">±0.002</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant font-medium tracking-tighter uppercase">Peak Volatility</span>
+<span class="text-sm font-mono text-tertiary">0.089</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant font-medium tracking-tighter uppercase">Sampling Rate</span>
+<span class="text-sm font-mono text-white">14.2kHz</span>
+</div>
+</div>
+</div>
+<!-- Bug Hunter Report (Secondary Anchor) -->
+<div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
+<div class="glass-card rounded-xl p-6 flex-1">
+<div class="flex items-center justify-between mb-6">
+<h3 class="text-sm font-bold text-white uppercase tracking-widest">Bug Hunter</h3>
+<span class="bg-secondary/10 text-secondary text-[10px] px-2 py-0.5 rounded-full font-medium">IMPROVING</span>
+</div>
+<div class="flex flex-col items-center justify-center py-4 relative">
+<div class="relative w-32 h-32 flex items-center justify-center">
+<svg class="w-full h-full transform -rotate-90">
+<circle class="text-surface-container-highest" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" stroke-width="4"></circle>
+<circle class="text-secondary" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" stroke-dasharray="364.4" stroke-dashoffset="58.3" stroke-linecap="round" stroke-width="6"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="text-3xl font-black text-white">84</span>
+<span class="text-[10px] text-on-surface-variant uppercase font-bold">Health</span>
+</div>
+</div>
+</div>
+<div class="mt-4 space-y-3">
+<div class="flex justify-between items-center p-3 rounded-lg bg-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-error !text-base">bug_report</span>
+<span class="text-xs font-medium">Critical Issues</span>
+</div>
+<span class="text-sm font-mono font-bold text-white">8</span>
+</div>
+<div class="flex justify-between items-center p-3 rounded-lg bg-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary !text-base">verified</span>
+<span class="text-xs font-medium">Automated Fixes</span>
+</div>
+<span class="text-sm font-mono font-bold text-white">24</span>
+</div>
+</div>
+<button class="w-full mt-6 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-lg transition-all border border-primary/20">
+                        Launch Debugger
+                    </button>
+</div>
+</div>
+<!-- Recent Activity Timeline (High Density) -->
+<div class="col-span-12 glass-card rounded-xl p-6">
+<div class="flex items-center justify-between mb-6">
+<h3 class="text-sm font-bold text-white uppercase tracking-widest">Recent Activity</h3>
+<button class="text-xs text-primary hover:underline">Export Logs</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="border-b border-outline-variant/10">
+<th class="pb-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Operation</th>
+<th class="pb-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Tool</th>
+<th class="pb-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Model Index</th>
+<th class="pb-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Status</th>
+<th class="pb-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest text-right">Timestamp</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/5">
+<tr class="hover:bg-surface-bright/20 transition-colors group">
+<td class="py-4 text-xs font-medium text-white">Structural Drift Mitigation</td>
+<td class="py-4">
+<span class="px-2 py-0.5 rounded-sm bg-tertiary/10 text-tertiary text-[10px] font-mono border border-tertiary/20">drift_check</span>
+</td>
+<td class="py-4 text-xs text-on-surface-variant font-mono">EN-7712</td>
+<td class="py-4">
+<div class="flex items-center gap-2">
+<div class="h-1.5 w-1.5 rounded-full bg-secondary shadow-[0_0_8px_#69f6b8]"></div>
+<span class="text-xs">Resolved</span>
+</div>
+</td>
+<td class="py-4 text-[10px] text-on-surface-variant text-right font-mono">14:22:01.09</td>
+</tr>
+<tr class="hover:bg-surface-bright/20 transition-colors">
+<td class="py-4 text-xs font-medium text-white">Recursive Cluster Query</td>
+<td class="py-4">
+<span class="px-2 py-0.5 rounded-sm bg-secondary/10 text-secondary text-[10px] font-mono border border-secondary/20">project_query</span>
+</td>
+<td class="py-4 text-xs text-on-surface-variant font-mono">KX-0010</td>
+<td class="py-4">
+<div class="flex items-center gap-2 text-on-surface-variant">
+<div class="h-1.5 w-1.5 rounded-full bg-on-surface-variant/40"></div>
+<span class="text-xs">Idle</span>
+</div>
+</td>
+<td class="py-4 text-[10px] text-on-surface-variant text-right font-mono">14:18:44.22</td>
+</tr>
+<tr class="hover:bg-surface-bright/20 transition-colors">
+<td class="py-4 text-xs font-medium text-white">Node Synchronization</td>
+<td class="py-4">
+<span class="px-2 py-0.5 rounded-sm bg-primary/10 text-primary text-[10px] font-mono border border-primary/20">sync_orchestrator</span>
+</td>
+<td class="py-4 text-xs text-on-surface-variant font-mono">SY-9902</td>
+<td class="py-4">
+<div class="flex items-center gap-2">
+<div class="h-1.5 w-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_#a3a6ff]"></div>
+<span class="text-xs">Executing</span>
+</div>
+</td>
+<td class="py-4 text-[10px] text-on-surface-variant text-right font-mono">14:15:30.55</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Skills & Projects Bento Bottom -->
+<div class="col-span-12 md:col-span-6 glass-card rounded-xl p-6 h-64 relative overflow-hidden group">
+<img class="absolute inset-0 w-full h-full object-cover opacity-20 grayscale hover:grayscale-0 transition-all duration-700" data-alt="futuristic cybernetic circuit board with neon green glowing lines on dark background in high definition" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVgXEXEhZ4r4G0kyGUYSSWOwEKwa5dD1B8D7L66pD-zpnyXClmEw5CBqO07U5ys02TTBXUQOPHTDpiRwK7c5DETkvU53VAUCwuE5KkfhxoLoTBjhYCs7ugKDLx1-PflEN_Cke9lAiFkZGhqrk7bW_wyJYQXD0m-LK3Ojph-7hVL4xdb4b7DOM-EVB9cvWiMST8iszUIiXW_jw3-obGJdfS6Etnne9Yf6fF2U9kUq658VBSZuy_FkR-jHrrVsBmR5P1EjCWuNO4gT-U"/>
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div>
+<h3 class="text-sm font-bold text-white uppercase tracking-widest mb-1">Active Skillsets</h3>
+<p class="text-xs text-on-surface-variant">Optimizing 8 concurrent modules</p>
+</div>
+<div class="flex flex-wrap gap-2">
+<span class="text-[10px] px-2 py-1 bg-black/60 rounded border border-outline-variant/30">NLP_PARSER_V4</span>
+<span class="text-[10px] px-2 py-1 bg-black/60 rounded border border-outline-variant/30">VISION_RECOG</span>
+<span class="text-[10px] px-2 py-1 bg-black/60 rounded border border-outline-variant/30">LOGIC_GATE</span>
+<span class="text-[10px] px-2 py-1 bg-black/60 rounded border border-[#a3a6ff]/40 text-primary">+5 More</span>
+</div>
+</div>
+</div>
+<div class="col-span-12 md:col-span-6 glass-card rounded-xl p-6 h-64 relative overflow-hidden group">
+<div class="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent"></div>
+<div class="relative z-10 flex flex-col h-full">
+<h3 class="text-sm font-bold text-white uppercase tracking-widest mb-4">Project Map</h3>
+<div class="flex-1 rounded-lg bg-surface-container-lowest border border-outline-variant/10 relative overflow-hidden">
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-outline-variant/20">map</span>
+</div>
+<!-- Decorative "Nodes" -->
+<div class="absolute top-1/4 left-1/4 h-2 w-2 rounded-full bg-primary shadow-[0_0_10px_#a3a6ff]"></div>
+<div class="absolute bottom-1/3 right-1/4 h-2 w-2 rounded-full bg-secondary shadow-[0_0_10px_#69f6b8]"></div>
+<div class="absolute top-1/2 right-1/2 h-2 w-2 rounded-full bg-tertiary shadow-[0_0_10px_#ffb148]"></div>
+<svg class="absolute inset-0 w-full h-full opacity-20" viewbox="0 0 400 200">
+<path d="M 100 50 L 200 100 L 300 133" fill="none" stroke="#a3a6ff" stroke-dasharray="4 4" stroke-width="1"></path>
+</svg>
+</div>
+<div class="mt-4 flex justify-between items-center">
+<span class="text-xs font-medium">Kinetic Grid System</span>
+<span class="text-[10px] text-on-surface-variant uppercase">3 active nodes</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Quick Action (FAB) - Suppressed per rules on Dashboards usually, but keeping contextually as an "Engine Control" -->
+<button class="fixed bottom-8 right-8 h-12 w-12 rounded-full bg-primary text-on-primary shadow-xl shadow-primary/20 flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</button>
+</body></html>

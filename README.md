@@ -17,6 +17,9 @@ All intelligence is local — zero LLM/API calls. Uses ONNX Runtime embeddings (
 | **Skill Intelligence** | Auto-detect recurring patterns and suggest converting them to reusable skills |
 | **Session Management** | Pipeline checkpoint save/load with optimistic versioning |
 | **Codebase Indexing** | File-level index with exports, imports, roles — incremental via mtime |
+| **Context Compression** | Compress verbose text into token-efficient form, rule-based |
+| **Prompt Caching** | Order and prepare prompt sections for optimal LLM cache hit rates |
+| **Codebase Snapshots** | Generate compact project baseline summaries from the codebase index |
 | **Auto-Installer** | Detect AI tools and register the MCP server in their configs |
 | **Web Dashboard** | Local browser UI at `localhost:8787` for visualizing patterns, skills, projects, drift, and sessions |
 
@@ -75,6 +78,9 @@ ensemble-mcp web --port 9000
 
 # Start without auto-opening the browser
 ensemble-mcp web --no-open
+
+# Specify a reports directory (auto-detected from ./reports or git root otherwise)
+ensemble-mcp web --reports-dir /path/to/reports
 ```
 
 The dashboard reads directly from the same SQLite database the MCP server writes to (WAL mode, no contention). It binds to `127.0.0.1` only — never exposed to the network, no authentication needed.
@@ -218,7 +224,7 @@ ensemble-mcp install --dry-run
 ensemble-mcp install --yes
 ```
 
-## 16 MCP Tools
+## 19 MCP Tools
 
 ### Patterns (semantic memory)
 
@@ -254,6 +260,7 @@ ensemble-mcp install --yes
 |------|-------------|
 | `session_save` | Save pipeline checkpoint with optimistic versioning |
 | `session_load` | Load latest or specific checkpoint |
+| `session_search` | Search sessions by semantic similarity |
 
 ### Codebase Indexer
 
@@ -262,12 +269,14 @@ ensemble-mcp install --yes
 | `project_index` | Build/refresh file-level codebase index |
 | `project_query` | Query index by language, path, or text |
 | `project_dependencies` | Get import/dependency graph for a file |
+| `project_snapshot` | Generate compact project baseline summary (cached) |
 
 ### Context Compression
 
 | Tool | Description |
 |------|-------------|
 | `context_compress` | Compress verbose text into terse, token-efficient form while preserving technical content |
+| `context_prepare` | Order prompt sections for optimal LLM cache hit rates (static → project → task) |
 
 ### Utility
 
@@ -306,7 +315,7 @@ ensemble-mcp/
     memory/               # ONNX embeddings, SQLite vector store, cosine similarity
     security/             # Secret redaction, trust boundaries
     state/                # Session/step lifecycle, idempotency, locks
-    tools/                # 16 MCP tool implementations + call-recording utility
+    tools/                # 19 MCP tool implementations + call-recording utility
     installer/            # AI tool detection + MCP registration
     dashboard/            # Web dashboard (aiohttp server, JSON API, SPA frontend)
     compress/             # Rule-based text compression engine
@@ -356,7 +365,7 @@ cluster_similarity_threshold = 0.8
 # Install with dev dependencies
 pip install -e ".[dev]"
 
-# Run tests (619 tests, ~10s)
+# Run tests
 python -m pytest tests/ -v
 
 # Lint

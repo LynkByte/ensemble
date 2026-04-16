@@ -28,8 +28,8 @@ ensemble-mcp server  (server.py)
     |       +-- routing.py     (1 tool)
     |       +-- skills.py      (3 tools)
     |       +-- session.py     (3 tools)
-    |       +-- indexer.py     (3 tools)
-    |       +-- compress.py    (1 tool)
+    |       +-- indexer.py     (4 tools)
+    |       +-- compress.py    (2 tools)
     |       +-- mcp_tracking.py (call recording)
     |       +-- health / reset (2 tools, inline)
     |
@@ -42,6 +42,64 @@ ensemble-mcp server  (server.py)
             +-- config/         (layered settings)
             +-- cli/            (startup banner)
             +-- data/           (bundled agents + skill templates)
+```
+
+```mermaid
+graph TB
+    subgraph "MCP Client"
+        AI[AI Tool<br/>OpenCode / Claude Code / etc.]
+    end
+
+    subgraph "ensemble-mcp Server"
+        SRV[server.py<br/>Tool Registration & Dispatch]
+
+        subgraph "Tool Modules (19 tools)"
+            PAT[patterns.py<br/>3 tools]
+            DFT[drift.py<br/>1 tool]
+            RTG[routing.py<br/>1 tool]
+            SKL[skills.py<br/>3 tools]
+            SES[session.py<br/>3 tools]
+            IDX[indexer.py<br/>4 tools]
+            CMP[compress.py<br/>2 tools]
+            UTL[health + reset<br/>2 tools]
+        end
+
+        subgraph "Shared Infrastructure"
+            MEM[memory/<br/>ONNX embeddings<br/>+ vector store]
+            CON[contracts/<br/>envelope + errors]
+            STA[state/<br/>lifecycle + idempotency]
+            SEC[security/<br/>redaction + trust]
+            CFG[config/<br/>layered settings]
+        end
+
+        subgraph "Support"
+            TRK[mcp_tracking.py<br/>call recording]
+            DSH[dashboard/<br/>aiohttp + SPA]
+            CLI2[cli/<br/>banner]
+            DAT[data/<br/>agents + skills]
+        end
+    end
+
+    subgraph "Storage"
+        DB[(SQLite data.db<br/>WAL mode)]
+        MDL[ONNX Model<br/>MiniLM-L6-v2]
+    end
+
+    AI <-->|stdio JSON-RPC| SRV
+    SRV --> PAT & DFT & RTG & SKL & SES & IDX & CMP & UTL
+    PAT & DFT & SKL & SES & IDX --> MEM
+    PAT & DFT & RTG & SKL & SES & IDX & CMP --> CON
+    PAT & DFT & RTG & SKL & SES & IDX & CMP --> STA
+    PAT & SKL & SES --> SEC
+    SRV --> TRK
+    MEM --> DB
+    MEM --> MDL
+    DSH --> DB
+
+    style SRV fill:#10B981,color:#fff
+    style DB fill:#F97316,color:#fff
+    style MDL fill:#8B5CF6,color:#fff
+    style DSH fill:#3B82F6,color:#fff
 ```
 
 ## Package Layout
@@ -80,11 +138,14 @@ src/ensemble_mcp/
 │   ├── routing.py        # model_recommend (7x4 agent-classification matrix)
 │   ├── skills.py         # skills_discover, skills_suggest, skills_generate
 │   ├── session.py        # session_save, session_load, session_search
-│   ├── indexer.py        # project_index, project_query, project_dependencies
+│   ├── indexer.py        # project_index, project_query, project_dependencies, project_snapshot
+│   ├── compress.py       # context_compress, context_prepare
 │   └── mcp_tracking.py   # MCP call recording for audit/tracking
 │
 ├── installer/            # Auto-detect AI tools, register MCP server
-│   └── setup.py          # Auto-detect AI tools, register MCP server
+│   ├── setup.py          # Auto-detect AI tools, register MCP server
+│   ├── agents.py         # Agent file copying (add-agents command)
+│   └── registry.py       # AI tool detection and MCP config registry
 │
 ├── compress/
 │   ├── __init__.py       # Package init, re-exports compress + CompressResult
@@ -230,7 +291,7 @@ Brute-force search is sufficient for the expected scale (<10K vectors). No ANN i
 
 ## SQLite Schema
 
-All state lives in a single SQLite database (`~/.cache/ensemble-mcp/data.db`) with WAL mode enabled. The schema has 12 tables plus a version tracker:
+All state lives in a single SQLite database (`~/.cache/ensemble-mcp/data.db`) with WAL mode enabled. The schema has 13 tables plus a version tracker:
 
 ### Core Tables
 
@@ -245,8 +306,9 @@ All state lives in a single SQLite database (`~/.cache/ensemble-mcp/data.db`) wi
 | Table | Purpose | Key Columns |
 |---|---|---|
 | `project_files` | File-level codebase index | `project_path`, `file_path`, `language`, `role`, `size_bytes` |
-| `file_exports` | Exported symbols per file | `file_id`, `name`, `kind`, `line_number` |
+| `file_exports` | Exported symbols per file | `file_id`, `name`, `kind`, `line_number`, `signature`, `docstring` |
 | `file_imports` | Import statements per file | `file_id`, `import_path`, `raw_import` |
+| `project_snapshots` | Cached compact project baseline summaries | `project_path`, `snapshot_json`, `files_hash`, `expires_at` |
 
 ### Skills Tables
 
@@ -262,7 +324,8 @@ All state lives in a single SQLite database (`~/.cache/ensemble-mcp/data.db`) wi
 | Table | Purpose | Key Columns |
 |---|---|---|
 | `session_checkpoints` | Optimistic-versioned state snapshots with semantic search | `session_id`, `state_json`, `version`, `embedding` (BLOB), `original_request`, `task_classification`, `status`, `project` |
-| `idempotency_keys` | Dedup store for mutating calls | `key`, `result_json`, `expires_at` |
+| `drift_history` | Drift check results for trend visualization | `task_description`, `changed_files`, `score`, `similarity`, `verdict`, `flags`, `project` |
+| `idempotency_keys` | Dedup store for mutating calls | `key`, `result_json`, `created_at`, `expires_at` |
 
 ### WAL Mode and Concurrency
 
@@ -364,9 +427,10 @@ Tiers (`best`, `mid`, `cheapest`) are abstract — the consuming agent maps them
 - **Incremental**: Uses file mtime to skip unchanged files
 - **Language detection**: 30+ extensions mapped to languages
 - **Role detection**: 12 heuristic patterns (test, migration, config, model, controller, service, etc.)
-- **Export extraction**: Language-aware parsers for Python, TypeScript/JavaScript, PHP, Go, Rust, Ruby
+- **Export extraction**: Language-aware parsers for Python, TypeScript/JavaScript, PHP, Go, Rust, Ruby — includes signatures and docstrings
 - **Import extraction**: Same 6 languages
 - **Filtering**: Respects `.gitignore` patterns plus a built-in ignore list (node_modules, vendor, .git, etc.)
+- **Project snapshots**: `project_snapshot` generates a compact project baseline summary (language, framework, conventions, directory structure, test setup, build tools, key files) cached with mtime-based invalidation
 
 ## Skill Intelligence
 
@@ -376,7 +440,7 @@ Tiers (`best`, `mid`, `cheapest`) are abstract — the consuming agent maps them
 2. **Suggestion**: Clusters stored patterns by embedding similarity (threshold >= 0.75) using single-linkage agglomerative clustering. Clusters with >= 3 members become skill suggestions
 3. **Generation**: Accepts/dismisses/defers suggestions. On accept, writes a Markdown skill file (zero-LLM generation from pattern content)
 
-## Context Compression
+## Context Compression & Prompt Caching
 
 `compress/engine.py` implements a rule-based text compression pipeline that reduces token count while preserving all technical content. The pipeline follows an **Extract → Preserve → Compress → Rejoin** pattern:
 
@@ -410,6 +474,25 @@ Key characteristics:
 - **Token counting**: Uses HuggingFace tokenizer (lazy-loaded, thread-safe) for accurate before/after measurement
 - **Atomic download**: Tokenizer files are downloaded with integrity protection
 
+### Prompt Caching (`context_prepare`)
+
+`context_prepare` orders prompt sections by priority tier (static → project → task) to maximize the stable prefix that LLM providers can cache across calls. Within each tier, sections are sorted by name for determinism. Optionally compresses each section through the compression engine.
+
+```mermaid
+graph LR
+    S[Static sections<br/>system prompt, rules] --> P[Project sections<br/>conventions, structure]
+    P --> T[Task sections<br/>current request, diff]
+
+    subgraph "Stable Prefix (cacheable)"
+        S
+        P
+    end
+
+    style S fill:#10B981,color:#fff
+    style P fill:#3B82F6,color:#fff
+    style T fill:#F97316,color:#fff
+```
+
 ## Configuration Layering
 
 `config/settings.py` loads settings in order:
@@ -439,6 +522,7 @@ Every setting tracks which layer it came from via `source_map` for debugging.
 | Phase | Scope | Status |
 |---|---|---|
 | 1.0 | Contract Foundation (config, errors, envelope, state, security) | ✅ Complete |
-| 1 | MCP Core (17 tools, server, tests) | ✅ Complete |
+| 1 | MCP Core (19 tools, server, tests) | ✅ Complete |
 | 4 | Auto-installer for AI tools | ✅ Complete |
+| 5 | Web dashboard (read-only SPA) | ✅ Complete |
 | 6 | Package & Publish | ⚠️ Partially complete (PyPI structure ready, not yet published) |
