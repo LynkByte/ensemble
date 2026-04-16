@@ -93,6 +93,8 @@ def _claude_def(tmp_path: Path) -> ToolDefinition:
         mcp_section_path=["mcpServers"],
         detection_paths=[tmp_path / "global" / ".claude"],
         server_entry={"command": "uvx", "args": ["ensemble-mcp"]},
+        global_agents_dir=tmp_path / "global" / ".claude" / "agents",
+        local_agents_dir=".claude/agents",
         local_skills_dir=".claude/skills",
     )
 
@@ -911,9 +913,18 @@ class TestAgentDiscovery:
         project = tmp_path / "project"
         project.mkdir()
 
-        # Claude Code has no agent dirs
-        defn = _claude_def(tmp_path)
-        pairs = discover_agents(project, tools=[defn], scope=InstallScope.GLOBAL)
+        # Copilot has no agent dirs
+        copilot_def = ToolDefinition(
+            name="copilot",
+            display_name="GitHub Copilot",
+            config_format=ConfigFormat.JSON,
+            global_config_path=tmp_path / "global" / ".vscode" / "mcp.json",
+            local_config_filename=".vscode/mcp.json",
+            mcp_section_path=["servers"],
+            detection_paths=[tmp_path / "global" / ".vscode"],
+            server_entry={"command": "uvx", "args": ["ensemble-mcp"]},
+        )
+        pairs = discover_agents(project, tools=[copilot_def], scope=InstallScope.GLOBAL)
         assert len(pairs) == 0
 
     def test_deduplicates_across_tools(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -933,6 +944,52 @@ class TestAgentDiscovery:
         # Two copies of same tool (simulates dedup scenario)
         pairs = discover_agents(project, tools=[defn, defn], scope=InstallScope.GLOBAL)
         assert len(pairs) == 1
+
+    def test_discover_bundled_agents_claude_code_global(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """When bundled agents exist, copy to Claude Code global agents dir."""
+        bundled = tmp_path / "bundled"
+        bundled.mkdir()
+        (bundled / "team-ensemble.md").write_text("# Captain")
+        (bundled / "team-craft.md").write_text("# Engineer")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled,
+        )
+        project = tmp_path / "project"
+        project.mkdir()
+
+        defn = _claude_def(tmp_path)
+        pairs = discover_agents(project, tools=[defn], scope=InstallScope.GLOBAL)
+        assert len(pairs) == 2
+        sources = {p[0].name for p in pairs}
+        assert sources == {"team-ensemble.md", "team-craft.md"}
+        # Destinations should be under the Claude Code global agents dir
+        for _, dst in pairs:
+            assert str(dst).startswith(str(defn.global_agents_dir))
+
+    def test_discover_bundled_agents_claude_code_local(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """When local scope, agents go to .claude/agents/ in the project."""
+        bundled = tmp_path / "bundled"
+        bundled.mkdir()
+        (bundled / "team-ensemble.md").write_text("# Captain")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled,
+        )
+        project = tmp_path / "project"
+        project.mkdir()
+
+        defn = _claude_def(tmp_path)
+        pairs = discover_agents(project, tools=[defn], scope=InstallScope.LOCAL)
+        assert len(pairs) == 1
+        _, dst = pairs[0]
+        assert str(dst).startswith(str(project / ".claude" / "agents"))
 
 
 # ── Full Flow (Orchestrator) ─────────────────────────────────────
@@ -1501,6 +1558,31 @@ class TestUninstallPlan:
         assert plan.agents_to_remove[0].name == "team-ensemble.md"
         assert str(plan.agents_to_remove[0]).startswith(str(defn.global_agents_dir))
 
+    def test_plan_discovers_agents_in_claude_code_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Uninstall discovers agents in Claude Code's global agents dir."""
+        defn = _claude_def(tmp_path)
+        defn.detection_paths[0].mkdir(parents=True)
+        defn.global_config_path.parent.mkdir(parents=True, exist_ok=True)
+        defn.global_config_path.write_text(
+            json.dumps({"mcpServers": {"ensemble": {"command": "uvx"}}})
+        )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        # Create agent files in Claude Code's global agents dir
+        assert defn.global_agents_dir is not None
+        defn.global_agents_dir.mkdir(parents=True)
+        (defn.global_agents_dir / "team-ensemble.md").write_text("# Captain")
+
+        plan = plan_uninstall(tmp_path, InstallScope.GLOBAL, remove_agents=True)
+        assert len(plan.agents_to_remove) == 1
+        assert plan.agents_to_remove[0].name == "team-ensemble.md"
+        assert str(plan.agents_to_remove[0]).startswith(str(defn.global_agents_dir))
+
     def test_plan_clean_data_flag(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr(
             "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
@@ -2018,10 +2100,42 @@ class TestAddAgents:
         )
         assert len(result.copied) == 1
 
-    def test_tool_without_agent_dir_copies_nothing(
+    def test_copies_agents_for_claude_code(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """add_agents copies bundled agents to Claude Code global dir."""
+        bundled = tmp_path / "bundled"
+        bundled.mkdir()
+        (bundled / "team-ensemble.md").write_text("# Captain")
+        (bundled / "team-craft.md").write_text("# Engineer")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled,
+        )
+
+        defn = _claude_def(tmp_path)
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [defn],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        result = add_agents(
+            project_path=project,
+            scope=InstallScope.GLOBAL,
+            tool_filter={"claude_code"},
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 2
+        assert defn.global_agents_dir is not None
+        assert (defn.global_agents_dir / "team-ensemble.md").exists()
+        assert (defn.global_agents_dir / "team-craft.md").exists()
+
+    def test_copies_agents_local_scope_claude_code(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ):
-        """Tools without agent dir configs produce no copies."""
+        """add_agents with LOCAL scope copies to project-local .claude/agents/ dir."""
         bundled = tmp_path / "bundled"
         bundled.mkdir()
         (bundled / "team-ensemble.md").write_text("# Captain")
@@ -2042,8 +2156,49 @@ class TestAddAgents:
 
         result = add_agents(
             project_path=project,
-            scope=InstallScope.GLOBAL,
+            scope=InstallScope.LOCAL,
             tool_filter={"claude_code"},
+            auto_confirm=True,
+        )
+        assert len(result.copied) == 1
+        assert (project / ".claude" / "agents" / "team-ensemble.md").exists()
+
+    def test_tool_without_agent_dir_copies_nothing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Tools without agent dir configs produce no copies."""
+        bundled = tmp_path / "bundled"
+        bundled.mkdir()
+        (bundled / "team-ensemble.md").write_text("# Captain")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled,
+        )
+
+        # Copilot has no agent dirs
+        copilot_def = ToolDefinition(
+            name="copilot",
+            display_name="GitHub Copilot",
+            config_format=ConfigFormat.JSON,
+            global_config_path=tmp_path / "global" / ".vscode" / "mcp.json",
+            local_config_filename=".vscode/mcp.json",
+            mcp_section_path=["servers"],
+            detection_paths=[tmp_path / "global" / ".vscode"],
+            server_entry={"command": "uvx", "args": ["ensemble-mcp"]},
+        )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.setup.TOOL_DEFINITIONS",
+            [copilot_def],
+        )
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        result = add_agents(
+            project_path=project,
+            scope=InstallScope.GLOBAL,
+            tool_filter={"copilot"},
             auto_confirm=True,
         )
         assert len(result.copied) == 0
