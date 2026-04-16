@@ -100,14 +100,18 @@ graph TD
 
 Search stored patterns by semantic similarity. Returns top-K matches above the minimum score threshold. Increments `match_count` and updates `last_matched_at` on returned patterns (used by `patterns_prune` to identify unused patterns).
 
+Supports **progressive disclosure** via `detail_level` and **category filtering** via `category`. Results include `token_count` metadata (approximate token cost of the pattern text).
+
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `query` | string | **yes** | — | Semantic search query |
 | `top_k` | integer | no | `3` | Max results (1–100) |
 | `project` | string | no | — | Optional project scope |
+| `detail_level` | string | no | `"full"` | `"index"` for compact metadata only; `"full"` for complete pattern text |
+| `category` | string | no | — | Filter by category: `gotcha`, `problem-solution`, `how-it-works`, `what-changed`, `discovery`, `decision`, `trade-off`, `general` |
 | `idempotency_key` | string | no | — | Optional idempotency key |
 
-**Response data:**
+**Response data (detail_level="full"):**
 
 ```json
 {
@@ -118,8 +122,25 @@ Search stored patterns by semantic similarity. Returns top-K matches above the m
       "context": "when this applies",
       "approach": "what was done",
       "outcome": "what happened",
+      "category": "problem-solution",
       "score": 0.85,
-      "project": "my-project"
+      "token_count": 42
+    }
+  ]
+}
+```
+
+**Response data (detail_level="index"):**
+
+```json
+{
+  "matches": [
+    {
+      "id": 1,
+      "name": "pattern-name",
+      "category": "problem-solution",
+      "score": 0.85,
+      "token_count": 42
     }
   ]
 }
@@ -138,6 +159,7 @@ Store a new pattern from a successful pipeline for future semantic search. The p
 | `approach` | string | **yes** | — | What approach was used |
 | `outcome` | string | **yes** | — | What happened (success/failure) |
 | `project` | string | no | — | Optional project scope |
+| `category` | string | no | `"general"` | Pattern category: `gotcha`, `problem-solution`, `how-it-works`, `what-changed`, `discovery`, `decision`, `trade-off`, `general` |
 | `idempotency_key` | string | no | — | Optional idempotency key |
 
 **Response data:**
@@ -145,7 +167,8 @@ Store a new pattern from a successful pipeline for future semantic search. The p
 ```json
 {
   "id": 42,
-  "stored": true
+  "stored": true,
+  "category": "problem-solution"
 }
 ```
 

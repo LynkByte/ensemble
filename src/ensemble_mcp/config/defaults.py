@@ -31,6 +31,19 @@ DEFAULT_TOP_K = 3
 DEFAULT_MIN_SCORE = 0.3
 DEFAULT_PRUNE_MAX_AGE_DAYS = 90
 
+# Structured pattern categories for filtering and organization
+VALID_PATTERN_CATEGORIES: tuple[str, ...] = (
+    "gotcha",
+    "problem-solution",
+    "how-it-works",
+    "what-changed",
+    "discovery",
+    "decision",
+    "trade-off",
+    "general",
+)
+DEFAULT_PATTERN_CATEGORY = "general"
+
 # ── Drift Detection ───────────────────────────────────────────────
 DRIFT_THRESHOLD_ALIGNED = 0.3
 DRIFT_THRESHOLD_MINOR = 0.6

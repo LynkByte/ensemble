@@ -65,7 +65,7 @@ class TestEnsureSchema:
             version = conn.execute("SELECT MAX(version) FROM schema_version").fetchone()[0]
             assert version == SCHEMA_VERSION
             assert isinstance(SCHEMA_VERSION, int)
-            assert SCHEMA_VERSION >= 8
+            assert SCHEMA_VERSION >= 9
         finally:
             conn.close()
 
@@ -99,6 +99,19 @@ class TestEnsureSchema:
                     created_at TEXT DEFAULT (datetime('now')),
                     UNIQUE(session_id)
                 );
+
+                CREATE TABLE patterns (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    context TEXT NOT NULL,
+                    approach TEXT NOT NULL,
+                    outcome TEXT NOT NULL,
+                    project TEXT,
+                    embedding BLOB NOT NULL,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    last_matched_at TEXT,
+                    match_count INTEGER DEFAULT 0
+                );
             """)
             conn.commit()
 
@@ -118,5 +131,70 @@ class TestEnsureSchema:
             assert "original_request" in columns
             assert "status" in columns
             assert "project" in columns
+
+            # Verify patterns got the category column (v9 migration)
+            cursor = conn.execute("PRAGMA table_info(patterns)")
+            columns = {row[1] for row in cursor.fetchall()}
+            assert "category" in columns
+        finally:
+            conn.close()
+
+    def test_v9_migration_adds_category_column(self, tmp_path: Path):
+        """Migrating from schema v8 to v9 adds the category column to patterns."""
+        db_path = tmp_path / "test_v9_migration.db"
+        conn = get_connection(db_path)
+        try:
+            # Create a schema at v8 — patterns table without category column
+            conn.executescript("""
+                CREATE TABLE schema_version (
+                    version INTEGER PRIMARY KEY,
+                    applied_at TEXT DEFAULT (datetime('now'))
+                );
+                INSERT INTO schema_version (version) VALUES (8);
+
+                CREATE TABLE patterns (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    context TEXT NOT NULL,
+                    approach TEXT NOT NULL,
+                    outcome TEXT NOT NULL,
+                    project TEXT,
+                    embedding BLOB NOT NULL,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    last_matched_at TEXT,
+                    match_count INTEGER DEFAULT 0
+                );
+            """)
+            conn.commit()
+
+            # Verify category column does NOT exist yet
+            cursor = conn.execute("PRAGMA table_info(patterns)")
+            columns_before = {row[1] for row in cursor.fetchall()}
+            assert "category" not in columns_before
+
+            # Run ensure_schema — should add category column
+            ensure_schema(conn)
+
+            # Verify category column now exists
+            cursor = conn.execute("PRAGMA table_info(patterns)")
+            columns_after = {row[1] for row in cursor.fetchall()}
+            assert "category" in columns_after
+
+            # Verify schema version was bumped
+            version = conn.execute("SELECT MAX(version) FROM schema_version").fetchone()[0]
+            assert version == SCHEMA_VERSION
+        finally:
+            conn.close()
+
+    def test_new_db_has_category_column(self, tmp_path: Path):
+        """A freshly created DB includes the category column from the CREATE TABLE."""
+        db_path = tmp_path / "test_new_db_category.db"
+        conn = get_connection(db_path)
+        try:
+            ensure_schema(conn)
+
+            cursor = conn.execute("PRAGMA table_info(patterns)")
+            columns = {row[1] for row in cursor.fetchall()}
+            assert "category" in columns
         finally:
             conn.close()

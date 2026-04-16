@@ -15,7 +15,8 @@ from typing import Any
 
 import numpy as np
 
-from ..config.defaults import DB_PATH
+from ..config.defaults import DB_PATH, DEFAULT_PATTERN_CATEGORY, VALID_PATTERN_CATEGORIES
+from ..contracts.errors import validation_error
 from ..memory.embeddings import EmbeddingModel
 from ..memory.schema import ensure_schema
 from ..memory.similarity import search_similar
@@ -70,11 +71,23 @@ class VectorStore:
         approach: str,
         outcome: str,
         project: str | None = None,
+        category: str | None = None,
     ) -> int:
         """Embed and store a new pattern. Returns the pattern ID.
 
-        Text fields are redacted before storage.
+        Text fields are redacted before storage. The ``category``
+        defaults to ``DEFAULT_PATTERN_CATEGORY`` when not provided
+        and is validated against ``VALID_PATTERN_CATEGORIES``.
         """
+        if category is None:
+            category = DEFAULT_PATTERN_CATEGORY
+        if category not in VALID_PATTERN_CATEGORIES:
+            raise validation_error(
+                f"Invalid category '{category}'. "
+                f"Must be one of: {', '.join(VALID_PATTERN_CATEGORIES)}",
+                category=category,
+            )
+
         name = redact(name)
         context = redact(context)
         approach = redact(approach)
@@ -86,9 +99,9 @@ class VectorStore:
         emb_blob = embedding.tobytes()
 
         cursor = self.conn.execute(
-            "INSERT INTO patterns (name, context, approach, outcome, project, embedding) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (name, context, approach, outcome, project, emb_blob),
+            "INSERT INTO patterns (name, context, approach, outcome, project, category, embedding) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (name, context, approach, outcome, project, category, emb_blob),
         )
         self.conn.commit()
         return cursor.lastrowid  # type: ignore[return-value]
@@ -99,8 +112,19 @@ class VectorStore:
         top_k: int = 3,
         project: str | None = None,
         min_score: float = 0.3,
+        category: str | None = None,
+        detail_level: str = "full",
     ) -> list[dict[str, Any]]:
         """Semantic search over stored patterns.
+
+        Args:
+            query: Text to search for semantically.
+            top_k: Maximum number of results.
+            project: Scope results to a project (includes NULL-project patterns).
+            min_score: Minimum cosine similarity threshold.
+            category: Filter results to a specific pattern category.
+            detail_level: ``"full"`` returns all fields; ``"index"`` returns
+                compact metadata only (id, name, category, score, token_count).
 
         Note: This method has write side effects — it increments
         ``match_count`` and updates ``last_matched_at`` on matching
@@ -109,13 +133,21 @@ class VectorStore:
         """
         query_embedding = self.model.embed(query)
 
+        # Build WHERE clause dynamically for project + category filters
+        conditions: list[str] = []
+        params: list[str] = []
         if project:
-            rows = self.conn.execute(
-                "SELECT id, embedding FROM patterns WHERE project = ? OR project IS NULL",
-                (project,),
-            ).fetchall()
-        else:
-            rows = self.conn.execute("SELECT id, embedding FROM patterns").fetchall()
+            conditions.append("(project = ? OR project IS NULL)")
+            params.append(project)
+        if category:
+            conditions.append("category = ?")
+            params.append(category)
+
+        sql = "SELECT id, embedding FROM patterns"
+        if conditions:
+            sql += " WHERE " + " AND ".join(conditions)
+
+        rows = self.conn.execute(sql, params).fetchall()
 
         stored = [(row[0], np.frombuffer(row[1], dtype=np.float32)) for row in rows]
         matches = search_similar(query_embedding, stored, top_k, min_score)
@@ -123,7 +155,7 @@ class VectorStore:
         results: list[dict[str, Any]] = []
         for id_, score in matches:
             row = self.conn.execute(
-                "SELECT name, context, approach, outcome FROM patterns WHERE id = ?",
+                "SELECT name, context, approach, outcome, category FROM patterns WHERE id = ?",
                 (id_,),
             ).fetchone()
             if row:
@@ -132,16 +164,34 @@ class VectorStore:
                     "match_count = match_count + 1 WHERE id = ?",
                     (id_,),
                 )
-                results.append(
-                    {
-                        "id": id_,
-                        "name": row[0],
-                        "context": row[1],
-                        "approach": row[2],
-                        "outcome": row[3],
-                        "score": round(score, 3),
-                    }
-                )
+                pat_category = row[4] or DEFAULT_PATTERN_CATEGORY
+                token_count = (
+                    len(row[1]) + len(row[2]) + len(row[3])
+                ) // 4  # ~4 chars/token approximation
+
+                if detail_level == "index":
+                    results.append(
+                        {
+                            "id": id_,
+                            "name": row[0],
+                            "category": pat_category,
+                            "score": round(score, 3),
+                            "token_count": token_count,
+                        }
+                    )
+                else:
+                    results.append(
+                        {
+                            "id": id_,
+                            "name": row[0],
+                            "context": row[1],
+                            "approach": row[2],
+                            "outcome": row[3],
+                            "category": pat_category,
+                            "score": round(score, 3),
+                            "token_count": token_count,
+                        }
+                    )
         self.conn.commit()
         return results
 

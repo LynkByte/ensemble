@@ -22,7 +22,13 @@ from urllib.parse import unquote
 
 from aiohttp import web
 
-from ..config.defaults import DB_PATH, GLOBAL_CONFIG_PATH, SERVER_NAME, SERVER_VERSION
+from ..config.defaults import (
+    DB_PATH,
+    GLOBAL_CONFIG_PATH,
+    SERVER_NAME,
+    SERVER_VERSION,
+    VALID_PATTERN_CATEGORIES,
+)
 from ..config.settings import Settings, _load_toml, load_settings
 from ..security.redaction import redact
 from ..state.locks import get_connection
@@ -322,33 +328,37 @@ async def handle_summary(request: web.Request) -> web.Response:
 
 
 async def handle_patterns(request: web.Request) -> web.Response:
-    """Paginated pattern list."""
+    """Paginated pattern list with optional category filter."""
     start = time.monotonic()
     project = request.query.get("project")
+    category = request.query.get("category")
     limit = _parse_int(request.query.get("limit"), 50)
     offset = _parse_int(request.query.get("offset"), 0)
     conn = _get_conn(request)
     try:
+        # Build dynamic WHERE clause for project + category filters
+        conditions: list[str] = []
+        params: list[str | int] = []
         if project:
-            rows = conn.execute(
-                "SELECT id, name, context, approach, outcome, project, "
-                "created_at, last_matched_at, match_count "
-                "FROM patterns WHERE project = ? OR project IS NULL "
-                "ORDER BY created_at DESC LIMIT ? OFFSET ?",
-                (project, limit, offset),
-            ).fetchall()
-            total = conn.execute(
-                "SELECT COUNT(*) FROM patterns WHERE project = ? OR project IS NULL",
-                (project,),
-            ).fetchone()[0]
-        else:
-            rows = conn.execute(
-                "SELECT id, name, context, approach, outcome, project, "
-                "created_at, last_matched_at, match_count "
-                "FROM patterns ORDER BY created_at DESC LIMIT ? OFFSET ?",
-                (limit, offset),
-            ).fetchall()
-            total = conn.execute("SELECT COUNT(*) FROM patterns").fetchone()[0]
+            conditions.append("(project = ? OR project IS NULL)")
+            params.append(project)
+        if category:
+            conditions.append("category = ?")
+            params.append(category)
+
+        where = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+
+        rows = conn.execute(
+            "SELECT id, name, context, approach, outcome, project, category, "
+            "created_at, last_matched_at, match_count "
+            f"FROM patterns{where} "
+            "ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (*params, limit, offset),
+        ).fetchall()
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM patterns{where}",
+            params,
+        ).fetchone()[0]
 
         patterns = [
             {
@@ -358,6 +368,7 @@ async def handle_patterns(request: web.Request) -> web.Response:
                 "approach": r["approach"],
                 "outcome": r["outcome"],
                 "project": r["project"],
+                "category": r["category"],
                 "created_at": r["created_at"],
                 "last_matched_at": r["last_matched_at"],
                 "match_count": r["match_count"],
@@ -381,7 +392,7 @@ async def handle_pattern_detail(request: web.Request) -> web.Response:
     conn = _get_conn(request)
     try:
         row = conn.execute(
-            "SELECT id, name, context, approach, outcome, project, "
+            "SELECT id, name, context, approach, outcome, project, category, "
             "created_at, last_matched_at, match_count "
             "FROM patterns WHERE id = ?",
             (pattern_id,),
@@ -399,6 +410,7 @@ async def handle_pattern_detail(request: web.Request) -> web.Response:
                 "approach": row["approach"],
                 "outcome": row["outcome"],
                 "project": row["project"],
+                "category": row["category"],
                 "created_at": row["created_at"],
                 "last_matched_at": row["last_matched_at"],
                 "match_count": row["match_count"],
@@ -820,18 +832,18 @@ async def handle_pattern_delete(request: web.Request) -> web.Response:
 
 
 async def handle_pattern_edit(request: web.Request) -> web.Response:
-    """Edit pattern fields (name, context, approach, outcome)."""
+    """Edit pattern fields (name, context, approach, outcome, category)."""
     start = time.monotonic()
     pattern_id = _parse_int(request.match_info.get("id"), -1)
     body = await _parse_json_body(request)
 
     # Only allow editing specific fields
-    allowed_fields = {"name", "context", "approach", "outcome"}
+    allowed_fields = {"name", "context", "approach", "outcome", "category"}
     updates = {k: v for k, v in body.items() if k in allowed_fields}
 
     if not updates:
         return _error_envelope(
-            "No valid fields to update. Allowed: name, context, approach, outcome",
+            "No valid fields to update. Allowed: name, context, approach, outcome, category",
             code="VALIDATION_INVALID_VALUE",
             status=400,
         )
@@ -844,6 +856,14 @@ async def handle_pattern_edit(request: web.Request) -> web.Response:
                 code="VALIDATION_INVALID_TYPE",
                 status=400,
             )
+
+    # Validate category against allowed values
+    if "category" in updates and updates["category"] not in VALID_PATTERN_CATEGORIES:
+        return _error_envelope(
+            f"Invalid category. Must be one of: {', '.join(VALID_PATTERN_CATEGORIES)}",
+            code="VALIDATION_INVALID_VALUE",
+            status=400,
+        )
 
     conn = _get_write_conn(request)
     try:
@@ -861,7 +881,7 @@ async def handle_pattern_edit(request: web.Request) -> web.Response:
 
         # Return updated pattern
         updated = conn.execute(
-            "SELECT id, name, context, approach, outcome, project, "
+            "SELECT id, name, context, approach, outcome, project, category, "
             "created_at, last_matched_at, match_count "
             "FROM patterns WHERE id = ?",
             (pattern_id,),
@@ -878,6 +898,7 @@ async def handle_pattern_edit(request: web.Request) -> web.Response:
                     "approach": updated["approach"],
                     "outcome": updated["outcome"],
                     "project": updated["project"],
+                    "category": updated["category"],
                     "created_at": updated["created_at"],
                     "last_matched_at": updated["last_matched_at"],
                     "match_count": updated["match_count"],
