@@ -28,7 +28,7 @@ Semantic memory for storing and retrieving successful pipeline patterns.
 
 ### `patterns_search`
 
-Search stored patterns by semantic similarity using vector embeddings.
+Search stored patterns by semantic similarity using vector embeddings. Supports progressive disclosure via `detail_level` and category filtering.
 
 **Parameters:**
 
@@ -37,9 +37,11 @@ Search stored patterns by semantic similarity using vector embeddings.
 | `query` | string | yes | — | Semantic search query |
 | `top_k` | integer | no | 3 | Maximum results to return |
 | `project` | string | no | null | Scope search to a project |
+| `detail_level` | string | no | `"full"` | `"index"` for compact metadata (name, category, score, token_count); `"full"` for complete pattern text |
+| `category` | string | no | null | Filter by category: `gotcha`, `problem-solution`, `how-it-works`, `what-changed`, `discovery`, `decision`, `trade-off`, `general` |
 | `idempotency_key` | string | no | null | Dedup key for the call |
 
-**Response `data`:**
+**Response `data` (detail_level="full"):**
 
 ```json
 {
@@ -50,13 +52,32 @@ Search stored patterns by semantic similarity using vector embeddings.
       "context": "Adding new API endpoint with database migration",
       "approach": "Create migration first, then model, then controller",
       "outcome": "Clean migration with rollback support",
-      "score": 0.847
+      "category": "how-it-works",
+      "score": 0.847,
+      "token_count": 28
     }
   ]
 }
 ```
 
-**Possible errors:** None (returns empty matches on no results)
+**Response `data` (detail_level="index"):**
+
+```json
+{
+  "matches": [
+    {
+      "id": 1,
+      "name": "laravel-api-migration",
+      "category": "how-it-works",
+      "score": 0.847,
+      "token_count": 28
+    }
+  ]
+}
+```
+
+**Possible errors:**
+- `VALIDATION_INVALID_VALUE` — invalid `detail_level` value (must be `"index"` or `"full"`)
 
 ---
 
@@ -73,6 +94,7 @@ Store a new pattern from a successful pipeline for future semantic search. Text 
 | `approach` | string | yes | — | What approach was used |
 | `outcome` | string | yes | — | What happened (success/failure) |
 | `project` | string | no | null | Project scope |
+| `category` | string | no | `"general"` | Pattern category: `gotcha`, `problem-solution`, `how-it-works`, `what-changed`, `discovery`, `decision`, `trade-off`, `general` |
 | `idempotency_key` | string | no | null | Dedup key |
 
 **Response `data`:**
@@ -80,11 +102,13 @@ Store a new pattern from a successful pipeline for future semantic search. Text 
 ```json
 {
   "id": 42,
-  "stored": true
+  "stored": true,
+  "category": "problem-solution"
 }
 ```
 
-**Possible errors:** None (validation is done by MCP schema)
+**Possible errors:**
+- `VALIDATION_INVALID_VALUE` — invalid `category` value
 
 ---
 

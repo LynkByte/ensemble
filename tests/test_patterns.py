@@ -1,4 +1,8 @@
-"""Tests for patterns tools (patterns_search, patterns_store, patterns_prune)."""
+"""Tests for patterns tools (patterns_search, patterns_store, patterns_prune).
+
+Covers category filtering, progressive disclosure via detail_level,
+and token cost metadata on search results.
+"""
 
 from __future__ import annotations
 
@@ -56,6 +60,48 @@ class TestPatternsStore:
         )
         # Second call should return cached result
         assert env1["data"]["id"] == env2["data"]["id"]
+
+    @pytest.mark.asyncio
+    async def test_store_with_category(self, test_store):
+        """Storing with an explicit category includes it in the response."""
+        env = await patterns_store(
+            test_store,
+            name="gotcha pattern",
+            context="silent failure in async code",
+            approach="always await or handle the promise",
+            outcome="no more swallowed errors",
+            category="gotcha",
+        )
+        assert env["ok"] is True
+        assert env["data"]["stored"] is True
+        assert env["data"]["category"] == "gotcha"
+
+    @pytest.mark.asyncio
+    async def test_store_default_category(self, test_store):
+        """Storing without a category defaults to 'general'."""
+        env = await patterns_store(
+            test_store,
+            name="plain pattern",
+            context="ctx",
+            approach="approach",
+            outcome="outcome",
+        )
+        assert env["ok"] is True
+        assert env["data"]["category"] == "general"
+
+    @pytest.mark.asyncio
+    async def test_store_invalid_category(self, test_store):
+        """Storing with an invalid category returns a validation error."""
+        env = await patterns_store(
+            test_store,
+            name="bad pattern",
+            context="ctx",
+            approach="approach",
+            outcome="outcome",
+            category="not-a-real-category",
+        )
+        assert env["ok"] is False
+        assert env["error"]["code"] == "VALIDATION_INVALID_VALUE"
 
 
 class TestPatternsSearch:
@@ -116,6 +162,140 @@ class TestPatternsSearch:
             idempotency_key=key,
         )
         assert env1["data"] == env2["data"]
+
+    @pytest.mark.asyncio
+    async def test_search_detail_level_full_returns_all_fields(self, test_store):
+        """detail_level='full' includes context, approach, outcome, token_count, category."""
+        await patterns_store(
+            test_store,
+            name="full detail pattern",
+            context="when testing APIs",
+            approach="use integration tests",
+            outcome="better coverage",
+            category="how-it-works",
+        )
+        env = await patterns_search(
+            test_store,
+            query="full detail pattern when testing APIs use integration tests",
+            detail_level="full",
+            top_k=5,
+        )
+        assert env["ok"] is True
+        # The mock embedding may or may not produce a match, but if it does
+        # the fields must be present
+        for match in env["data"]["matches"]:
+            assert "context" in match
+            assert "approach" in match
+            assert "outcome" in match
+            assert "token_count" in match
+            assert "category" in match
+            assert match["category"] == "how-it-works"
+
+    @pytest.mark.asyncio
+    async def test_search_detail_level_index_omits_text(self, test_store):
+        """detail_level='index' returns only id, name, category, score, token_count."""
+        await patterns_store(
+            test_store,
+            name="index detail pattern",
+            context="when indexing patterns",
+            approach="use compact mode",
+            outcome="less tokens",
+            category="discovery",
+        )
+        env = await patterns_search(
+            test_store,
+            query="index detail pattern when indexing patterns use compact mode",
+            detail_level="index",
+            top_k=5,
+        )
+        assert env["ok"] is True
+        for match in env["data"]["matches"]:
+            # Index mode should have these fields
+            assert "id" in match
+            assert "name" in match
+            assert "category" in match
+            assert "score" in match
+            assert "token_count" in match
+            # Index mode should NOT have text fields
+            assert "context" not in match
+            assert "approach" not in match
+            assert "outcome" not in match
+
+    @pytest.mark.asyncio
+    async def test_search_invalid_detail_level(self, test_store):
+        """An invalid detail_level returns a validation error."""
+        env = await patterns_search(
+            test_store,
+            query="test",
+            detail_level="compact",
+        )
+        assert env["ok"] is False
+        assert env["error"]["code"] == "VALIDATION_INVALID_VALUE"
+
+    @pytest.mark.asyncio
+    async def test_search_invalid_category(self, test_store):
+        """An invalid category returns a validation error."""
+        env = await patterns_search(
+            test_store,
+            query="test",
+            category="nonexistent-category",
+        )
+        assert env["ok"] is False
+        assert env["error"]["code"] == "VALIDATION_INVALID_VALUE"
+
+    @pytest.mark.asyncio
+    async def test_search_filter_by_category(self, test_store):
+        """Category filter narrows results to matching patterns only."""
+        await patterns_store(
+            test_store,
+            name="gotcha pattern alpha",
+            context="ctx alpha gotcha",
+            approach="approach alpha gotcha",
+            outcome="outcome alpha",
+            category="gotcha",
+        )
+        await patterns_store(
+            test_store,
+            name="general pattern beta",
+            context="ctx beta general",
+            approach="approach beta general",
+            outcome="outcome beta",
+            category="general",
+        )
+        # Search with category filter — only "gotcha" patterns should appear
+        env = await patterns_search(
+            test_store,
+            query="gotcha pattern alpha ctx alpha gotcha approach alpha gotcha",
+            category="gotcha",
+            top_k=10,
+        )
+        assert env["ok"] is True
+        for match in env["data"]["matches"]:
+            assert match["category"] == "gotcha"
+
+    @pytest.mark.asyncio
+    async def test_search_token_count_present(self, test_store):
+        """Search results include token_count as a positive integer."""
+        await patterns_store(
+            test_store,
+            name="token count pattern",
+            context="some context text here for counting",
+            approach="some approach text here for counting",
+            outcome="some outcome text here for counting",
+        )
+        env = await patterns_search(
+            test_store,
+            query=(
+                "token count pattern some context text here"
+                " for counting some approach text here for counting"
+            ),
+            top_k=5,
+        )
+        assert env["ok"] is True
+        for match in env["data"]["matches"]:
+            assert "token_count" in match
+            assert isinstance(match["token_count"], int)
+            assert match["token_count"] > 0
 
 
 class TestPatternsPrune:

@@ -15,7 +15,7 @@ import sqlite3
 from ..state.idempotency import ensure_idempotency_table
 
 # Current schema version — bump when adding new migrations.
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
@@ -41,6 +41,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
             approach TEXT NOT NULL,
             outcome TEXT NOT NULL,
             project TEXT,
+            category TEXT DEFAULT 'general',
             embedding BLOB NOT NULL,
             created_at TEXT DEFAULT (datetime('now')),
             last_matched_at TEXT,
@@ -255,6 +256,16 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         # No additional ALTER TABLE needed — the table is created idempotently
         # by CREATE TABLE IF NOT EXISTS in the executescript block above.
         pass
+
+    # v9: Add category column to patterns table for structured pattern
+    # categories and filtering.
+    if existing < 9:
+        with contextlib.suppress(sqlite3.OperationalError):
+            conn.execute("ALTER TABLE patterns ADD COLUMN category TEXT DEFAULT 'general'")
+    # Create the index idempotently — safe whether column came from CREATE TABLE
+    # (new DB) or from the ALTER TABLE migration above (old DB).
+    with contextlib.suppress(sqlite3.OperationalError):
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_patterns_category ON patterns(category)")
 
     if existing < SCHEMA_VERSION:
         conn.execute(

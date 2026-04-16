@@ -152,7 +152,8 @@ def seeded_db(tmp_path):
             approach TEXT NOT NULL, outcome TEXT NOT NULL,
             project TEXT, embedding BLOB NOT NULL,
             created_at TEXT DEFAULT (datetime('now')),
-            last_matched_at TEXT, match_count INTEGER DEFAULT 0
+            last_matched_at TEXT, match_count INTEGER DEFAULT 0,
+            category TEXT DEFAULT 'general'
         );
         CREATE TABLE IF NOT EXISTS mcp_calls (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

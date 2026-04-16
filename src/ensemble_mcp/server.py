@@ -16,7 +16,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-from .config.defaults import SERVER_NAME, SERVER_VERSION
+from .config.defaults import SERVER_NAME, SERVER_VERSION, VALID_PATTERN_CATEGORIES
 from .config.settings import load_settings
 from .memory.store import VectorStore
 from .security.trust import require_confirmation
@@ -73,6 +73,21 @@ TOOL_DEFINITIONS: list[Tool] = [
                     "maximum": 100,
                 },
                 "project": {"type": "string", "description": "Optional project scope"},
+                "detail_level": {
+                    "type": "string",
+                    "enum": ["index", "full"],
+                    "default": "full",
+                    "description": (
+                        "Level of detail: 'index' returns compact metadata only "
+                        "(name, category, score, token_count); "
+                        "'full' returns complete pattern text"
+                    ),
+                },
+                "category": {
+                    "type": "string",
+                    "enum": list(VALID_PATTERN_CATEGORIES),
+                    "description": "Filter results by pattern category",
+                },
                 "idempotency_key": {"type": "string", "description": "Optional idempotency key"},
             },
             "required": ["query"],
@@ -89,6 +104,12 @@ TOOL_DEFINITIONS: list[Tool] = [
                 "approach": {"type": "string", "description": "What approach was used"},
                 "outcome": {"type": "string", "description": "What happened (success/failure)"},
                 "project": {"type": "string", "description": "Optional project scope"},
+                "category": {
+                    "type": "string",
+                    "enum": list(VALID_PATTERN_CATEGORIES),
+                    "default": "general",
+                    "description": "Pattern category for structured organization",
+                },
                 "idempotency_key": {"type": "string", "description": "Optional idempotency key"},
             },
             "required": ["name", "context", "approach", "outcome"],
