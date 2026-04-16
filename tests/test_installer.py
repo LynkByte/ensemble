@@ -8,6 +8,8 @@ parsing, and the full install flow orchestration.
 from __future__ import annotations
 
 import json
+import shutil
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +27,8 @@ from ensemble_mcp.installer import (
     ToolDefinition,
     UninstallPlan,
     UninstallResult,
+    build_server_entry,
+    detect_server_command,
     get_tool_definition,
 )
 from ensemble_mcp.installer.agents import discover_agents, discover_skills
@@ -150,6 +154,110 @@ class TestToolDefinitions:
         copilot = get_tool_definition("copilot")
         assert copilot is not None
         assert copilot.mcp_section_path == ["servers"]
+
+
+# ── Server Command Detection ────────────────────────────────────
+
+
+class TestDetectServerCommand:
+    def test_ensemble_mcp_found(self, monkeypatch: pytest.MonkeyPatch):
+        """When ``ensemble-mcp`` is on PATH, returns ``["ensemble-mcp"]``
+        even if ``uvx`` is also available."""
+
+        def _which(cmd: str) -> str | None:
+            if cmd == "ensemble-mcp":
+                return "/usr/local/bin/ensemble-mcp"
+            if cmd == "uvx":
+                return "/usr/bin/uvx"
+            return None
+
+        monkeypatch.setattr(shutil, "which", _which)
+        assert detect_server_command() == ["ensemble-mcp"]
+
+    def test_uvx_found_without_ensemble_mcp(self, monkeypatch: pytest.MonkeyPatch):
+        """When ``ensemble-mcp`` is absent but ``uvx`` is on PATH,
+        returns ``["uvx", "ensemble-mcp"]``."""
+        monkeypatch.setattr(
+            shutil, "which", lambda cmd: f"/usr/bin/{cmd}" if cmd == "uvx" else None
+        )
+        assert detect_server_command() == ["uvx", "ensemble-mcp"]
+
+    def test_fallback_to_sys_executable(self, monkeypatch: pytest.MonkeyPatch):
+        """When neither ``ensemble-mcp`` nor ``uvx`` is found, falls back to
+        ``sys.executable -m ensemble_mcp``."""
+        monkeypatch.setattr(shutil, "which", lambda _cmd: None)
+        result = detect_server_command()
+        assert result == [sys.executable, "-m", "ensemble_mcp"]
+
+
+class TestBuildServerEntry:
+    def test_standard_format_with_uvx(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """Standard-format tool (Claude Code) with uvx detected."""
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.detect_server_command",
+            lambda: ["uvx", "ensemble-mcp"],
+        )
+        defn = _claude_def(tmp_path)
+        entry = build_server_entry(defn)
+        assert entry == {"command": "uvx", "args": ["ensemble-mcp"]}
+
+    def test_standard_format_with_ensemble_mcp(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Standard-format tool with ``ensemble-mcp`` on PATH (no args)."""
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.detect_server_command",
+            lambda: ["ensemble-mcp"],
+        )
+        defn = _claude_def(tmp_path)
+        entry = build_server_entry(defn)
+        assert entry == {"command": "ensemble-mcp"}
+        assert "args" not in entry
+
+    def test_standard_format_with_fallback(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """Standard-format tool with sys.executable fallback."""
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.detect_server_command",
+            lambda: ["/usr/bin/python3", "-m", "ensemble_mcp"],
+        )
+        defn = _claude_def(tmp_path)
+        entry = build_server_entry(defn)
+        assert entry == {"command": "/usr/bin/python3", "args": ["-m", "ensemble_mcp"]}
+
+    def test_opencode_format_with_uvx(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """OpenCode-format tool (has ``"type"`` key) with uvx detected."""
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.detect_server_command",
+            lambda: ["uvx", "ensemble-mcp"],
+        )
+        defn = _opencode_def(tmp_path)
+        entry = build_server_entry(defn)
+        assert entry == {"type": "local", "command": ["uvx", "ensemble-mcp"]}
+
+    def test_opencode_format_with_ensemble_mcp(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """OpenCode-format tool with ``ensemble-mcp`` on PATH."""
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.detect_server_command",
+            lambda: ["ensemble-mcp"],
+        )
+        defn = _opencode_def(tmp_path)
+        entry = build_server_entry(defn)
+        assert entry == {"type": "local", "command": ["ensemble-mcp"]}
+
+    def test_opencode_format_with_fallback(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """OpenCode-format tool with sys.executable fallback."""
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.detect_server_command",
+            lambda: ["/usr/bin/python3", "-m", "ensemble_mcp"],
+        )
+        defn = _opencode_def(tmp_path)
+        entry = build_server_entry(defn)
+        assert entry == {
+            "type": "local",
+            "command": ["/usr/bin/python3", "-m", "ensemble_mcp"],
+        }
 
 
 # ── Config Reading ───────────────────────────────────────────────
@@ -314,6 +422,14 @@ class TestIsRegistered:
 
 
 class TestRegisterMcp:
+    @pytest.fixture(autouse=True)
+    def _pin_uvx(self, monkeypatch: pytest.MonkeyPatch):
+        """Pin ``detect_server_command`` to return uvx so assertions match."""
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.detect_server_command",
+            lambda: ["uvx", "ensemble-mcp"],
+        )
+
     def test_register_into_empty_config(self, tmp_path: Path):
         defn = _claude_def(tmp_path)
         config: dict[str, Any] = {}
@@ -539,6 +655,14 @@ class TestDisplay:
 
 
 class TestExecute:
+    @pytest.fixture(autouse=True)
+    def _pin_uvx(self, monkeypatch: pytest.MonkeyPatch):
+        """Pin ``detect_server_command`` to return uvx so assertions match."""
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.detect_server_command",
+            lambda: ["uvx", "ensemble-mcp"],
+        )
+
     def test_execute_registers_json_tool(self, tmp_path: Path):
         defn = _claude_def(tmp_path)
         defn.global_config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -815,6 +939,14 @@ class TestAgentDiscovery:
 
 
 class TestFullFlow:
+    @pytest.fixture(autouse=True)
+    def _pin_uvx(self, monkeypatch: pytest.MonkeyPatch):
+        """Pin ``detect_server_command`` to return uvx so assertions match."""
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.detect_server_command",
+            lambda: ["uvx", "ensemble-mcp"],
+        )
+
     def test_full_install_flow(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """End-to-end: detect → plan → execute for two tools."""
         oc_def = _opencode_def(tmp_path)
@@ -1036,6 +1168,14 @@ class TestSkillDiscovery:
 
 
 class TestSkillInstallIntegration:
+    @pytest.fixture(autouse=True)
+    def _pin_uvx(self, monkeypatch: pytest.MonkeyPatch):
+        """Pin ``detect_server_command`` to return uvx so assertions match."""
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.detect_server_command",
+            lambda: ["uvx", "ensemble-mcp"],
+        )
+
     def test_plan_includes_skills(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """Install plan should include skill files to copy."""
         bundled_skills = tmp_path / "bundled_skills"
@@ -1571,6 +1711,14 @@ class TestUninstallExecute:
 
 
 class TestFullUninstallFlow:
+    @pytest.fixture(autouse=True)
+    def _pin_uvx(self, monkeypatch: pytest.MonkeyPatch):
+        """Pin ``detect_server_command`` to return uvx so assertions match."""
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.detect_server_command",
+            lambda: ["uvx", "ensemble-mcp"],
+        )
+
     def test_install_then_uninstall(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """End-to-end: install → verify registered → uninstall → verify removed."""
         defn = _claude_def(tmp_path)
