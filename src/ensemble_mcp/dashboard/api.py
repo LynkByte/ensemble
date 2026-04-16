@@ -348,17 +348,18 @@ async def handle_patterns(request: web.Request) -> web.Response:
 
         where = (" WHERE " + " AND ".join(conditions)) if conditions else ""
 
-        rows = conn.execute(
+        # Safe: where clause built from hardcoded allowlist, all values parameterized
+        from_clause = f"FROM patterns{where} "  # noqa: S608
+        select_q = (
             "SELECT id, name, context, approach, outcome, project, category, "
             "created_at, last_matched_at, match_count "
-            f"FROM patterns{where} "
-            "ORDER BY created_at DESC LIMIT ? OFFSET ?",
-            (*params, limit, offset),
-        ).fetchall()
-        total = conn.execute(
-            f"SELECT COUNT(*) FROM patterns{where}",
-            params,
-        ).fetchone()[0]
+            + from_clause
+            + "ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        )
+        count_q = "SELECT COUNT(*) " + from_clause
+
+        rows = conn.execute(select_q, (*params, limit, offset)).fetchall()
+        total = conn.execute(count_q, params).fetchone()[0]
 
         patterns = [
             {

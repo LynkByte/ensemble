@@ -274,7 +274,10 @@ class TestPatternsSearch:
         )
         env = await patterns_search(
             test_store,
-            query="token count pattern some context text here for counting some approach text here for counting",
+            query=(
+                "token count pattern some context text here"
+                " for counting some approach text here for counting"
+            ),
             top_k=5,
         )
         assert env["ok"] is True
