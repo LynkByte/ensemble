@@ -47,6 +47,7 @@ If ensemble-mcp tools are available, use them at these points during your analys
    - `context`: what was analyzed
    - `approach`: how the issue was found
    - `outcome`: severity and recommendation
+   - `category`: use `"gotcha"` for pitfalls, `"problem-solution"` for bugs, `"discovery"` for insights
    - Only store significant/recurring findings, not every minor issue
 
 ---

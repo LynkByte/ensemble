@@ -336,6 +336,7 @@ Call `drift_check` with:
    - `context`: what problem was solved
    - `approach`: how it was solved
    - `outcome`: result summary
+   - `category`: classify as `gotcha`, `problem-solution`, `how-it-works`, `what-changed`, `discovery`, `decision`, `trade-off`, or `general`
    - `project`: project path (optional, for project-scoped recall)
 
 2. **Save checkpoint** (standard/complex only): Call `session_save` with:
