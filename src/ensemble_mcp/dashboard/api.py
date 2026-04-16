@@ -332,6 +332,12 @@ async def handle_patterns(request: web.Request) -> web.Response:
     start = time.monotonic()
     project = request.query.get("project")
     category = request.query.get("category")
+    if category and category not in VALID_PATTERN_CATEGORIES:
+        return _error_envelope(
+            f"Invalid category. Must be one of: {', '.join(VALID_PATTERN_CATEGORIES)}",
+            code="VALIDATION_INVALID_VALUE",
+            status=400,
+        )
     limit = _parse_int(request.query.get("limit"), 50)
     offset = _parse_int(request.query.get("offset"), 0)
     conn = _get_conn(request)

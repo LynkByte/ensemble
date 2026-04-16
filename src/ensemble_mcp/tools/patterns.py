@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..config.defaults import VALID_PATTERN_CATEGORIES
 from ..contracts.envelope import tool_handler
 from ..contracts.errors import validation_error
 from ..memory.store import VectorStore
@@ -40,6 +41,12 @@ async def patterns_search(
         raise validation_error(
             f"Invalid detail_level '{detail_level}'. Must be 'index' or 'full'",
             detail_level=detail_level,
+        )
+
+    if category is not None and category not in VALID_PATTERN_CATEGORIES:
+        raise validation_error(
+            f"Invalid category '{category}'. Must be one of: {', '.join(VALID_PATTERN_CATEGORIES)}",
+            category=category,
         )
 
     matches = store.search_patterns(

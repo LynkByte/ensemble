@@ -233,6 +233,17 @@ class TestPatternsSearch:
         assert env["error"]["code"] == "VALIDATION_INVALID_VALUE"
 
     @pytest.mark.asyncio
+    async def test_search_invalid_category(self, test_store):
+        """An invalid category returns a validation error."""
+        env = await patterns_search(
+            test_store,
+            query="test",
+            category="nonexistent-category",
+        )
+        assert env["ok"] is False
+        assert env["error"]["code"] == "VALIDATION_INVALID_VALUE"
+
+    @pytest.mark.asyncio
     async def test_search_filter_by_category(self, test_store):
         """Category filter narrows results to matching patterns only."""
         await patterns_store(
