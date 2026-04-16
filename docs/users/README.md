@@ -14,6 +14,7 @@ Get started with installing and configuring ensemble-mcp for your AI coding tool
 |-------|-------------|
 | [Getting Started](./getting-started.md) | 5-minute quick start — install, register, verify |
 | [Installation](./installation.md) | Detailed install: pip, source, Docker, system requirements |
+| [AI Tool Compatibility](./ai-tool-compatibility.md) | Which AI tools work, what gets installed, which MCP tools each uses |
 | [CLI Reference](./cli-reference.md) | All commands: `serve`, `web`, `install`, `uninstall`, `add-agents`, `add-skills` |
 | [Configuration](./configuration.md) | Config files, layering, all settings with defaults |
 | [MCP Client Setup](./mcp-clients.md) | Per-tool registration: OpenCode, Claude Code, Copilot, Cursor, Windsurf, Devin CLI |
