@@ -101,7 +101,8 @@ When working within the multi-agent pipeline (Captain orchestrating Architect, E
         name=<short descriptive name for the approach>,
         context=<what problem was being solved>,
         approach=<how it was solved>,
-        outcome=<result: success/partial/failed + brief detail>
+        outcome=<result: success/partial/failed + brief detail>,
+        category=<one of: gotcha, problem-solution, how-it-works, what-changed, discovery, decision, trade-off, general>
     )
     → Only store on successful or partially successful completions
     → Do NOT store on complete failures (nothing useful to remember)
@@ -204,6 +205,15 @@ When classifying tasks:
 - **approach**: How it was solved (e.g., "Escape password before bcrypt, add input validation")
 - **outcome**: Result (e.g., "Fixed, added 3 test cases for edge cases")
 - **project** (optional): Set to project name for project-scoped patterns
+- **category** (optional): One of `gotcha`, `problem-solution`, `how-it-works`, `what-changed`, `discovery`, `decision`, `trade-off`, `general` (default: `general`)
+
+### patterns_search — progressive disclosure
+
+- **query**: Semantic search query (use natural language)
+- **detail_level** (optional): `"index"` for compact metadata (name, category, score, token_count); `"full"` (default) for complete pattern text
+- **category** (optional): Filter results by category (e.g., `"gotcha"` to find only pitfalls)
+- **top_k** (optional): Max results (default: 3)
+- Use `detail_level="index"` first to scan what's available (~10x fewer tokens), then fetch full details only for relevant patterns
 
 ### drift_check — provide enough context
 

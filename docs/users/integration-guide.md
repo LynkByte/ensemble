@@ -99,10 +99,13 @@ Find similar past solutions before starting new work:
   "arguments": {
     "query": "add user authentication with JWT",
     "top_k": 5,
-    "project": "/path/to/project"
+    "project": "/path/to/project",
+    "detail_level": "index"
   }
 }
 ```
+
+Use `detail_level: "index"` for a compact scan (~10x fewer tokens), then fetch full details for relevant matches with `detail_level: "full"` (the default). You can also filter by `category` (e.g., `"gotcha"`, `"problem-solution"`).
 
 ### 5. Search Past Sessions
 
@@ -316,7 +319,8 @@ Record the successful approach for future reference:
     "context": "Adding JWT authentication to a FastAPI application",
     "approach": "Created User model, login endpoint with token generation, and middleware for route protection",
     "outcome": "Successfully added auth with 95% test coverage",
-    "project": "/path/to/project"
+    "project": "/path/to/project",
+    "category": "how-it-works"
   }
 }
 ```
