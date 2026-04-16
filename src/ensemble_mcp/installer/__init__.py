@@ -168,6 +168,8 @@ TOOL_DEFINITIONS: list[ToolDefinition] = [
         mcp_section_path=["mcpServers"],
         detection_paths=[Path.home() / ".claude"],
         server_entry=_UVXENTRY,
+        global_agents_dir=Path.home() / ".claude" / "agents",
+        local_agents_dir=".claude/agents",
         local_skills_dir=".claude/skills",
     ),
     ToolDefinition(
