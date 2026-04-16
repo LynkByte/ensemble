@@ -65,14 +65,16 @@ Builds both source and wheel distributions.
 - `ensemble_mcp-X.Y.Z-py3-none-any.whl` (~150 KB)
 
 ### Stage 3: Publish
-Publishes to PyPI using OIDC trusted publishing.
+Publishes to PyPI using OIDC trusted publishing and commits version updates to git.
 
 - Downloads distribution artifacts
 - Authenticates via GitHub's OIDC token (no secrets needed)
 - Uploads to PyPI
 - Waits 10 seconds for indexing
+- **Commits updated `pyproject.toml` to `main`** with message: `chore: bump version to X.Y.Z [skip ci]`
+- Pushes the commit to origin
 
-**No manual steps required** — OIDC handles authentication automatically.
+**No manual steps required** — OIDC handles authentication, and version management is fully automated.
 
 ### Stage 4: Create Tag
 Creates git tag and optionally GitHub Release.
@@ -119,6 +121,8 @@ Use semantic versioning per [PEP 440](https://peps.python.org/pep-0440/):
 - [ ] CHANGELOG.md is updated with release notes
 - [ ] Version number is decided (e.g., `0.1.0b5` or `1.0.0`)
 
+> ℹ️ **Version Management**: The workflow automatically updates `pyproject.toml` with the version you provide and commits it back to `main` after publishing. No manual version edits needed.
+
 ### Update CHANGELOG
 
 Add an entry to `CHANGELOG.md` **before** releasing:
@@ -144,16 +148,21 @@ Public beta release.
 ## After Release
 
 ### What the Workflow Does Automatically
+
+✅ Updates `pyproject.toml` with the new version  
+✅ Commits `pyproject.toml` back to `main`  
 ✅ Creates `vX.Y.Z` git tag  
 ✅ Pushes tag to origin  
 ✅ Creates GitHub Release  
 ✅ Publishes to PyPI  
 
 ### What You Should Do
-1. **Share the release**: https://pypi.org/project/ensemble-mcp/X.Y.Z/
-2. **Update docs** if needed (API changes, breaking changes, etc.)
-3. **Announce** to users/stakeholders
-4. **Monitor feedback** (PyPI discussions, issues, etc.)
+
+1. **Verify the version commit**: Check that `pyproject.toml` was updated on `main` (it's automatically committed with `[skip ci]` flag)
+2. **Share the release**: https://pypi.org/project/ensemble-mcp/X.Y.Z/
+3. **Update docs** if needed (API changes, breaking changes, etc.)
+4. **Announce** to users/stakeholders
+5. **Monitor feedback** (PyPI discussions, issues, etc.)
 
 ---
 

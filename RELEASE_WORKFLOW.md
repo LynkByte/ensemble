@@ -73,6 +73,8 @@ curl -X POST \
 - Uses **OIDC trusted publishing** (no secrets needed!)
 - Publishes to PyPI
 - Waits 10 seconds for PyPI indexing
+- **Automatically commits updated `pyproject.toml` to main** with commit message: `chore: bump version to X.Y.Z [skip ci]`
+- Pushes the version commit to origin
 
 ### 4. **Create Tag** Job (after publish succeeds)
 - Creates an annotated git tag: `v{version}`
@@ -172,15 +174,17 @@ Ensure:
 ## After Release
 
 The workflow automatically:
-1. ✅ Creates `vX.Y.Z` git tag
-2. ✅ Pushes tag to origin
-3. ✅ Creates GitHub Release
-4. ✅ Posts summary in Actions tab
+1. ✅ Updates and commits `pyproject.toml` to main
+2. ✅ Creates `vX.Y.Z` git tag
+3. ✅ Pushes tag to origin
+4. ✅ Creates GitHub Release
+5. ✅ Posts summary in Actions tab
 
 What you should do:
-1. Update CHANGELOG.md with release notes (if not already done)
-2. Share the release link: `https://pypi.org/project/ensemble-mcp/X.Y.Z/`
-3. Update docs/website if needed
+1. Verify the version commit was pushed to main
+2. Update CHANGELOG.md with release notes (if not already done)
+3. Share the release link: `https://pypi.org/project/ensemble-mcp/X.Y.Z/`
+4. Update docs/website if needed
 
 ---
 
@@ -191,7 +195,7 @@ What you should do:
     ↓
 [Build] ✅ Build sdist + wheel, validate with twine
     ↓
-[Publish] ✅ Upload to PyPI via OIDC
+[Publish] ✅ Upload to PyPI via OIDC, commit version to main
     ↓
 [Create Tag] ✅ Create git tag v0.1.0b5, GitHub Release
     ↓

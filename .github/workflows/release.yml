@@ -92,7 +92,8 @@ jobs:
     needs: build
     environment: pypi
     permissions:
-      id-token: write # required for OIDC trusted publishing
+      id-token: write
+      contents: write
 
     steps:
       - uses: actions/checkout@v6
@@ -109,8 +110,23 @@ jobs:
       - name: Verify PyPI publication
         run: |
           pip install --upgrade pip
-          sleep 10  # Give PyPI time to index
+          sleep 10
           pip index versions ensemble-mcp | grep "${{ github.event.inputs.version }}" || echo "⚠️ Version may take a moment to appear on PyPI"
+
+      - name: Commit version update to git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          if git diff --exit-code pyproject.toml >/dev/null 2>&1; then
+            echo "ℹ️ No version changes to commit (already at target version)"
+          else
+            echo "📝 Committing version update to pyproject.toml"
+            git add pyproject.toml
+            git commit -m "chore: bump version to ${{ github.event.inputs.version }} [skip ci]"
+            git push origin main
+            echo "✅ Version commit pushed to main"
+          fi
 
   create-tag:
     name: Create Git Tag and Release
