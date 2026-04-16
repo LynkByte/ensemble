@@ -1,0 +1,8 @@
+# ──────────────────────────────────────────────────────
+# CODEOWNERS — https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# @san3jaya is the sole maintainer and must approve all PRs.
+# ──────────────────────────────────────────────────────
+
+# Default owner for everything
+* @san3jaya
