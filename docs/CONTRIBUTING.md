@@ -357,7 +357,7 @@ The project uses GitHub Actions for continuous integration, security scanning, a
 | CI | `ci.yml` | PR + push to `main` | Runs tests across Python 3.11/3.12/3.13 with coverage reporting (fail_under=80%) |
 | Lint | `lint.yml` | PR + push to `main` | `ruff check`, `ruff format --check`, `mypy src/` (3 parallel jobs) |
 | Security | `security.yml` | PR + push to `main` + weekly | CodeQL SAST analysis + `pip-audit` dependency vulnerability scanning |
-| Publish | `publish.yml` | GitHub release published | Builds sdist+wheel, publishes to PyPI via OIDC trusted publishing |
+| Release | `release.yml` | Manual (workflow_dispatch) | Validates, builds sdist+wheel, publishes to PyPI via OIDC, commits version, creates git tag + GitHub Release |
 | Docker | `docker.yml` | GitHub release published | Multi-arch Docker build, pushed to `ghcr.io/lynkbyte/ensemble-mcp` |
 
 Dependabot is configured (`.github/dependabot.yml`) to auto-create PRs for pip and GitHub Actions dependency updates weekly.
@@ -375,7 +375,7 @@ The publish workflow uses [OIDC trusted publishing](https://docs.pypi.org/truste
    - **PyPI project name**: `ensemble-mcp`
    - **Owner**: `LynkByte`
    - **Repository**: `ensemble`
-   - **Workflow name**: `publish.yml`
+   - **Workflow name**: `release.yml`
    - **Environment name**: `pypi`
 3. In your GitHub repo, go to **Settings > Environments**
 4. Create an environment named `pypi`

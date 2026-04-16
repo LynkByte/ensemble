@@ -221,4 +221,4 @@ When the beta period is complete and you're ready for a public release:
 1. Set the version to a stable release (e.g., `0.1.0`) in `pyproject.toml`
 2. Update the classifier to `"Development Status :: 5 - Production/Stable"` (or keep `"4 - Beta"` if appropriate)
 3. Follow the PyPI trusted publishing setup in [CONTRIBUTING.md](CONTRIBUTING.md#1-pypi-trusted-publishing-package-releases)
-4. Create a GitHub Release **without** the `--prerelease` flag — the `publish.yml` workflow will automatically build and publish to PyPI via OIDC
+4. Create a GitHub Release **without** the `--prerelease` flag — the `release.yml` workflow will automatically build and publish to PyPI via OIDC
