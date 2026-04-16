@@ -188,7 +188,6 @@ return [
                 ['title' => 'Overview', 'file' => 'users/README.md', 'icon' => 'menu_book'],
                 ['title' => 'Getting Started', 'file' => 'users/getting-started.md', 'icon' => 'play_circle'],
                 ['title' => 'Installation', 'file' => 'users/installation.md', 'icon' => 'download'],
-                ['title' => 'AI Tool Compatibility', 'file' => 'users/ai-tool-compatibility.md', 'icon' => 'compare_arrows'],
                 ['title' => 'CLI Reference', 'file' => 'users/cli-reference.md', 'icon' => 'terminal'],
                 ['title' => 'Configuration', 'file' => 'users/configuration.md', 'icon' => 'settings'],
                 ['title' => 'MCP Clients', 'file' => 'users/mcp-clients.md', 'icon' => 'devices'],
