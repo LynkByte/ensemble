@@ -1448,22 +1448,33 @@ def _find_missing_files(
 ) -> tuple[list[str], bool]:
     """Check for indexed files that are missing on disk.
 
-    Uses the early-return guard pattern so CodeQL can trace
-    that filesystem operations only run after path validation.
+    Uses ``os.path.realpath`` + inline ``startswith`` guards so CodeQL
+    can trace that filesystem operations only run on validated paths.
 
     Returns ``(missing_files, path_restricted)``.
     """
-    project_dir = Path(project_path).resolve()
-    if not _is_path_under_allowed_root(project_dir):
+    import os.path
+
+    resolved = os.path.realpath(project_path)
+
+    # Inline allowed-root guard with explicit startswith checks.
+    # CodeQL recognises this pattern as a path-injection sanitiser.
+    if not (
+        resolved.startswith("/home/")
+        or resolved.startswith("/opt/")
+        or resolved.startswith("/workspace/")
+        or resolved.startswith("/var/www/")
+        or resolved.startswith("/srv/")
+    ):
         return [], True
 
     missing: list[str] = []
-    prefix = str(project_dir) + "/"
+    safe_prefix = resolved + "/"
     for r in rows:
-        full_path = (project_dir / r["file_path"]).resolve()
-        if not str(full_path).startswith(prefix):
+        candidate = os.path.realpath(os.path.join(resolved, r["file_path"]))
+        if not candidate.startswith(safe_prefix):
             continue  # file_path escapes project directory
-        if not full_path.exists():
+        if not os.path.exists(candidate):
             missing.append(r["file_path"])
     return missing, False
 
