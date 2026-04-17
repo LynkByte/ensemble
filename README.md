@@ -1,27 +1,89 @@
 # ensemble-mcp
 
-A Python MCP (Model Context Protocol) server that provides **vector memory**, **drift detection**, **model routing**, **skills discovery**, **session management**, **codebase indexing**, and **context compression** for AI-assisted development pipelines.
+A **harness infrastructure layer** delivered as a Python MCP server — providing **vector memory**, **drift detection**, **model routing**, **skills discovery**, **session management**, **codebase indexing**, and **context compression** for AI agent pipelines.
 
 All intelligence is local — zero LLM/API calls. Uses ONNX Runtime embeddings (~5ms), numpy cosine similarity, and SQLite storage.
 
 ---
 
+## What is an Agent Harness?
+
+**Agent = Model + Harness.** A harness is every piece of code, configuration, and execution logic that wraps a model to turn it into a useful agent. Without a harness, a model can only take in text and output text — it can't maintain state, execute code, access tools, or learn from past work.
+
+A complete agent harness typically includes:
+
+- **System prompts & configuration** — instructions that shape agent behavior
+- **Tools, Skills & MCPs** — capabilities the agent can invoke
+- **Execution environment** — filesystem, bash, sandbox, browser
+- **Orchestration logic** — subagent spawning, handoffs, model routing
+- **Memory & context management** — compaction, skills, session persistence
+- **Hooks & middleware** — deterministic checks like linting, formatting, drift detection
+
+> *For a deeper dive, see [The Anatomy of an Agent Harness](https://www.langchain.com/blog/the-anatomy-of-an-agent-harness) by LangChain.*
+
+## Where ensemble-mcp Fits
+
+Agent harnesses like Claude Code, Codex, and Cursor provide the **execution layer** — filesystem, bash, sandbox. ensemble-mcp provides the **intelligence infrastructure layer** that plugs into any harness via MCP:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    AGENT HARNESS                        │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │            Execution Layer                        │  │
+│  │    (provided by Claude Code / Codex / Cursor)     │  │
+│  │                                                   │  │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────────────┐  │  │
+│  │  │Filesystem│ │  Bash /  │ │   Sandbox /      │  │  │
+│  │  │  & Git   │ │  Code    │ │   Browser        │  │  │
+│  │  └──────────┘ └──────────┘ └──────────────────┘  │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │       Intelligence Infrastructure Layer           │  │
+│  │         (provided by ensemble-mcp via MCP)        │  │
+│  │                                                   │  │
+│  │  ┌────────┐ ┌────────┐ ┌───────┐ ┌───────────┐  │  │
+│  │  │ Memory │ │ Skills │ │ Drift │ │  Context  │  │  │
+│  │  │& Search│ │        │ │Detect │ │Compression│  │  │
+│  │  └────────┘ └────────┘ └───────┘ └───────────┘  │  │
+│  │  ┌────────┐ ┌────────┐ ┌───────┐ ┌───────────┐  │  │
+│  │  │ Model  │ │Session │ │Code   │ │ Project   │  │  │
+│  │  │Routing │ │Persist.│ │Index  │ │ Snapshot  │  │  │
+│  │  └────────┘ └────────┘ └───────┘ └───────────┘  │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │          Orchestration Layer                       │  │
+│  │   (agent pipeline, subagent spawning, handoffs)   │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+│                    ┌───────────┐                        │
+│                    │   MODEL   │                        │
+│                    └───────────┘                        │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Features
 
-| Feature | What It Does |
-|---------|-------------|
-| **Pattern Memory** | Semantic vector search over stored pipeline patterns (MiniLM-L6-v2, 384-dim) |
-| **Drift Detection** | Cosine similarity between task description and code changes |
-| **Model Routing** | Recommend model tier (best/mid/cheapest) per agent and task complexity |
-| **Skills Discovery** | Scan `.ai/skills/`, `.claude/skills/`, `.cursor/rules/` etc. with semantic search |
-| **Skill Intelligence** | Auto-detect recurring patterns and suggest converting them to reusable skills |
-| **Session Management** | Pipeline checkpoint save/load with optimistic versioning |
-| **Codebase Indexing** | File-level index with exports, imports, roles — incremental via mtime |
-| **Context Compression** | Compress verbose text into token-efficient form, rule-based |
-| **Prompt Caching** | Order and prepare prompt sections for optimal LLM cache hit rates |
-| **Codebase Snapshots** | Generate compact project baseline summaries from the codebase index |
-| **Auto-Installer** | Detect AI tools and register the MCP server in their configs |
-| **Web Dashboard** | Local browser UI at `localhost:8787` for visualizing patterns, skills, projects, drift, and sessions |
+ensemble-mcp provides these harness primitives:
+
+| Harness Primitive | Feature | What It Does |
+|-------------------|---------|-------------|
+| **Memory & Search** | Pattern Memory | Semantic vector search over stored pipeline patterns (MiniLM-L6-v2, 384-dim) |
+| **Drift Detection** | Drift Check | Cosine similarity between task description and code changes |
+| **Model Routing** | Model Recommend | Recommend model tier (best/mid/cheapest) per agent and task complexity |
+| **Skills (Progressive Disclosure)** | Skills Discovery | Scan `.ai/skills/`, `.claude/skills/`, `.cursor/rules/` etc. with semantic search |
+| **Skills (Progressive Disclosure)** | Skill Intelligence | Auto-detect recurring patterns and suggest converting them to reusable skills |
+| **Long Horizon Execution** | Session Management | Pipeline checkpoint save/load with optimistic versioning |
+| **Codebase Awareness** | Codebase Indexing | File-level index with exports, imports, roles — incremental via mtime |
+| **Context Rot Prevention** | Context Compression | Compress verbose text into token-efficient form, rule-based |
+| **Context Rot Prevention** | Prompt Caching | Order and prepare prompt sections for optimal LLM cache hit rates |
+| **Codebase Awareness** | Codebase Snapshots | Generate compact project baseline summaries from the codebase index |
+| **Harness Setup** | Auto-Installer | Detect AI tools and register the MCP server in their configs |
+| **Observability** | Web Dashboard | Local browser UI at `localhost:8787` for visualizing patterns, skills, projects, drift, and sessions |
 
 ## Quick Start
 
@@ -314,6 +376,8 @@ Confidence indicators: `exact` (direct data), `partial` (mixed sources), `estima
 
 ## Architecture
 
+ensemble-mcp is structured as a harness infrastructure layer with clear separation between tool implementations and shared engine components:
+
 ```
 ensemble-mcp/
   src/ensemble_mcp/
@@ -326,9 +390,9 @@ ensemble-mcp/
     tools/                # 19 MCP tool implementations + call-recording utility
     installer/            # AI tool detection + MCP registration
     dashboard/            # Web dashboard (aiohttp server, JSON API, SPA frontend)
-    compress/             # Rule-based text compression engine
+    compress/             # Rule-based text compression engine (context rot prevention)
     cli/                  # Startup banner
-    data/                 # Bundled agent and skill files
+    data/                 # Bundled agent and skill files (AGENTS.md, skills)
 ```
 
 ### Technology Stack
@@ -398,7 +462,7 @@ docker run --rm -v ~/.cache/ensemble-mcp:/home/app/.cache/ensemble-mcp ensemble-
 
 ## Eval Framework
 
-Benchmark harness for measuring tool effectiveness:
+Benchmark suite for measuring tool effectiveness:
 
 ```bash
 # Run eval benchmarks

@@ -1,6 +1,54 @@
 # Architecture Overview
 
-Technical architecture of the `ensemble-mcp` server for contributors and advanced users.
+Technical architecture of the `ensemble-mcp` server — a **harness infrastructure layer** for AI agent pipelines.
+
+## What is an Agent Harness?
+
+**Agent = Model + Harness.** A harness is every piece of code, configuration, and execution logic that wraps a model to make it useful. Without a harness, a model can only take in text and output text — it can't maintain state, execute code, or learn from past work.
+
+ensemble-mcp is specifically the **intelligence infrastructure layer** of the harness — it provides memory, skills, drift detection, model routing, context management, and session persistence. The execution layer (filesystem, bash, sandbox) is provided by the host agent tool (Claude Code, Cursor, Codex, etc.).
+
+> *For a deeper dive on harness concepts, see [The Anatomy of an Agent Harness](https://www.langchain.com/blog/the-anatomy-of-an-agent-harness) by LangChain.*
+
+## Harness Component Mapping
+
+The following diagram shows how ensemble-mcp's subpackages map to harness primitives:
+
+```mermaid
+flowchart TB
+    subgraph Harness["Agent Harness Primitives"]
+        direction TB
+        MEM["Memory & Search\n(Continual Learning)"]
+        CTX["Context Management\n(Context Rot Prevention)"]
+        SKL["Skills\n(Progressive Disclosure)"]
+        DFT["Drift Detection\n(Self-Verification)"]
+        RTG["Model Routing\n(Orchestration)"]
+        SES["Session Persistence\n(Long Horizon Execution)"]
+        IDX["Codebase Awareness\n(Workspace Knowledge)"]
+    end
+
+    subgraph Impl["ensemble-mcp Implementation"]
+        direction TB
+        P["memory/\nONNX embeddings\n+ vector store"]
+        C["compress/\nRule-based compression\n+ prompt caching"]
+        S["tools/skills.py\nDiscover, suggest,\ngenerate skills"]
+        D["tools/drift.py\nCosine similarity\nscope checking"]
+        R["tools/routing.py\n7x4 agent-tier\nmatrix"]
+        SS["tools/session.py\nCheckpoint save/load\noptimistic versioning"]
+        I["tools/indexer.py\nFile index, exports,\nimports, snapshots"]
+    end
+
+    MEM --> P
+    CTX --> C
+    SKL --> S
+    DFT --> D
+    RTG --> R
+    SES --> SS
+    IDX --> I
+
+    style Harness fill:#1e40af,color:#fff
+    style Impl fill:#059669,color:#fff
+```
 
 ## High-Level Design
 
@@ -156,49 +204,63 @@ src/ensemble_mcp/
 
 ## Subpackage Responsibilities
 
-### `config/`
+Each subpackage implements one or more harness primitives:
+
+### `memory/` — Memory & Search (Continual Learning)
+
+**ONNX embeddings and vector storage.** The foundation of the harness's memory system. Loads the MiniLM-L6-v2 model via ONNX Runtime (~5ms per embedding, 384 dimensions). `VectorStore` manages the SQLite database with schema migrations. Cosine similarity is computed via numpy — brute-force is sufficient for <10K vectors. Enables agents to durably store knowledge from one session and inject it into future sessions.
+
+### `compress/` — Context Rot Prevention (Compaction)
+
+**Rule-based text compression engine.** Addresses context rot — the degradation of model performance as the context window fills up. Removes filler words, articles, hedging phrases, and pleasantries from prose sections while preserving all technical content (code blocks, URLs, file paths, headings, tables). Zero LLM calls. The `context_prepare` tool orders prompt sections for optimal LLM cache hit rates.
+
+### `tools/` — Harness Tool Implementations (19 tools)
+
+**19 MCP tool implementations mapping to harness primitives.** Each tool is an async function decorated with `@tool_handler`:
+
+| Harness Primitive | Tools | File |
+|---|---|---|
+| Memory & Search | `patterns_search`, `patterns_store`, `patterns_prune` | `patterns.py` |
+| Drift Detection | `drift_check` | `drift.py` |
+| Model Routing | `model_recommend` | `routing.py` |
+| Skills (Progressive Disclosure) | `skills_discover`, `skills_suggest`, `skills_generate` | `skills.py` |
+| Session Persistence | `session_save`, `session_load`, `session_search` | `session.py` |
+| Codebase Awareness | `project_index`, `project_query`, `project_dependencies`, `project_snapshot` | `indexer.py` |
+| Context Management | `context_compress`, `context_prepare` | `compress.py` |
+
+The `mcp_tracking.py` module records every MCP call for observability (tool name, arguments, result, duration).
+
+### `config/` — Harness Configuration
 
 **Layered settings resolution.** Loads defaults from `defaults.py`, merges global config (`~/.config/ensemble-mcp/config.toml`), project config (`.ensemble-mcp.toml`), and environment variables (`ENSEMBLE_MCP_*`). Scalar values override; maps merge shallowly; lists replace.
 
-### `contracts/`
+### `contracts/` — Response Standardization
 
 **Response standardization and error taxonomy.** Every tool returns `{ok, data, error, meta}` via the `@tool_handler` decorator, which handles timing, error wrapping, and the envelope format. Error codes follow a prefix-based taxonomy (`VALIDATION_*`, `NOT_FOUND_*`, `CONFLICT_*`, `TIMEOUT_*`, `IO_*`, `INTERNAL_*`) with built-in retry guidance.
 
-### `memory/`
-
-**ONNX embeddings and vector storage.** Loads the MiniLM-L6-v2 model via ONNX Runtime (~5ms per embedding, 384 dimensions). `VectorStore` manages the SQLite database with schema migrations. Cosine similarity is computed via numpy — brute-force is sufficient for <10K vectors.
-
-### `security/`
+### `security/` — Trust Boundaries
 
 **Input safety.** `redaction.py` strips secrets and PII before storage or embedding. `trust.py` enforces confirmation requirements for destructive operations (e.g., `reset` requires `confirm=true`).
 
-### `state/`
+### `state/` — Lifecycle & Idempotency
 
-**Session lifecycle and idempotency.** Defines state machines for sessions (`pending → running → completed | failed | killed`) and steps (`pending → running → completed | failed | skipped`). Invalid transitions are rejected with `CONFLICT_INVALID_STATE_TRANSITION`. Idempotency keys prevent duplicate execution of mutating tools — keys expire after 24 hours.
+**Session lifecycle and idempotency.** Defines state machines for sessions (`pending → running → completed | failed | killed`) and steps (`pending → running → completed | failed | skipped`). Supports the long horizon execution harness primitive by enabling durable state across context windows. Idempotency keys prevent duplicate execution of mutating tools.
 
-### `tools/`
+### `installer/` — Harness Setup
 
-**19 MCP tool implementations.** Each tool is an async function decorated with `@tool_handler`. Tool functions receive the `VectorStore`, `EmbeddingModel`, or `sqlite3.Connection` from the dispatcher in `server.py`. The `mcp_tracking.py` module records every MCP call with tool name, arguments, result, and duration.
+**Auto-detection and registration of AI tools.** Defines `ToolDefinition` for 6 supported tools (OpenCode, Claude Code, Copilot, Cursor, Windsurf, Devin CLI) with their config paths. Makes it easy to plug ensemble-mcp into any existing agent harness.
 
-### `compress/`
+### `dashboard/` — Observability
 
-**Rule-based text compression engine.** Removes filler words, articles, hedging phrases, and pleasantries from prose sections while preserving all technical content (code blocks, URLs, file paths, headings, tables). Zero LLM calls.
+**Local web dashboard.** An aiohttp server serving an Alpine.js SPA. Provides visibility into harness state — patterns, skills, drift history, sessions, and codebase index. The API layer (25+ endpoints) opens its own SQLite connections to avoid blocking the MCP server.
 
-### `installer/`
-
-**Auto-detection and registration of AI tools.** Defines `ToolDefinition` for 6 supported tools (OpenCode, Claude Code, Copilot, Cursor, Windsurf, Devin CLI) with their config paths, MCP section paths, and server entry formats. The `setup.py` module orchestrates the detect → plan → confirm → execute flow with backup creation.
-
-### `dashboard/`
-
-**Local web dashboard.** An aiohttp server serving an Alpine.js SPA. The API layer (25+ endpoints) opens its own SQLite connections to avoid blocking the MCP server. Read endpoints use `PRAGMA query_only = ON` for safety.
-
-### `cli/`
+### `cli/` — Terminal UI
 
 **Terminal UI.** Currently contains only the startup banner, which uses Rich to display server version, config paths, and database location on stderr.
 
-### `data/`
+### `data/` — Bundled Harness Files
 
-**Bundled agent and skill files.** The 7-agent orchestration pipeline (`team-ensemble`, `team-scope`, `team-craft`, `team-forge`, `team-trace`, `team-lens`, `team-signal`) and the `ensemble-mcp-workflow` skill file.
+**Bundled agent and skill files.** The 7-agent orchestration pipeline (`team-ensemble`, `team-scope`, `team-craft`, `team-forge`, `team-trace`, `team-lens`, `team-signal`) and the `ensemble-mcp-workflow` skill file. These are the system prompts and AGENTS.md files that constitute the orchestration layer of the harness.
 
 ## Data Flow
 
@@ -274,12 +336,13 @@ Model: `sentence-transformers/all-MiniLM-L6-v2` — 384-dimensional embeddings, 
 
 ## Design Principles
 
-- **Local-only:** Zero LLM/API calls — all intelligence runs locally (ONNX embeddings, numpy similarity, rule-based compression)
+- **Local-only harness intelligence:** Zero LLM/API calls — all intelligence runs locally (ONNX embeddings, numpy similarity, rule-based compression). The harness infrastructure layer adds zero latency or cost from external services.
 - **Single-file storage:** One SQLite database per user, WAL mode for concurrency
 - **Incremental indexing:** mtime-based invalidation avoids re-processing unchanged files
 - **Standard envelope:** Every tool returns `{ok, data, error, meta}` with typed error codes
 - **Idempotent mutations:** Optional idempotency keys prevent duplicate execution
 - **Non-destructive installs:** Config backups are created before any modification
+- **Harness-agnostic:** Works with any MCP-compatible agent harness — not tied to a specific execution environment
 
 ## Next Steps
 
