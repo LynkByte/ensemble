@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0b6] - 2026-04-17
+
+### Added
+- **Progressive disclosure for pattern search** — new `detail_level` parameter on `patterns_search`: `'index'` returns compact metadata only (name, category, score, token_count); `'full'` (default) returns complete pattern text for backward compatibility
+- **Token cost metadata** — approximate `token_count` field on search results so agents can make cost/benefit decisions before fetching full pattern details
+- **Structured pattern categories** — predefined taxonomy (`gotcha`, `problem-solution`, `how-it-works`, `what-changed`, `discovery`, `decision`, `trade-off`, `general`) with filtering support in search and dashboard
+- **Agent directory support for Claude Code installer** — installer now correctly handles Claude Code's agent directory layout (#57)
+- **Styled HTML documentation site** — standalone themed docs website with pages for all documentation sections (getting started, tool reference, architecture, integration guide, CLI reference, troubleshooting, and more)
+- **AI tool compatibility guide** — new reference doc mapping MCP tool usage and capabilities per supported AI tool (#59)
+
+### Changed
+- **Documentation reframed with agent harness terminology** — updated presentation slides, docs structure, and references to use consistent "agent harness" terminology (#60)
+- Schema migration v9 for pattern categories, token counts, and detail level support
+- Dashboard pattern endpoints now validate `category` parameter and return 400 for invalid values
+
+### Fixed
+- **7 high-severity CodeQL vulnerabilities resolved** — SQL injection in `handle_pattern_edit` (py/sql-injection), 5 path injection vulnerabilities in dashboard API handlers (py/path-injection), incomplete URL substring sanitization in tests (py/incomplete-url-substring-sanitization)
+- **Remaining CodeQL path-injection alerts** — inline `os.path` guards in `handle_project_health` so CodeQL can trace the sanitizer in-scope; removed `/tmp` from `_ALLOWED_ROOTS` to fix Ruff S108
+- **Path-restricted project handling** — dashboard now shows info toast and warning banner when filesystem checks are skipped due to path restrictions, disables reindex button for restricted projects
+- **CodeQL-compatible code structure** — extracted `_find_missing_files` with early-return guard, added sync comments between `_ALLOWED_ROOTS` and path validation helpers
+
+### Test Suite
+- 599 tests passing (26 new tests for pattern categories, security paths, and installer)
+
 ## [0.1.0b5] - 2026-04-16
 
 ### Fixed
@@ -263,7 +287,8 @@ Initial release with all 15 MCP tools across 3 implementation phases.
 - Shared fixtures: `tmp_db`, `test_conn`, `test_store`, `MockEmbeddingModel`
 - Full lint (ruff) and format compliance
 
-[Unreleased]: https://github.com/LynkByte/ensemble/compare/v0.1.0b5...HEAD
+[Unreleased]: https://github.com/LynkByte/ensemble/compare/v0.1.0b6...HEAD
+[0.1.0b6]: https://github.com/LynkByte/ensemble/compare/v0.1.0b5...v0.1.0b6
 [0.1.0b5]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0b5
 [0.1.0b4]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0b4
 [0.1.0b3]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0b3
