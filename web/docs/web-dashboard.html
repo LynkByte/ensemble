@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Web Dashboard — ensemble-mcp docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,wght@0,400..900;1,400..900&family=Google+Sans+Code:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="docs-theme.css">
+</head>
+<body>
+
+<!-- Topbar -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-dot"></div>
+    <a href="index.html"><strong>ensemble</strong>-mcp <span class="brand-suffix">docs</span></a>
+  </div>
+  <div class="controls">
+    <button class="ctrl" id="themeBtn" title="Toggle theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" id="themeIcon">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+      <span id="themeLabel">Light</span>
+    </button>
+    <a class="ctrl" href="../index.html" title="View Presentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <span>Presentation</span>
+    </a>
+    <a class="ctrl" href="https://github.com/LynkByte/ensemble" target="_blank" rel="noopener" title="GitHub">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.58 2 12.25c0 4.54 2.87 8.39 6.84 9.74.5.1.68-.22.68-.48v-1.7c-2.78.62-3.37-1.35-3.37-1.35-.45-1.17-1.1-1.48-1.1-1.48-.9-.64.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.33 1.1 2.9.84.1-.66.35-1.1.63-1.36-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.3.1-2.72 0 0 .84-.28 2.76 1.05a9.3 9.3 0 0 1 5 0c1.9-1.33 2.75-1.05 2.75-1.05.55 1.42.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.48A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+      <span>GitHub</span>
+    </a>
+  </div>
+</header>
+
+<!-- Sidebar toggle (mobile) -->
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle navigation">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <path d="M4 6h16M4 12h16M4 18h16"/>
+  </svg>
+</button>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">For Users</h4>
+    <a href="index.html" class="sidebar-link">Overview</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+    <a href="ai-tool-compatibility.html" class="sidebar-link">AI Tool Compatibility</a>
+    <a href="cli-reference.html" class="sidebar-link">CLI Reference</a>
+    <a href="configuration.html" class="sidebar-link">Configuration</a>
+    <a href="mcp-clients.html" class="sidebar-link">MCP Client Setup</a>
+    <a href="web-dashboard.html" class="sidebar-link active">Web Dashboard</a>
+    <a href="troubleshooting.html" class="sidebar-link">Troubleshooting</a>
+  </div>
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">For Developers</h4>
+    <a href="tool-reference.html" class="sidebar-link">Tool Reference</a>
+    <a href="integration-guide.html" class="sidebar-link">Integration Guide</a>
+    <a href="architecture-overview.html" class="sidebar-link">Architecture Overview</a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">Resources</h4>
+    <a href="../index.html" class="sidebar-link">Presentation</a>
+    <a href="https://github.com/LynkByte/ensemble" class="sidebar-link" target="_blank" rel="noopener">GitHub &nearr;</a>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="content">
+  <h1>Web Dashboard</h1>
+
+  <p><code class="inline">ensemble-mcp</code> includes a local web dashboard for browsing patterns, sessions, drift history, indexed projects, skills, and server settings.</p>
+
+  <h2 id="starting-the-dashboard">Starting the Dashboard</h2>
+
+  <pre class="code" data-lang="bash"><code># Default: port 8787, auto-opens browser
+ensemble-mcp web
+
+# Custom port
+ensemble-mcp web --port 9000
+
+# Don't auto-open browser
+ensemble-mcp web --no-open
+
+# Specify reports directory
+ensemble-mcp web --reports-dir ./reports</code></pre>
+
+  <p>The dashboard binds to <code class="inline">127.0.0.1</code> only &mdash; it is accessible only from your local machine. No authentication is required.</p>
+
+  <h2 id="dashboard-url">Dashboard URL</h2>
+
+  <pre class="code"><code>http://127.0.0.1:8787</code></pre>
+
+  <p>The startup output shows the URL, database path, and version:</p>
+
+  <pre class="code"><code>  ensemble-mcp dashboard v0.1.0b4
+  URL: http://127.0.0.1:8787
+  Database: ~/.cache/ensemble-mcp/data.db
+  Press Ctrl+C to stop</code></pre>
+
+  <h2 id="architecture">Architecture</h2>
+
+  <p>The dashboard is built with:</p>
+  <ul>
+    <li><strong>Backend:</strong> <a href="https://docs.aiohttp.org/">aiohttp</a> HTTP server</li>
+    <li><strong>Frontend:</strong> <a href="https://alpinejs.dev/">Alpine.js</a> single-page application</li>
+    <li><strong>Static files:</strong> <code class="inline">index.html</code>, <code class="inline">app.js</code>, <code class="inline">style.css</code></li>
+  </ul>
+
+  <p>The dashboard opens its own SQLite connections (separate from the MCP server) to avoid blocking. Read endpoints use <code class="inline">PRAGMA query_only = ON</code> for safety.</p>
+
+  <h2 id="dashboard-pages">Dashboard Pages</h2>
+
+  <h3 id="summary">Summary</h3>
+
+  <p>The landing page shows aggregate statistics:</p>
+  <ul>
+    <li>Pattern count</li>
+    <li>Pending skill suggestions</li>
+    <li>Active (tracked) skills</li>
+    <li>Indexed project count</li>
+    <li>Drift checks in the last 30 days</li>
+    <li>Session count</li>
+    <li>Recent MCP call activity (last 20 calls with tool name, timestamp, duration)</li>
+  </ul>
+
+  <h3 id="patterns">Patterns</h3>
+
+  <p>Browse, search, edit, and delete stored patterns:</p>
+  <ul>
+    <li>Paginated list with name, context, approach, outcome, project, match count</li>
+    <li>Edit pattern fields (name, context, approach, outcome)</li>
+    <li>Delete individual patterns</li>
+    <li>Prune stale patterns (zero matches, older than configurable age)</li>
+  </ul>
+
+  <h3 id="skills">Skills</h3>
+
+  <p>View skill suggestions and tracked skill usage:</p>
+  <ul>
+    <li>Pending suggestions with accept/dismiss/defer actions</li>
+    <li>Tracked skills with match counts and last-matched timestamps</li>
+    <li>Stale skill detection (configurable threshold in days)</li>
+  </ul>
+
+  <h3 id="projects">Projects</h3>
+
+  <p>Browse indexed projects:</p>
+  <ul>
+    <li>File counts, language breakdown, role distribution</li>
+    <li>Export counts by kind (function, class, etc.)</li>
+    <li>Project health: index staleness, missing files on disk</li>
+    <li>Re-index a project from the dashboard</li>
+    <li>Delete a project's index</li>
+  </ul>
+
+  <h3 id="drift">Drift</h3>
+
+  <p>Drift check history:</p>
+  <ul>
+    <li>Task descriptions, changed files, scores, verdicts</li>
+    <li>Filter by project, date range</li>
+    <li>Score visualization (aligned / minor / significant)</li>
+  </ul>
+
+  <h3 id="sessions">Sessions</h3>
+
+  <p>Pipeline session checkpoints:</p>
+  <ul>
+    <li>Session list with status, version, timestamps</li>
+    <li>Detailed view with full state JSON</li>
+    <li>Original request, task classification, project</li>
+  </ul>
+
+  <h3 id="settings">Settings</h3>
+
+  <p>View and edit server configuration:</p>
+  <ul>
+    <li>Current values with source labels (default, global_config, project_config, env)</li>
+    <li>Edit form with field types, descriptions, and defaults</li>
+    <li>Saves to <code class="inline">~/.config/ensemble-mcp/config.toml</code></li>
+  </ul>
+
+  <h3 id="health">Health</h3>
+
+  <p>Server health information:</p>
+  <ul>
+    <li>Version, server name</li>
+    <li>Database size</li>
+    <li>Pattern, session, and project counts</li>
+  </ul>
+
+  <h2 id="json-api-endpoints">JSON API Endpoints</h2>
+
+  <p>The dashboard exposes a REST API under <code class="inline">/api/</code>. All responses use the standard envelope format:</p>
+
+  <pre class="code" data-lang="json"><code>{
+  "ok": true,
+  "data": { ... },
+  "error": null,
+  "meta": {
+    "duration_ms": 5,
+    "source": "dashboard",
+    "confidence": "exact"
+  }
+}</code></pre>
+
+  <h3 id="read-endpoints">Read Endpoints</h3>
+
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code class="inline">/api/summary</code></td><td>Aggregate counts and recent activity</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/patterns</code></td><td>Paginated pattern list (<code class="inline">?limit=&amp;offset=&amp;project=</code>)</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/patterns/{id}</code></td><td>Single pattern detail</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/skills</code></td><td>Skill suggestions and tracked skills</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/skills/stale</code></td><td>Skills not matched within threshold</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/projects</code></td><td>Indexed projects with file counts</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/projects/{path}</code></td><td>Project detail (languages, roles, exports)</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/projects/{path}/health</code></td><td>Index staleness and missing files</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/drift</code></td><td>Drift check history (<code class="inline">?project=&amp;from=&amp;to=&amp;limit=</code>)</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/sessions</code></td><td>Paginated session list</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/sessions/{id}</code></td><td>Session detail with full state</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/health</code></td><td>Server health and counts</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/settings</code></td><td>Current config with source map</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/settings/schema</code></td><td>Field names, types, defaults for the settings form</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3 id="mutation-endpoints">Mutation Endpoints</h3>
+
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>DELETE</td><td><code class="inline">/api/patterns/{id}</code></td><td>Delete a pattern</td></tr>
+      <tr><td>PUT</td><td><code class="inline">/api/patterns/{id}</code></td><td>Edit pattern fields</td></tr>
+      <tr><td>POST</td><td><code class="inline">/api/patterns/prune</code></td><td>Prune stale patterns</td></tr>
+      <tr><td>POST</td><td><code class="inline">/api/skills/suggestions/{id}/action</code></td><td>Accept/dismiss/defer a suggestion</td></tr>
+      <tr><td>DELETE</td><td><code class="inline">/api/skills/tracked/{id}</code></td><td>Remove a tracked skill</td></tr>
+      <tr><td>PUT</td><td><code class="inline">/api/settings</code></td><td>Update global config</td></tr>
+      <tr><td>POST</td><td><code class="inline">/api/reset</code></td><td>Reset all data (<code class="inline">{"confirm": true}</code> required)</td></tr>
+      <tr><td>POST</td><td><code class="inline">/api/projects/{path}/reindex</code></td><td>Force re-index a project</td></tr>
+      <tr><td>DELETE</td><td><code class="inline">/api/projects/{path}</code></td><td>Delete a project's index</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3 id="report-endpoints">Report Endpoints</h3>
+
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code class="inline">/api/reports/markdown</code></td><td>Bug Hunter report in markdown</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/reports/history</code></td><td>Report history</td></tr>
+      <tr><td>GET</td><td><code class="inline">/api/reports/summary</code></td><td>Report summary</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="port-conflicts">Port Conflicts</h2>
+
+  <p>If port 8787 is already in use, the dashboard exits with a suggestion:</p>
+
+  <pre class="code"><code>Error: Port 8787 is already in use.
+Try: ensemble-mcp web --port 8788</code></pre>
+
+  <h2 id="database-independence">Database Independence</h2>
+
+  <p>The dashboard creates its own SQLite connections, so it can run independently from the MCP server. It also calls <code class="inline">ensure_schema()</code> at startup, so the dashboard works even if the MCP server has never run.</p>
+
+  <h2 id="next-steps">Next Steps</h2>
+
+  <ul>
+    <li><a href="tool-reference.html">Tool Reference</a> &mdash; tools that generate the data shown in the dashboard</li>
+    <li><a href="configuration.html">Configuration</a> &mdash; settings you can change in the dashboard</li>
+    <li><a href="troubleshooting.html">Troubleshooting</a> &mdash; dashboard issues</li>
+  </ul>
+</main>
+
+<script>
+  /* ── Theme Toggle ── */
+  (function(){
+    const html = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    const label = document.getElementById('themeLabel');
+    const stored = localStorage.getItem('ensemble-theme');
+    if (stored) html.setAttribute('data-theme', stored);
+    function updateLabel(){
+      label.textContent = html.getAttribute('data-theme') === 'dark' ? 'Light' : 'Dark';
+    }
+    updateLabel();
+    btn.addEventListener('click', function(){
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('ensemble-theme', next);
+      updateLabel();
+    });
+  })();
+
+  /* ── Sidebar Toggle (Mobile) ── */
+  (function(){
+    const toggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    function close(){ sidebar.classList.remove('open'); overlay.classList.remove('open'); }
+    toggle.addEventListener('click', function(){
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('open');
+    });
+    overlay.addEventListener('click', close);
+  })();
+
+  /* ── Active Page Highlight ── */
+  (function(){
+    var page = location.pathname.split('/').pop() || 'index.html';
+    var links = document.querySelectorAll('.sidebar-link');
+    links.forEach(function(a){
+      a.classList.remove('active');
+      var href = a.getAttribute('href');
+      if (href === page) a.classList.add('active');
+    });
+  })();
+</script>
+</body>
+</html>

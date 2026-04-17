@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Integration Guide · ensemble-mcp docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,wght@0,400..900;1,400..900&family=Google+Sans+Code:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="docs-theme.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-dot"></div>
+      <a href="index.html"><strong>ensemble</strong>-mcp <span class="brand-suffix">docs</span></a>
+    </div>
+    <div class="controls">
+      <button class="ctrl" id="themeBtn" title="Toggle theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" id="themeIcon">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+        <span id="themeLabel">Light</span>
+      </button>
+      <a class="ctrl" href="../index.html">
+        <span>Presentation</span>
+      </a>
+      <a class="ctrl" href="https://github.com/LynkByte/ensemble" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;"><path d="M12 2C6.5 2 2 6.58 2 12.25c0 4.54 2.87 8.39 6.84 9.74.5.1.68-.22.68-.48v-1.7c-2.78.62-3.37-1.35-3.37-1.35-.45-1.17-1.1-1.48-1.1-1.48-.9-.64.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.33 1.1 2.9.84.1-.66.35-1.1.63-1.36-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.3.1-2.72 0 0 .84-.28 2.76 1.05a9.3 9.3 0 0 1 5 0c1.9-1.33 2.75-1.05 2.75-1.05.55 1.42.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.48A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+        <span>GitHub</span>
+      </a>
+    </div>
+  </header>
+
+  <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle navigation">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <h4 class="sidebar-heading">For Users</h4>
+      <a href="index.html" class="sidebar-link">Overview</a>
+      <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+      <a href="installation.html" class="sidebar-link">Installation</a>
+      <a href="ai-tool-compatibility.html" class="sidebar-link">AI Tool Compatibility</a>
+      <a href="cli-reference.html" class="sidebar-link">CLI Reference</a>
+      <a href="configuration.html" class="sidebar-link">Configuration</a>
+      <a href="mcp-clients.html" class="sidebar-link">MCP Client Setup</a>
+      <a href="web-dashboard.html" class="sidebar-link">Web Dashboard</a>
+      <a href="troubleshooting.html" class="sidebar-link">Troubleshooting</a>
+    </div>
+    <div class="sidebar-section">
+      <h4 class="sidebar-heading">For Developers</h4>
+      <a href="tool-reference.html" class="sidebar-link">Tool Reference</a>
+      <a href="integration-guide.html" class="sidebar-link active">Integration Guide</a>
+      <a href="architecture-overview.html" class="sidebar-link">Architecture Overview</a>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <h4 class="sidebar-heading">Resources</h4>
+      <a href="../index.html" class="sidebar-link">Presentation</a>
+      <a href="https://github.com/LynkByte/ensemble" class="sidebar-link" target="_blank" rel="noopener">GitHub &nearr;</a>
+    </div>
+  </nav>
+
+  <main class="content">
+    <h1>Integration Guide</h1>
+    <p>How to integrate <code class="inline">ensemble-mcp</code> into AI agent pipelines. This guide covers the recommended tool invocation patterns for each phase of a development pipeline.</p>
+
+    <h2 id="overview">Overview</h2>
+    <p><code class="inline">ensemble-mcp</code> provides 19 tools that augment AI agent pipelines with memory, drift detection, model routing, and codebase intelligence. All processing is local — no external API calls.</p>
+
+    <div class="mermaid-wrap"><div class="mermaid">
+flowchart TB
+    subgraph Pre["Pre-Pipeline Setup"]
+        direction LR
+        A1[project_index] --> A2[project_snapshot]
+        A2 --> A3[skills_discover]
+        A3 --> A4[patterns_search]
+        A4 --> A5[session_search]
+        A5 --> A6[model_recommend]
+    end
+
+    subgraph Mid["Mid-Pipeline Execution"]
+        direction LR
+        B1[session_save\ncheckpoints] --> B2[drift_check]
+        B2 --> B3[project_query\nfile lookup]
+        B3 --> B4[project_dependencies\nimport graph]
+        B4 --> B5[context_compress\ntoken savings]
+    end
+
+    subgraph Post["Post-Pipeline Completion"]
+        direction LR
+        C1[session_save\nfinal status] --> C2[patterns_store]
+        C2 --> C3[skills_suggest]
+        C3 --> C4[patterns_prune]
+    end
+
+    Pre --> Mid --> Post
+
+    style Pre fill:#2563eb,color:#fff
+    style Mid fill:#059669,color:#fff
+    style Post fill:#7c3aed,color:#fff
+    </div></div>
+
+    <hr>
+
+    <h2 id="pre-pipeline-phase">Pre-Pipeline Phase</h2>
+    <p>Before starting the main implementation work, set up context and gather intelligence.</p>
+
+    <h3 id="1-index-the-project">1. Index the Project</h3>
+    <p>Build or refresh the codebase index so <code class="inline">project_query</code> and <code class="inline">project_dependencies</code> work:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "project_index",
+  "arguments": {
+    "project_path": "/path/to/project"
+  }
+}</code></pre>
+    <p>The index is incremental — only changed files are re-processed. Use <code class="inline">force: true</code> for a full rebuild.</p>
+
+    <h3 id="2-get-project-snapshot">2. Get Project Snapshot</h3>
+    <p>Generate a compact baseline summary of the project:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "project_snapshot",
+  "arguments": {
+    "project_path": "/path/to/project"
+  }
+}</code></pre>
+    <p>Returns language, framework, conventions, directory structure, test setup, build tools, and key files. Cached for 24 hours with mtime-based invalidation.</p>
+
+    <h3 id="3-discover-skills">3. Discover Skills</h3>
+    <p>Find relevant skill files that provide domain-specific instructions:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "skills_discover",
+  "arguments": {
+    "project_path": "/path/to/project",
+    "query": "testing patterns for REST APIs"
+  }
+}</code></pre>
+
+    <h3 id="4-search-for-past-patterns">4. Search for Past Patterns</h3>
+    <p>Find similar past solutions before starting new work:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "patterns_search",
+  "arguments": {
+    "query": "add user authentication with JWT",
+    "top_k": 5,
+    "project": "/path/to/project",
+    "detail_level": "index"
+  }
+}</code></pre>
+    <p>Use <code class="inline">detail_level: "index"</code> for a compact scan (~10x fewer tokens), then fetch full details for relevant matches with <code class="inline">detail_level: "full"</code> (the default). You can also filter by <code class="inline">category</code> (e.g., <code class="inline">"gotcha"</code>, <code class="inline">"problem-solution"</code>).</p>
+
+    <h3 id="5-search-past-sessions">5. Search Past Sessions</h3>
+    <p>Find relevant previous pipeline sessions:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "session_search",
+  "arguments": {
+    "query": "authentication implementation",
+    "project": "/path/to/project",
+    "status": "completed"
+  }
+}</code></pre>
+
+    <h3 id="6-choose-model-tier">6. Choose Model Tier</h3>
+    <p>Get a model recommendation for the current agent and task:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "model_recommend",
+  "arguments": {
+    "agent": "craft",
+    "task_classification": "standard",
+    "task_description": "Add JWT authentication to the API"
+  }
+}</code></pre>
+
+    <hr>
+
+    <h2 id="mid-pipeline-phase">Mid-Pipeline Phase</h2>
+    <p>During implementation, use checkpoints, drift detection, and code intelligence.</p>
+
+    <h3 id="session-checkpoints">Session Checkpoints</h3>
+    <p>Save progress regularly so work can be resumed if interrupted:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "session_save",
+  "arguments": {
+    "session_id": "session-abc-123",
+    "state": {
+      "current_step": "implementing auth middleware"
+    },
+    "original_request": "Add JWT authentication to the API",
+    "completed_steps": ["created user model", "added login endpoint"],
+    "remaining_steps": ["add middleware", "write tests"],
+    "files_changed": ["src/auth/middleware.py", "src/models/user.py"],
+    "task_classification": "standard",
+    "status": "running",
+    "project": "/path/to/project"
+  }
+}</code></pre>
+
+    <p>The <code class="inline">version</code> field enables optimistic locking — pass the current version to detect concurrent modifications:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "session_save",
+  "arguments": {
+    "session_id": "session-abc-123",
+    "state": { ... },
+    "version": 2
+  }
+}</code></pre>
+
+    <h3 id="drift-detection">Drift Detection</h3>
+    <p>After making changes, check if the implementation drifted from the original task:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "drift_check",
+  "arguments": {
+    "task_description": "Add JWT authentication to the API",
+    "changed_files": [
+      "src/auth/middleware.py",
+      "src/models/user.py",
+      "migrations/001_add_users.sql",
+      "src/config/database.py"
+    ],
+    "diff_summary": "Added user model, login endpoint, JWT middleware, and database config changes"
+  }
+}</code></pre>
+
+    <p>Act on the verdict:</p>
+    <ul>
+      <li><strong><code class="inline">aligned</code></strong> (score &lt; 0.3) — continue normally</li>
+      <li><strong><code class="inline">minor_drift</code></strong> (score &lt; 0.6) — review the flagged files</li>
+      <li><strong><code class="inline">significant_drift</code></strong> (score ≥ 0.6) — stop and reassess scope</li>
+    </ul>
+
+    <h3 id="file-lookup">File Lookup</h3>
+    <p>Query the index to find relevant files:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "project_query",
+  "arguments": {
+    "project_path": "/path/to/project",
+    "query": "authentication middleware",
+    "file_types": ["python"]
+  }
+}</code></pre>
+
+    <h3 id="dependency-analysis">Dependency Analysis</h3>
+    <p>Check what a file imports and what imports it:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "project_dependencies",
+  "arguments": {
+    "project_path": "/path/to/project",
+    "file_path": "src/auth/middleware.py"
+  }
+}</code></pre>
+
+    <h3 id="context-compression">Context Compression</h3>
+    <p>Reduce token usage when passing large context to LLMs:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "context_compress",
+  "arguments": {
+    "text": "Long verbose text that needs to be compressed..."
+  }
+}</code></pre>
+
+    <h3 id="context-preparation">Context Preparation</h3>
+    <p>Order prompt sections for optimal LLM cache hit rates:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "context_prepare",
+  "arguments": {
+    "sections": [
+      {
+        "name": "system-prompt",
+        "content": "You are a senior engineer...",
+        "priority": "static"
+      },
+      {
+        "name": "project-conventions",
+        "content": "This project uses FastAPI...",
+        "priority": "project"
+      },
+      {
+        "name": "current-task",
+        "content": "Add JWT authentication...",
+        "priority": "task"
+      }
+    ],
+    "compress_sections": true
+  }
+}</code></pre>
+
+    <hr>
+
+    <h2 id="post-pipeline-phase">Post-Pipeline Phase</h2>
+    <p>After completing the task, store lessons learned and maintain the pattern database.</p>
+
+    <h3 id="final-session-save">Final Session Save</h3>
+    <p>Mark the session as completed with final state:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "session_save",
+  "arguments": {
+    "session_id": "session-abc-123",
+    "state": {
+      "result": "success",
+      "summary": "Added JWT authentication with middleware and tests"
+    },
+    "status": "completed",
+    "completed_steps": ["created user model", "added login endpoint", "added middleware", "wrote tests"],
+    "remaining_steps": [],
+    "files_changed": [
+      "src/auth/middleware.py",
+      "src/models/user.py",
+      "tests/test_auth.py"
+    ]
+  }
+}</code></pre>
+
+    <h3 id="store-pattern">Store Pattern</h3>
+    <p>Record the successful approach for future reference:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "patterns_store",
+  "arguments": {
+    "name": "jwt-auth-fastapi",
+    "context": "Adding JWT authentication to a FastAPI application",
+    "approach": "Created User model, login endpoint with token generation, and middleware for route protection",
+    "outcome": "Successfully added auth with 95% test coverage",
+    "project": "/path/to/project",
+    "category": "how-it-works"
+  }
+}</code></pre>
+
+    <h3 id="suggest-skills">Suggest Skills</h3>
+    <p>Detect recurring patterns that could become reusable skills:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "skills_suggest",
+  "arguments": {
+    "project_path": "/path/to/project",
+    "min_cluster_size": 3
+  }
+}</code></pre>
+
+    <h3 id="prune-old-patterns">Prune Old Patterns</h3>
+    <p>Clean up stale, unused patterns:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "patterns_prune",
+  "arguments": {
+    "max_age_days": 90
+  }
+}</code></pre>
+
+    <hr>
+
+    <h2 id="pipeline-resumption">Pipeline Resumption</h2>
+    <p>When a pipeline is interrupted and needs to resume:</p>
+
+    <ol>
+      <li><strong>Load the checkpoint:</strong>
+        <pre class="code" data-lang="json"><code>{
+  "tool": "session_load",
+  "arguments": {
+    "session_id": "session-abc-123"
+  }
+}</code></pre>
+      </li>
+      <li><strong>Read the resume context</strong> from the loaded state's <code class="inline">resume</code> key (includes <code class="inline">context_for_resume</code>, <code class="inline">remaining_steps</code>, <code class="inline">decisions</code>, etc.)</li>
+      <li><strong>Continue from the last completed step</strong> without re-deriving context</li>
+    </ol>
+
+    <hr>
+
+    <h2 id="idempotency-in-pipelines">Idempotency in Pipelines</h2>
+    <p>For pipeline steps that might be retried (e.g., after a crash), use idempotency keys:</p>
+    <pre class="code" data-lang="json"><code>{
+  "tool": "patterns_store",
+  "arguments": {
+    "name": "jwt-auth-fastapi",
+    "context": "...",
+    "approach": "...",
+    "outcome": "...",
+    "idempotency_key": "pipeline-abc-123-store-pattern"
+  }
+}</code></pre>
+    <p>Replayed calls with the same key return the original result without re-executing.</p>
+
+    <hr>
+
+    <h2 id="multi-agent-pipeline-example">Multi-Agent Pipeline Example</h2>
+    <p>In a multi-agent orchestration (e.g., the 7-agent ensemble pipeline):</p>
+
+    <table>
+      <thead>
+        <tr><th>Phase</th><th>Agent</th><th>Tools Used</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Planning</td><td>Ensemble (orchestrator)</td><td><code class="inline">model_recommend</code>, <code class="inline">session_search</code>, <code class="inline">patterns_search</code></td></tr>
+        <tr><td>Exploration</td><td>Scope (planner)</td><td><code class="inline">project_index</code>, <code class="inline">project_snapshot</code>, <code class="inline">project_query</code>, <code class="inline">skills_discover</code></td></tr>
+        <tr><td>Implementation</td><td>Craft (code writer)</td><td><code class="inline">project_dependencies</code>, <code class="inline">context_compress</code>, <code class="inline">session_save</code></td></tr>
+        <tr><td>Verification</td><td>Forge (test runner)</td><td><code class="inline">drift_check</code>, <code class="inline">session_save</code></td></tr>
+        <tr><td>Review</td><td>Lens (code review)</td><td><code class="inline">context_prepare</code>, <code class="inline">drift_check</code></td></tr>
+        <tr><td>Debugging</td><td>Trace (bug hunter)</td><td><code class="inline">project_query</code>, <code class="inline">patterns_search</code></td></tr>
+        <tr><td>Completion</td><td>Signal (git ops)</td><td><code class="inline">session_save</code> (final), <code class="inline">patterns_store</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="next-steps">Next Steps</h2>
+    <ul>
+      <li><a href="tool-reference.html">Tool Reference</a> — detailed parameter docs for every tool</li>
+      <li><a href="architecture-overview.html">Architecture Overview</a> — how the system is built</li>
+      <li><a href="configuration.html">Configuration</a> — tune thresholds for your workflow</li>
+    </ul>
+  </main>
+
+<script>
+  /* ── Theme Toggle ── */
+  (function(){
+    const html = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    const label = document.getElementById('themeLabel');
+    const stored = localStorage.getItem('ensemble-theme');
+    if (stored) html.setAttribute('data-theme', stored);
+    function updateLabel(){
+      label.textContent = html.getAttribute('data-theme') === 'dark' ? 'Light' : 'Dark';
+    }
+    updateLabel();
+    btn.addEventListener('click', function(){
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('ensemble-theme', next);
+      updateLabel();
+    });
+  })();
+
+  /* ── Sidebar Toggle (Mobile) ── */
+  (function(){
+    const toggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    function close(){ sidebar.classList.remove('open'); overlay.classList.remove('open'); }
+    toggle.addEventListener('click', function(){
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('open');
+    });
+    overlay.addEventListener('click', close);
+  })();
+
+  /* ── Active Page Highlight ── */
+  (function(){
+    var page = location.pathname.split('/').pop() || 'index.html';
+    var links = document.querySelectorAll('.sidebar-link');
+    links.forEach(function(a){
+      a.classList.remove('active');
+      var href = a.getAttribute('href');
+      if (href === page) a.classList.add('active');
+    });
+  })();
+
+  /* ── Mermaid Init ── */
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  mermaid.initialize({ startOnLoad: true, theme: isDark ? 'dark' : 'default', themeVariables: { primaryColor: '#10b981' } });
+</script>
+</body>
+</html>

@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Troubleshooting — ensemble-mcp docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,wght@0,400..900;1,400..900&family=Google+Sans+Code:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="docs-theme.css">
+</head>
+<body>
+
+<!-- Topbar -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-dot"></div>
+    <a href="index.html"><strong>ensemble</strong>-mcp <span class="brand-suffix">docs</span></a>
+  </div>
+  <div class="controls">
+    <button class="ctrl" id="themeBtn" title="Toggle theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" id="themeIcon">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+      <span id="themeLabel">Light</span>
+    </button>
+    <a class="ctrl" href="../index.html" title="View Presentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <span>Presentation</span>
+    </a>
+    <a class="ctrl" href="https://github.com/LynkByte/ensemble" target="_blank" rel="noopener" title="GitHub">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.58 2 12.25c0 4.54 2.87 8.39 6.84 9.74.5.1.68-.22.68-.48v-1.7c-2.78.62-3.37-1.35-3.37-1.35-.45-1.17-1.1-1.48-1.1-1.48-.9-.64.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.33 1.1 2.9.84.1-.66.35-1.1.63-1.36-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.3.1-2.72 0 0 .84-.28 2.76 1.05a9.3 9.3 0 0 1 5 0c1.9-1.33 2.75-1.05 2.75-1.05.55 1.42.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.48A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+      <span>GitHub</span>
+    </a>
+  </div>
+</header>
+
+<!-- Sidebar toggle (mobile) -->
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle navigation">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <path d="M4 6h16M4 12h16M4 18h16"/>
+  </svg>
+</button>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">For Users</h4>
+    <a href="index.html" class="sidebar-link">Overview</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+    <a href="ai-tool-compatibility.html" class="sidebar-link">AI Tool Compatibility</a>
+    <a href="cli-reference.html" class="sidebar-link">CLI Reference</a>
+    <a href="configuration.html" class="sidebar-link">Configuration</a>
+    <a href="mcp-clients.html" class="sidebar-link">MCP Client Setup</a>
+    <a href="web-dashboard.html" class="sidebar-link">Web Dashboard</a>
+    <a href="troubleshooting.html" class="sidebar-link active">Troubleshooting</a>
+  </div>
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">For Developers</h4>
+    <a href="tool-reference.html" class="sidebar-link">Tool Reference</a>
+    <a href="integration-guide.html" class="sidebar-link">Integration Guide</a>
+    <a href="architecture-overview.html" class="sidebar-link">Architecture Overview</a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">Resources</h4>
+    <a href="../index.html" class="sidebar-link">Presentation</a>
+    <a href="https://github.com/LynkByte/ensemble" class="sidebar-link" target="_blank" rel="noopener">GitHub &nearr;</a>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="content">
+  <h1>Troubleshooting</h1>
+
+  <p>Common issues and solutions for <code class="inline">ensemble-mcp</code>.</p>
+
+  <h2 id="installation-problems">Installation Problems</h2>
+
+  <h3 id="pip-install-fails"><code class="inline">pip install</code> fails with dependency conflicts</h3>
+
+  <p><strong>Symptoms:</strong> Dependency resolver errors, version conflicts with <code class="inline">numpy</code>, <code class="inline">onnxruntime</code>, or <code class="inline">mcp</code>.</p>
+
+  <p><strong>Solutions:</strong></p>
+  <ul>
+    <li>Use a virtual environment: <code class="inline">python -m venv .venv &amp;&amp; source .venv/bin/activate</code></li>
+    <li>Use <code class="inline">uvx</code> to run without installing: <code class="inline">uvx ensemble-mcp</code></li>
+    <li>Use <code class="inline">pipx</code> for isolated installation: <code class="inline">pipx install ensemble-mcp</code></li>
+    <li>Ensure Python 3.11+: <code class="inline">python --version</code></li>
+  </ul>
+
+  <h3 id="command-not-found"><code class="inline">ensemble-mcp: command not found</code></h3>
+
+  <p><strong>Solutions:</strong></p>
+  <ul>
+    <li>Check pip installed to your current Python: <code class="inline">pip show ensemble-mcp</code></li>
+    <li>Ensure your Python scripts directory is in <code class="inline">$PATH</code></li>
+    <li>Try running as a module: <code class="inline">python -m ensemble_mcp</code></li>
+  </ul>
+
+  <hr>
+
+  <h2 id="onnx-model-download-issues">ONNX Model Download Issues</h2>
+
+  <h3 id="model-download-fails">Model download fails or is slow</h3>
+
+  <p><strong>Symptoms:</strong> First run hangs or fails with network errors. The model is ~22 MB from Hugging Face.</p>
+
+  <p><strong>Model URLs:</strong></p>
+  <ul>
+    <li><code class="inline">https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx</code></li>
+    <li><code class="inline">https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer.json</code></li>
+  </ul>
+
+  <p><strong>Solutions:</strong></p>
+  <ol>
+    <li>Check network connectivity to <code class="inline">huggingface.co</code></li>
+    <li>Manually download and place files:
+      <pre class="code" data-lang="bash"><code>mkdir -p ~/.cache/ensemble-mcp/models
+curl -L -o ~/.cache/ensemble-mcp/models/model.onnx \
+  "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx"
+curl -L -o ~/.cache/ensemble-mcp/models/tokenizer.json \
+  "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer.json"</code></pre>
+    </li>
+    <li>If behind a proxy, set <code class="inline">HTTP_PROXY</code> / <code class="inline">HTTPS_PROXY</code> environment variables</li>
+  </ol>
+
+  <h3 id="onnx-runtime-errors">ONNX Runtime errors</h3>
+
+  <p><strong>Symptoms:</strong> <code class="inline">onnxruntime</code> import errors or inference failures.</p>
+
+  <p><strong>Solutions:</strong></p>
+  <ul>
+    <li>Ensure you have a compatible version: <code class="inline">pip install 'onnxruntime&gt;=1.17'</code></li>
+    <li>On Apple Silicon: <code class="inline">pip install onnxruntime</code> (not <code class="inline">onnxruntime-gpu</code>)</li>
+    <li>On Linux without AVX: use <code class="inline">onnxruntime</code> (CPU version), not GPU variant</li>
+  </ul>
+
+  <hr>
+
+  <h2 id="mcp-registration-failures">MCP Registration Failures</h2>
+
+  <h3 id="install-finds-no-tools"><code class="inline">ensemble-mcp install</code> finds no tools</h3>
+
+  <p><strong>Symptoms:</strong> &ldquo;Nothing to do &mdash; ensemble-mcp is already registered in all detected AI tools.&rdquo;</p>
+
+  <p><strong>Solutions:</strong></p>
+  <ul>
+    <li>Verify your AI tool is installed and has created its config directory (e.g., <code class="inline">~/.cursor/</code>, <code class="inline">~/.vscode/</code>)</li>
+    <li>Force registration for a specific tool: <code class="inline">ensemble-mcp install --tools cursor</code></li>
+    <li>Use <code class="inline">--local</code> to create project-local registration even without global tool detection</li>
+    <li>Check supported tools: <code class="inline">opencode</code>, <code class="inline">claude_code</code>, <code class="inline">copilot</code>, <code class="inline">cursor</code>, <code class="inline">windsurf</code>, <code class="inline">devin</code></li>
+  </ul>
+
+  <h3 id="config-file-backup-permission-errors">Config file backup/permission errors</h3>
+
+  <p><strong>Symptoms:</strong> Permission denied when writing to AI tool config files.</p>
+
+  <p><strong>Solutions:</strong></p>
+  <ul>
+    <li>Check file permissions: <code class="inline">ls -la ~/.cursor/mcp.json</code></li>
+    <li>Ensure the user owns the config directory</li>
+    <li>Use <code class="inline">--dry-run</code> to see the plan without writing</li>
+  </ul>
+
+  <h3 id="unknown-tool-name-error">Unknown tool name error</h3>
+
+  <p><strong>Symptoms:</strong> <code class="inline">Unknown tool(s): &lt;name&gt;</code></p>
+
+  <p><strong>Solutions:</strong></p>
+  <ul>
+    <li>Use the exact tool names: <code class="inline">opencode</code>, <code class="inline">claude_code</code>, <code class="inline">copilot</code>, <code class="inline">cursor</code>, <code class="inline">windsurf</code>, <code class="inline">devin</code></li>
+    <li>Note: Claude Code uses <code class="inline">claude_code</code> (with underscore), not <code class="inline">claude-code</code></li>
+  </ul>
+
+  <hr>
+
+  <h2 id="sqlite-lock-errors">SQLite Lock Errors</h2>
+
+  <h3 id="database-is-locked">Database is locked</h3>
+
+  <p><strong>Symptoms:</strong> <code class="inline">sqlite3.OperationalError: database is locked</code></p>
+
+  <p><strong>Cause:</strong> Multiple processes writing to the same database simultaneously. The database uses WAL (Write-Ahead Logging) mode for better concurrency, but heavy concurrent writes can still cause contention.</p>
+
+  <p><strong>Solutions:</strong></p>
+  <ol>
+    <li>Ensure only one MCP server instance is running per database</li>
+    <li>The dashboard opens separate connections &mdash; this is normal and handled correctly</li>
+    <li>If the database is corrupted, reset it:
+      <pre class="code" data-lang="bash"><code>rm ~/.cache/ensemble-mcp/data.db
+# The database is recreated automatically on next start</code></pre>
+    </li>
+  </ol>
+
+  <h3 id="database-file-not-found">Database file not found</h3>
+
+  <p><strong>Solutions:</strong></p>
+  <ul>
+    <li>The database is created automatically on first run</li>
+    <li>Check the configured path: <code class="inline">ENSEMBLE_MCP_DB_PATH</code> env var or config file</li>
+    <li>Default location: <code class="inline">~/.cache/ensemble-mcp/data.db</code></li>
+  </ul>
+
+  <hr>
+
+  <h2 id="dashboard-issues">Dashboard Issues</h2>
+
+  <h3 id="dashboard-wont-start">Dashboard won't start</h3>
+
+  <p><strong>Symptoms:</strong> Port already in use error.</p>
+
+  <pre class="code"><code>Error: Port 8787 is already in use.
+Try: ensemble-mcp web --port 8788</code></pre>
+
+  <p><strong>Solutions:</strong></p>
+  <ul>
+    <li>Use a different port: <code class="inline">ensemble-mcp web --port 9000</code></li>
+    <li>Find what's using the port: <code class="inline">lsof -i :8787</code> (macOS/Linux)</li>
+    <li>Kill the existing process or stop the other dashboard instance</li>
+  </ul>
+
+  <h3 id="dashboard-shows-no-data">Dashboard shows no data</h3>
+
+  <p><strong>Solutions:</strong></p>
+  <ul>
+    <li>The MCP server may not have been used yet &mdash; tools must be called to generate data</li>
+    <li>Check the database path: the dashboard uses the same <code class="inline">~/.cache/ensemble-mcp/data.db</code></li>
+    <li>Run a health check: visit <code class="inline">http://127.0.0.1:8787/api/health</code></li>
+  </ul>
+
+  <h3 id="browser-doesnt-open">Browser doesn't open</h3>
+
+  <p><strong>Solutions:</strong></p>
+  <ul>
+    <li>The dashboard runs headless in some environments (SSH, containers)</li>
+    <li>Manually navigate to <code class="inline">http://127.0.0.1:8787</code></li>
+    <li>Use <code class="inline">--no-open</code> and open manually to avoid the startup delay</li>
+  </ul>
+
+  <hr>
+
+  <h2 id="tool-errors">Tool Errors</h2>
+
+  <h3 id="validation-errors"><code class="inline">VALIDATION_*</code> errors</h3>
+
+  <p>These indicate bad input &mdash; never retry automatically.</p>
+
+  <table>
+    <thead>
+      <tr><th>Error Code</th><th>Meaning</th><th>Fix</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="inline">VALIDATION_MISSING_FIELD</code></td><td>Required parameter not provided</td><td>Check tool documentation for required params</td></tr>
+      <tr><td><code class="inline">VALIDATION_INVALID_VALUE</code></td><td>Parameter value is invalid</td><td>Check type, range, or allowed values</td></tr>
+      <tr><td><code class="inline">VALIDATION_INVALID_TYPE</code></td><td>Wrong parameter type</td><td>Check expected types in tool reference</td></tr>
+      <tr><td><code class="inline">VALIDATION_CONSTRAINT</code></td><td>Business rule violation</td><td>e.g., <code class="inline">reset</code> requires <code class="inline">confirm=true</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="not-found-errors"><code class="inline">NOT_FOUND_*</code> errors</h3>
+
+  <p>Resource not found &mdash; never retry.</p>
+
+  <table>
+    <thead>
+      <tr><th>Error Code</th><th>Fix</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="inline">NOT_FOUND_SESSION</code></td><td>Check session_id exists</td></tr>
+      <tr><td><code class="inline">NOT_FOUND_PATTERN</code></td><td>Pattern may have been pruned or deleted</td></tr>
+      <tr><td><code class="inline">NOT_FOUND_PROJECT</code></td><td>Run <code class="inline">project_index</code> first, or check path</td></tr>
+      <tr><td><code class="inline">NOT_FOUND_SKILL_SUGGESTION</code></td><td>Suggestion ID doesn't exist</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="conflict-errors"><code class="inline">CONFLICT_*</code> errors</h3>
+
+  <p>Concurrency conflicts &mdash; retry after refreshing state.</p>
+
+  <table>
+    <thead>
+      <tr><th>Error Code</th><th>Meaning</th><th>Fix</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="inline">CONFLICT_VERSION_MISMATCH</code></td><td>Optimistic lock failure</td><td>Re-load the session, get current version</td></tr>
+      <tr><td><code class="inline">CONFLICT_ALREADY_RESOLVED</code></td><td>Skill suggestion already accepted/dismissed</td><td>No action needed</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="io-errors"><code class="inline">IO_*</code> errors</h3>
+
+  <p>Transient I/O errors &mdash; retry with backoff.</p>
+
+  <table>
+    <thead>
+      <tr><th>Error Code</th><th>Fix</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="inline">IO_DATABASE</code></td><td>Check SQLite file permissions and disk space</td></tr>
+      <tr><td><code class="inline">IO_FILESYSTEM</code></td><td>Check directory permissions</td></tr>
+      <tr><td><code class="inline">IO_MODEL_DOWNLOAD</code></td><td>Check network connectivity</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h2 id="resetting-everything">Resetting Everything</h2>
+
+  <h3 id="reset-database">Reset database (keep model)</h3>
+
+  <pre class="code" data-lang="bash"><code># Via MCP tool (from AI agent)
+# Call the `reset` tool with confirm=true
+
+# Via dashboard
+# POST /api/reset with {"confirm": true}
+
+# Via filesystem
+rm ~/.cache/ensemble-mcp/data.db</code></pre>
+
+  <h3 id="full-clean-reset">Full clean reset</h3>
+
+  <pre class="code" data-lang="bash"><code># Remove all cached data and config
+ensemble-mcp uninstall --clean-data --remove-agents --yes
+
+# Or manually
+rm -rf ~/.cache/ensemble-mcp
+rm -rf ~/.config/ensemble-mcp</code></pre>
+
+  <h3 id="re-download-model">Re-download model</h3>
+
+  <pre class="code" data-lang="bash"><code>rm -rf ~/.cache/ensemble-mcp/models
+# Model is re-downloaded on next server start</code></pre>
+
+  <hr>
+
+  <h2 id="debugging">Debugging</h2>
+
+  <h3 id="check-server-health">Check server health</h3>
+
+  <pre class="code" data-lang="bash"><code># Via dashboard API
+curl http://127.0.0.1:8787/api/health</code></pre>
+
+  <h3 id="inspect-database">Inspect database</h3>
+
+  <pre class="code" data-lang="bash"><code>sqlite3 ~/.cache/ensemble-mcp/data.db ".tables"
+sqlite3 ~/.cache/ensemble-mcp/data.db "SELECT COUNT(*) FROM patterns"</code></pre>
+
+  <h3 id="logging">Logging</h3>
+
+  <p>The server uses Python's <code class="inline">logging</code> module, hardcoded to INFO level. There is no <code class="inline">ENSEMBLE_MCP_LOG_LEVEL</code> environment variable &mdash; the <code class="inline">Settings</code> dataclass does not have a <code class="inline">log_level</code> field, so it would be silently ignored.</p>
+
+  <p>Supported <code class="inline">ENSEMBLE_MCP_*</code> environment variables map directly to <code class="inline">Settings</code> fields:</p>
+
+  <pre class="code" data-lang="bash"><code># Override storage paths
+ENSEMBLE_MCP_CACHE_DIR=~/.my-cache/ensemble-mcp ensemble-mcp
+ENSEMBLE_MCP_DB_PATH=/tmp/ensemble-debug.db ensemble-mcp
+
+# Tune pattern matching
+ENSEMBLE_MCP_MAX_PATTERNS=2000 ensemble-mcp
+ENSEMBLE_MCP_DEFAULT_TOP_K=10 ensemble-mcp
+ENSEMBLE_MCP_DEFAULT_MIN_SCORE=0.5 ensemble-mcp
+
+# Adjust drift thresholds
+ENSEMBLE_MCP_DRIFT_THRESHOLD_ALIGNED=0.15 ensemble-mcp
+ENSEMBLE_MCP_DRIFT_THRESHOLD_MINOR=0.4 ensemble-mcp</code></pre>
+
+  <h3 id="check-config-sources">Check config sources</h3>
+
+  <pre class="code" data-lang="bash"><code># Via dashboard API — shows where each setting came from
+curl http://127.0.0.1:8787/api/settings | python -m json.tool</code></pre>
+
+  <h2 id="next-steps">Next Steps</h2>
+
+  <ul>
+    <li><a href="configuration.html">Configuration</a> &mdash; adjust settings that may fix issues</li>
+    <li><a href="cli-reference.html">CLI Reference</a> &mdash; command-line options for debugging</li>
+    <li><a href="tool-reference.html">Tool Reference</a> &mdash; understand tool error responses</li>
+  </ul>
+</main>
+
+<script>
+  /* ── Theme Toggle ── */
+  (function(){
+    const html = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    const label = document.getElementById('themeLabel');
+    const stored = localStorage.getItem('ensemble-theme');
+    if (stored) html.setAttribute('data-theme', stored);
+    function updateLabel(){
+      label.textContent = html.getAttribute('data-theme') === 'dark' ? 'Light' : 'Dark';
+    }
+    updateLabel();
+    btn.addEventListener('click', function(){
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('ensemble-theme', next);
+      updateLabel();
+    });
+  })();
+
+  /* ── Sidebar Toggle (Mobile) ── */
+  (function(){
+    const toggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    function close(){ sidebar.classList.remove('open'); overlay.classList.remove('open'); }
+    toggle.addEventListener('click', function(){
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('open');
+    });
+    overlay.addEventListener('click', close);
+  })();
+
+  /* ── Active Page Highlight ── */
+  (function(){
+    var page = location.pathname.split('/').pop() || 'index.html';
+    var links = document.querySelectorAll('.sidebar-link');
+    links.forEach(function(a){
+      a.classList.remove('active');
+      var href = a.getAttribute('href');
+      if (href === page) a.classList.add('active');
+    });
+  })();
+</script>
+</body>
+</html>

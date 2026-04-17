@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tool Reference · ensemble-mcp docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,wght@0,400..900;1,400..900&family=Google+Sans+Code:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="docs-theme.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-dot"></div>
+      <a href="index.html"><strong>ensemble</strong>-mcp <span class="brand-suffix">docs</span></a>
+    </div>
+    <div class="controls">
+      <button class="ctrl" id="themeBtn" title="Toggle theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" id="themeIcon">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+        <span id="themeLabel">Light</span>
+      </button>
+      <a class="ctrl" href="../index.html">
+        <span>Presentation</span>
+      </a>
+      <a class="ctrl" href="https://github.com/LynkByte/ensemble" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;"><path d="M12 2C6.5 2 2 6.58 2 12.25c0 4.54 2.87 8.39 6.84 9.74.5.1.68-.22.68-.48v-1.7c-2.78.62-3.37-1.35-3.37-1.35-.45-1.17-1.1-1.48-1.1-1.48-.9-.64.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.33 1.1 2.9.84.1-.66.35-1.1.63-1.36-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.3.1-2.72 0 0 .84-.28 2.76 1.05a9.3 9.3 0 0 1 5 0c1.9-1.33 2.75-1.05 2.75-1.05.55 1.42.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.48A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+        <span>GitHub</span>
+      </a>
+    </div>
+  </header>
+
+  <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle navigation">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <h4 class="sidebar-heading">For Users</h4>
+      <a href="index.html" class="sidebar-link">Overview</a>
+      <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+      <a href="installation.html" class="sidebar-link">Installation</a>
+      <a href="ai-tool-compatibility.html" class="sidebar-link">AI Tool Compatibility</a>
+      <a href="cli-reference.html" class="sidebar-link">CLI Reference</a>
+      <a href="configuration.html" class="sidebar-link">Configuration</a>
+      <a href="mcp-clients.html" class="sidebar-link">MCP Client Setup</a>
+      <a href="web-dashboard.html" class="sidebar-link">Web Dashboard</a>
+      <a href="troubleshooting.html" class="sidebar-link">Troubleshooting</a>
+    </div>
+    <div class="sidebar-section">
+      <h4 class="sidebar-heading">For Developers</h4>
+      <a href="tool-reference.html" class="sidebar-link active">Tool Reference</a>
+      <a href="integration-guide.html" class="sidebar-link">Integration Guide</a>
+      <a href="architecture-overview.html" class="sidebar-link">Architecture Overview</a>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <h4 class="sidebar-heading">Resources</h4>
+      <a href="../index.html" class="sidebar-link">Presentation</a>
+      <a href="https://github.com/LynkByte/ensemble" class="sidebar-link" target="_blank" rel="noopener">GitHub &nearr;</a>
+    </div>
+  </nav>
+
+  <main class="content">
+    <h1>Tool Reference</h1>
+    <p>Complete reference for all 19 MCP tools provided by <code class="inline">ensemble-mcp</code>, grouped by category. Every tool returns the standard response envelope.</p>
+
+    <h2 id="response-envelope">Response Envelope</h2>
+    <p>All tools return a JSON object with this structure:</p>
+    <pre class="code" data-lang="json"><code>{
+  "ok": true,
+  "data": { ... },
+  "error": null,
+  "meta": {
+    "duration_ms": 5,
+    "source": "sqlite",
+    "confidence": "exact"
+  }
+}</code></pre>
+
+    <p>On error:</p>
+    <pre class="code" data-lang="json"><code>{
+  "ok": false,
+  "data": null,
+  "error": {
+    "code": "VALIDATION_MISSING_FIELD",
+    "message": "...",
+    "retryable": false,
+    "details": { ... }
+  },
+  "meta": { ... }
+}</code></pre>
+
+    <h2 id="tool-categories">Tool Categories</h2>
+    <div class="mermaid-wrap"><div class="mermaid">
+graph TD
+    subgraph Memory["Pattern Memory"]
+        PS[patterns_search]
+        PT[patterns_store]
+        PP[patterns_prune]
+    end
+
+    subgraph Drift["Drift Detection"]
+        DC[drift_check]
+    end
+
+    subgraph Routing["Model Routing"]
+        MR[model_recommend]
+    end
+
+    subgraph Skills["Skill Intelligence"]
+        SD[skills_discover]
+        SS[skills_suggest]
+        SG[skills_generate]
+    end
+
+    subgraph Session["Session Management"]
+        SV[session_save]
+        SL[session_load]
+        SR[session_search]
+    end
+
+    subgraph Indexer["Codebase Indexer"]
+        PI[project_index]
+        PQ[project_query]
+        PD[project_dependencies]
+        PX[project_snapshot]
+    end
+
+    subgraph Compress["Context Optimization"]
+        CC[context_compress]
+        CP[context_prepare]
+    end
+
+    subgraph Utility["Utility"]
+        H[health]
+        R[reset]
+    end
+
+    style Memory fill:#2563eb,color:#fff
+    style Drift fill:#dc2626,color:#fff
+    style Routing fill:#7c3aed,color:#fff
+    style Skills fill:#059669,color:#fff
+    style Session fill:#d97706,color:#fff
+    style Indexer fill:#0891b2,color:#fff
+    style Compress fill:#4f46e5,color:#fff
+    style Utility fill:#64748b,color:#fff
+    </div></div>
+
+    <hr>
+
+    <!-- ===== PATTERN MEMORY ===== -->
+    <h2 id="pattern-memory">Pattern Memory (3 tools)</h2>
+
+    <h3 id="patterns_search"><code class="inline">patterns_search</code></h3>
+    <p>Search stored patterns by semantic similarity. Returns top-K matches above the minimum score threshold. Increments <code class="inline">match_count</code> and updates <code class="inline">last_matched_at</code> on returned patterns (used by <code class="inline">patterns_prune</code> to identify unused patterns).</p>
+    <p>Supports <strong>progressive disclosure</strong> via <code class="inline">detail_level</code> and <strong>category filtering</strong> via <code class="inline">category</code>. Results include <code class="inline">token_count</code> metadata (approximate token cost of the pattern text).</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">query</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Semantic search query</td></tr>
+        <tr><td><code class="inline">top_k</code></td><td>integer</td><td>no</td><td><code class="inline">3</code></td><td>Max results (1–100)</td></tr>
+        <tr><td><code class="inline">project</code></td><td>string</td><td>no</td><td>—</td><td>Optional project scope</td></tr>
+        <tr><td><code class="inline">detail_level</code></td><td>string</td><td>no</td><td><code class="inline">"full"</code></td><td><code class="inline">"index"</code> for compact metadata only; <code class="inline">"full"</code> for complete pattern text</td></tr>
+        <tr><td><code class="inline">category</code></td><td>string</td><td>no</td><td>—</td><td>Filter by category: <code class="inline">gotcha</code>, <code class="inline">problem-solution</code>, <code class="inline">how-it-works</code>, <code class="inline">what-changed</code>, <code class="inline">discovery</code>, <code class="inline">decision</code>, <code class="inline">trade-off</code>, <code class="inline">general</code></td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data (detail_level="full"):</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "matches": [
+    {
+      "id": 1,
+      "name": "pattern-name",
+      "context": "when this applies",
+      "approach": "what was done",
+      "outcome": "what happened",
+      "category": "problem-solution",
+      "score": 0.85,
+      "token_count": 42
+    }
+  ]
+}</code></pre>
+
+    <p><strong>Response data (detail_level="index"):</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "matches": [
+    {
+      "id": 1,
+      "name": "pattern-name",
+      "category": "problem-solution",
+      "score": 0.85,
+      "token_count": 42
+    }
+  ]
+}</code></pre>
+
+    <hr>
+
+    <h3 id="patterns_store"><code class="inline">patterns_store</code></h3>
+    <p>Store a new pattern from a successful pipeline for future semantic search. The pattern text is embedded using the ONNX model and stored in SQLite.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">name</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Short pattern name</td></tr>
+        <tr><td><code class="inline">context</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>When this pattern applies</td></tr>
+        <tr><td><code class="inline">approach</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>What approach was used</td></tr>
+        <tr><td><code class="inline">outcome</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>What happened (success/failure)</td></tr>
+        <tr><td><code class="inline">project</code></td><td>string</td><td>no</td><td>—</td><td>Optional project scope</td></tr>
+        <tr><td><code class="inline">category</code></td><td>string</td><td>no</td><td><code class="inline">"general"</code></td><td>Pattern category: <code class="inline">gotcha</code>, <code class="inline">problem-solution</code>, <code class="inline">how-it-works</code>, <code class="inline">what-changed</code>, <code class="inline">discovery</code>, <code class="inline">decision</code>, <code class="inline">trade-off</code>, <code class="inline">general</code></td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data:</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "id": 42,
+  "stored": true,
+  "category": "problem-solution"
+}</code></pre>
+
+    <hr>
+
+    <h3 id="patterns_prune"><code class="inline">patterns_prune</code></h3>
+    <p>Remove old/unused patterns (zero <code class="inline">match_count</code>, older than <code class="inline">max_age_days</code>).</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">max_age_days</code></td><td>integer</td><td>no</td><td><code class="inline">90</code></td><td>Max age in days (1–3650)</td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data:</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "pruned": 5,
+  "remaining": 42
+}</code></pre>
+
+    <hr>
+
+    <!-- ===== DRIFT DETECTION ===== -->
+    <h2 id="drift-detection">Drift Detection (1 tool)</h2>
+
+    <h3 id="drift_check"><code class="inline">drift_check</code></h3>
+    <p>Check if code changes drift from the original task. Embeds both the task description and the diff summary, then computes cosine similarity. Returns a 0–1 score (0 = no drift, 1 = complete drift) with specific flags and a verdict.</p>
+    <p>Also flags suspicious file changes (migrations, configs, etc.) that don't match the task description.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">task_description</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>The original task being worked on</td></tr>
+        <tr><td><code class="inline">changed_files</code></td><td>array[string]</td><td><strong>yes</strong></td><td>—</td><td>List of changed file paths</td></tr>
+        <tr><td><code class="inline">diff_summary</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Summary of the code changes</td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data:</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "score": 0.25,
+  "similarity": 0.75,
+  "flags": ["Unexpected file change: migrations/001.sql"],
+  "verdict": "aligned"
+}</code></pre>
+
+    <p><strong>Verdicts:</strong></p>
+    <ul>
+      <li><code class="inline">aligned</code> — score &lt; 0.3 (configurable via <code class="inline">drift_threshold_aligned</code>)</li>
+      <li><code class="inline">minor_drift</code> — score &lt; 0.6 (configurable via <code class="inline">drift_threshold_minor</code>)</li>
+      <li><code class="inline">significant_drift</code> — score ≥ 0.6</li>
+    </ul>
+
+    <p>Results are persisted to the <code class="inline">drift_history</code> table for dashboard viewing.</p>
+
+    <hr>
+
+    <!-- ===== MODEL ROUTING ===== -->
+    <h2 id="model-routing">Model Routing (1 tool)</h2>
+
+    <h3 id="model_recommend"><code class="inline">model_recommend</code></h3>
+    <p>Recommend a model tier (best/mid/cheapest) for an agent and task. Uses a rule-based routing table mapping <code class="inline">(agent, classification)</code> pairs to tiers.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">agent</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Agent name (e.g., <code class="inline">craft</code>, <code class="inline">scope</code>, <code class="inline">signal</code>)</td></tr>
+        <tr><td><code class="inline">task_classification</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td><code class="inline">trivial</code>, <code class="inline">simple</code>, <code class="inline">standard</code>, or <code class="inline">complex</code></td></tr>
+        <tr><td><code class="inline">task_description</code></td><td>string</td><td>no</td><td>—</td><td>Reserved for future routing logic</td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data:</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "tier": "best",
+  "reason": "Complex task requiring strongest reasoning capability",
+  "agent": "craft",
+  "classification": "complex"
+}</code></pre>
+
+    <p><strong>Routing table (built-in agents):</strong></p>
+    <table>
+      <thead>
+        <tr><th>Agent</th><th>trivial</th><th>simple</th><th>standard</th><th>complex</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>signal</td><td>cheapest</td><td>cheapest</td><td>cheapest</td><td>cheapest</td></tr>
+        <tr><td>proof</td><td>cheapest</td><td>cheapest</td><td>mid</td><td>mid</td></tr>
+        <tr><td>lens</td><td>cheapest</td><td>cheapest</td><td>mid</td><td>mid</td></tr>
+        <tr><td>craft</td><td>mid</td><td>mid</td><td>best</td><td>best</td></tr>
+        <tr><td>scope</td><td>mid</td><td>mid</td><td>best</td><td>best</td></tr>
+        <tr><td>ensemble</td><td>mid</td><td>mid</td><td>best</td><td>best</td></tr>
+        <tr><td>trace</td><td>mid</td><td>best</td><td>best</td><td>best</td></tr>
+      </tbody>
+    </table>
+
+    <p>Unknown agents default to <code class="inline">mid</code> tier.</p>
+
+    <hr>
+
+    <!-- ===== SKILL INTELLIGENCE ===== -->
+    <h2 id="skill-intelligence">Skill Intelligence (3 tools)</h2>
+
+    <h3 id="skills_discover"><code class="inline">skills_discover</code></h3>
+    <p>Scan tool-native skill locations and return relevant skills via semantic search. Scans these directories:</p>
+    <ul>
+      <li><code class="inline">.ai/skills/</code></li>
+      <li><code class="inline">.claude/skills/</code></li>
+      <li><code class="inline">.cursor/rules/</code></li>
+      <li><code class="inline">.github/copilot-instructions/</code></li>
+      <li><code class="inline">.opencode/skills/</code></li>
+    </ul>
+    <p>Uses mtime-based caching — file reads and embedding computation are skipped for unchanged files.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">project_path</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Absolute path to the project</td></tr>
+        <tr><td><code class="inline">query</code></td><td>string</td><td>no</td><td>—</td><td>Optional semantic search query</td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data:</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "detected": [
+    {
+      "name": "my-skill",
+      "source_tool": "opencode",
+      "path": ".opencode/skills/my-skill/SKILL.md",
+      "confidence": 0.85
+    }
+  ],
+  "snippets": [
+    {
+      "content": "First 500 chars of skill content...",
+      "relevance": 0.85
+    }
+  ]
+}</code></pre>
+
+    <hr>
+
+    <h3 id="skills_suggest"><code class="inline">skills_suggest</code></h3>
+    <p>Detect recurring patterns and suggest them as reusable skills. Clusters patterns by embedding similarity (≥ 0.75 threshold) and proposes clusters with ≥ <code class="inline">min_cluster_size</code> members as skill suggestions.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">project_path</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Absolute path to the project</td></tr>
+        <tr><td><code class="inline">min_cluster_size</code></td><td>integer</td><td>no</td><td><code class="inline">3</code></td><td>Minimum cluster size (2–50)</td></tr>
+        <tr><td><code class="inline">stale_threshold_days</code></td><td>integer</td><td>no</td><td><code class="inline">60</code></td><td>Days before a skill is stale (1–3650)</td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data:</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "suggestions": [
+    {
+      "id": 1,
+      "pattern_ids": [5, 12, 18],
+      "theme": "Cluster of 3 similar patterns",
+      "confidence": 0.82,
+      "proposed_name": "testing-patterns-api",
+      "proposed_content": "# testing-patterns-api\n..."
+    }
+  ],
+  "stale_skills": [
+    {
+      "path": ".ai/skills/old-skill.md",
+      "last_matched_at": "2025-01-15T10:00:00",
+      "days_unused": 90
+    }
+  ]
+}</code></pre>
+
+    <hr>
+
+    <h3 id="skills_generate"><code class="inline">skills_generate</code></h3>
+    <p>Accept, dismiss, or defer a skill suggestion.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">suggestion_id</code></td><td>integer</td><td><strong>yes</strong></td><td>—</td><td>Suggestion ID (≥ 1)</td></tr>
+        <tr><td><code class="inline">action</code></td><td>string</td><td>no</td><td><code class="inline">accept</code></td><td><code class="inline">accept</code>, <code class="inline">dismiss</code>, or <code class="inline">defer</code></td></tr>
+        <tr><td><code class="inline">output_dir</code></td><td>string</td><td>no</td><td><code class="inline">.ai/skills/</code></td><td>Directory for generated skill file</td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data (accept):</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "generated": true,
+  "path": ".ai/skills/testing-patterns-api.md",
+  "content": "# testing-patterns-api\n...",
+  "status": "accepted"
+}</code></pre>
+
+    <p><strong>Response data (dismiss/defer):</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "generated": false,
+  "status": "dismissed"
+}</code></pre>
+
+    <hr>
+
+    <!-- ===== SESSION MANAGEMENT ===== -->
+    <h2 id="session-management">Session Management (3 tools)</h2>
+
+    <h3 id="session_save"><code class="inline">session_save</code></h3>
+    <p>Save pipeline checkpoint state with optimistic versioning. If <code class="inline">version</code> is provided, it must match the current database version (otherwise <code class="inline">CONFLICT_VERSION_MISMATCH</code> is raised). When <code class="inline">original_request</code> is provided, an embedding is generated for semantic search via <code class="inline">session_search</code>.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">session_id</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Unique session identifier</td></tr>
+        <tr><td><code class="inline">state</code></td><td>object</td><td><strong>yes</strong></td><td>—</td><td>Pipeline state to checkpoint</td></tr>
+        <tr><td><code class="inline">version</code></td><td>integer</td><td>no</td><td>—</td><td>Expected version for optimistic lock</td></tr>
+        <tr><td><code class="inline">original_request</code></td><td>string</td><td>no</td><td>—</td><td>User's original request (enables semantic search)</td></tr>
+        <tr><td><code class="inline">decisions</code></td><td>array[string]</td><td>no</td><td>—</td><td>Key decisions made during the pipeline</td></tr>
+        <tr><td><code class="inline">completed_steps</code></td><td>array[string]</td><td>no</td><td>—</td><td>Steps completed so far</td></tr>
+        <tr><td><code class="inline">remaining_steps</code></td><td>array[string]</td><td>no</td><td>—</td><td>Steps remaining to complete</td></tr>
+        <tr><td><code class="inline">files_changed</code></td><td>array[string]</td><td>no</td><td>—</td><td>Files modified during the pipeline</td></tr>
+        <tr><td><code class="inline">errors</code></td><td>array[string]</td><td>no</td><td>—</td><td>Errors encountered during the pipeline</td></tr>
+        <tr><td><code class="inline">context_for_resume</code></td><td>string</td><td>no</td><td>—</td><td>Key context needed to resume without re-deriving</td></tr>
+        <tr><td><code class="inline">task_classification</code></td><td>string</td><td>no</td><td>—</td><td><code class="inline">trivial</code>, <code class="inline">simple</code>, <code class="inline">standard</code>, or <code class="inline">complex</code></td></tr>
+        <tr><td><code class="inline">status</code></td><td>string</td><td>no</td><td><code class="inline">running</code></td><td>Pipeline status (<code class="inline">pending</code>, <code class="inline">running</code>, <code class="inline">completed</code>, <code class="inline">failed</code>, <code class="inline">killed</code>)</td></tr>
+        <tr><td><code class="inline">project</code></td><td>string</td><td>no</td><td>—</td><td>Project path for scoped search</td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data:</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "saved": true,
+  "version": 3
+}</code></pre>
+
+    <hr>
+
+    <h3 id="session_load"><code class="inline">session_load</code></h3>
+    <p>Load latest or specific pipeline checkpoint.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">session_id</code></td><td>string</td><td>no</td><td>—</td><td>Load specific session. Omit for latest.</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data (found):</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "found": true,
+  "session_id": "abc-123",
+  "state": { ... },
+  "version": 3,
+  "original_request": "Add user authentication",
+  "task_classification": "standard",
+  "status": "running",
+  "project": "/path/to/project"
+}</code></pre>
+
+    <p><strong>Response data (not found):</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "found": false
+}</code></pre>
+
+    <hr>
+
+    <h3 id="session_search"><code class="inline">session_search</code></h3>
+    <p>Search sessions by semantic similarity. Embeds the query and compares against stored session embeddings using cosine similarity.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">query</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Semantic search query</td></tr>
+        <tr><td><code class="inline">top_k</code></td><td>integer</td><td>no</td><td><code class="inline">5</code></td><td>Max results (1–100)</td></tr>
+        <tr><td><code class="inline">project</code></td><td>string</td><td>no</td><td>—</td><td>Filter by project</td></tr>
+        <tr><td><code class="inline">status</code></td><td>string</td><td>no</td><td>—</td><td>Filter by status (e.g., <code class="inline">running</code>, <code class="inline">completed</code>)</td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data:</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "matches": [
+    {
+      "session_id": "abc-123",
+      "score": 0.82,
+      "version": 3,
+      "created_at": "2025-03-15T10:00:00",
+      "original_request": "Add user authentication",
+      "task_classification": "standard",
+      "status": "completed",
+      "project": "/path/to/project"
+    }
+  ]
+}</code></pre>
+
+    <hr>
+
+    <!-- ===== CODEBASE INDEXER ===== -->
+    <h2 id="codebase-indexer">Codebase Indexer (4 tools)</h2>
+
+    <h3 id="project_index"><code class="inline">project_index</code></h3>
+    <p>Build or refresh the codebase index. Scans the filesystem, extracts language, role, exports, and imports for each file. Uses mtime-based incremental indexing.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">project_path</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Absolute path to the project</td></tr>
+        <tr><td><code class="inline">force</code></td><td>boolean</td><td>no</td><td><code class="inline">false</code></td><td>Force full re-index</td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Ignored directories:</strong> <code class="inline">node_modules</code>, <code class="inline">vendor</code>, <code class="inline">.git</code>, <code class="inline">__pycache__</code>, <code class="inline">.mypy_cache</code>, <code class="inline">.ruff_cache</code>, <code class="inline">.pytest_cache</code>, <code class="inline">dist</code>, <code class="inline">build</code>, <code class="inline">.next</code>, <code class="inline">.nuxt</code>, <code class="inline">target</code>, <code class="inline">.tox</code>, <code class="inline">.venv</code>, <code class="inline">venv</code>, <code class="inline">env</code>, <code class="inline">.env</code></p>
+
+    <p><strong>Ignored extensions:</strong> <code class="inline">.pyc</code>, <code class="inline">.pyo</code>, <code class="inline">.so</code>, <code class="inline">.dylib</code>, <code class="inline">.dll</code>, <code class="inline">.exe</code>, <code class="inline">.bin</code>, <code class="inline">.wasm</code>, <code class="inline">.jpg</code>, <code class="inline">.jpeg</code>, <code class="inline">.png</code>, <code class="inline">.gif</code>, <code class="inline">.svg</code>, <code class="inline">.ico</code>, <code class="inline">.woff</code>, <code class="inline">.woff2</code>, <code class="inline">.ttf</code>, <code class="inline">.eot</code>, <code class="inline">.mp3</code>, <code class="inline">.mp4</code>, <code class="inline">.avi</code>, <code class="inline">.mov</code>, <code class="inline">.zip</code>, <code class="inline">.tar</code>, <code class="inline">.gz</code>, <code class="inline">.lock</code></p>
+
+    <hr>
+
+    <h3 id="project_query"><code class="inline">project_query</code></h3>
+    <p>Query the project index — find files by type, path pattern, or semantic query.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">project_path</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Absolute path to the project</td></tr>
+        <tr><td><code class="inline">query</code></td><td>string</td><td>no</td><td>—</td><td>Semantic search query</td></tr>
+        <tr><td><code class="inline">file_types</code></td><td>array[string]</td><td>no</td><td>—</td><td>Filter by file types (e.g., <code class="inline">["python", "typescript"]</code>)</td></tr>
+        <tr><td><code class="inline">path_pattern</code></td><td>string</td><td>no</td><td>—</td><td>Glob pattern for file paths</td></tr>
+      </tbody>
+    </table>
+
+    <hr>
+
+    <h3 id="project_dependencies"><code class="inline">project_dependencies</code></h3>
+    <p>Get the import/dependency graph for a specific file.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">project_path</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Absolute path to the project</td></tr>
+        <tr><td><code class="inline">file_path</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Relative path to the file</td></tr>
+      </tbody>
+    </table>
+
+    <hr>
+
+    <h3 id="project_snapshot"><code class="inline">project_snapshot</code></h3>
+    <p>Generate a compact project baseline summary from the codebase index. Returns language, framework, conventions, directory structure, test setup, build tools, and key files. Results are cached with mtime-based invalidation (24-hour expiry).</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">project_path</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Absolute path to the project</td></tr>
+        <tr><td><code class="inline">force</code></td><td>boolean</td><td>no</td><td><code class="inline">false</code></td><td>Force regeneration even if cached</td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <hr>
+
+    <!-- ===== CONTEXT OPTIMIZATION ===== -->
+    <h2 id="context-optimization">Context Optimization (2 tools)</h2>
+
+    <h3 id="context_compress"><code class="inline">context_compress</code></h3>
+    <p>Compress verbose natural language text into terse, token-efficient form while preserving all technical content (code blocks, URLs, file paths, headings, tables). Rule-based, zero LLM calls.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">text</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Text to compress (10–100,000 chars)</td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data:</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "compressed_text": "Compressed version...",
+  "original_tokens": 500,
+  "compressed_tokens": 320,
+  "savings_pct": 36.0,
+  "preserved_count": 15
+}</code></pre>
+
+    <hr>
+
+    <h3 id="context_prepare"><code class="inline">context_prepare</code></h3>
+    <p>Prepare and order prompt sections for optimal LLM cache hit rates. Sorts sections by priority (<code class="inline">static</code> → <code class="inline">project</code> → <code class="inline">task</code>) to maximize the stable prefix that LLM providers can cache across calls.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">sections</code></td><td>array[object]</td><td><strong>yes</strong></td><td>—</td><td>Sections with <code class="inline">name</code>, <code class="inline">content</code>, and <code class="inline">priority</code></td></tr>
+        <tr><td><code class="inline">compress_sections</code></td><td>boolean</td><td>no</td><td><code class="inline">false</code></td><td>Compress each section via the compression engine</td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <p>Each section object:</p>
+    <table>
+      <thead>
+        <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">name</code></td><td>string</td><td><strong>yes</strong></td><td>Section name</td></tr>
+        <tr><td><code class="inline">content</code></td><td>string</td><td><strong>yes</strong></td><td>Section content</td></tr>
+        <tr><td><code class="inline">priority</code></td><td>string</td><td><strong>yes</strong></td><td><code class="inline">static</code>, <code class="inline">project</code>, or <code class="inline">task</code></td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data:</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "prepared_text": "Combined ordered text...",
+  "section_count": 3,
+  "prefix_stable_bytes": 1024,
+  "sections": [
+    {
+      "name": "system-prompt",
+      "priority": "static",
+      "original_bytes": 500,
+      "prepared_bytes": 480
+    }
+  ]
+}</code></pre>
+
+    <hr>
+
+    <!-- ===== UTILITY ===== -->
+    <h2 id="utility">Utility (2 tools)</h2>
+
+    <h3 id="health"><code class="inline">health</code></h3>
+    <p>Server health check — returns status, version, database size, and pattern count.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><em>(none)</em></td><td>—</td><td>—</td><td>—</td><td>No parameters</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data:</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "status": "ok",
+  "version": "0.1.0b4",
+  "db_size_bytes": 524288,
+  "pattern_count": 42,
+  "server_name": "ensemble-mcp"
+}</code></pre>
+
+    <hr>
+
+    <h3 id="reset"><code class="inline">reset</code></h3>
+    <p>Reset all stored data. <strong>Destructive</strong> — deletes all patterns, sessions, project indexes, drift history, skill suggestions, and idempotency keys.</p>
+
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">confirm</code></td><td>boolean</td><td><strong>yes</strong></td><td>—</td><td>Must be <code class="inline">true</code> to proceed</td></tr>
+        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Response data:</strong></p>
+    <pre class="code" data-lang="json"><code>{
+  "reset": true
+}</code></pre>
+
+    <hr>
+
+    <h2 id="idempotency">Idempotency</h2>
+    <p>All mutating tools accept an optional <code class="inline">idempotency_key</code> parameter. When provided:</p>
+    <ul>
+      <li>The first call executes normally and stores the result keyed by the idempotency key</li>
+      <li>Subsequent calls with the same key return the previously stored result without re-executing</li>
+      <li>Keys expire after 24 hours (configurable via <code class="inline">idempotency_key_ttl_hours</code>)</li>
+    </ul>
+
+    <h2 id="next-steps">Next Steps</h2>
+    <ul>
+      <li><a href="integration-guide.html">Integration Guide</a> — how to use these tools in AI pipelines</li>
+      <li><a href="configuration.html">Configuration</a> — customize thresholds and defaults</li>
+      <li><a href="troubleshooting.html">Troubleshooting</a> — understanding error codes</li>
+    </ul>
+  </main>
+
+<script>
+  /* ── Theme Toggle ── */
+  (function(){
+    const html = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    const label = document.getElementById('themeLabel');
+    const stored = localStorage.getItem('ensemble-theme');
+    if (stored) html.setAttribute('data-theme', stored);
+    function updateLabel(){
+      label.textContent = html.getAttribute('data-theme') === 'dark' ? 'Light' : 'Dark';
+    }
+    updateLabel();
+    btn.addEventListener('click', function(){
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('ensemble-theme', next);
+      updateLabel();
+    });
+  })();
+
+  /* ── Sidebar Toggle (Mobile) ── */
+  (function(){
+    const toggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    function close(){ sidebar.classList.remove('open'); overlay.classList.remove('open'); }
+    toggle.addEventListener('click', function(){
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('open');
+    });
+    overlay.addEventListener('click', close);
+  })();
+
+  /* ── Active Page Highlight ── */
+  (function(){
+    var page = location.pathname.split('/').pop() || 'index.html';
+    var links = document.querySelectorAll('.sidebar-link');
+    links.forEach(function(a){
+      a.classList.remove('active');
+      var href = a.getAttribute('href');
+      if (href === page) a.classList.add('active');
+    });
+  })();
+
+  /* ── Mermaid Init ── */
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  mermaid.initialize({ startOnLoad: true, theme: isDark ? 'dark' : 'default', themeVariables: { primaryColor: '#10b981' } });
+</script>
+</body>
+</html>

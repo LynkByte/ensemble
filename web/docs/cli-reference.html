@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CLI Reference — ensemble-mcp docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,wght@0,400..900;1,400..900&family=Google+Sans+Code:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="docs-theme.css">
+</head>
+<body>
+
+<!-- Topbar -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-dot"></div>
+    <a href="index.html"><strong>ensemble</strong>-mcp <span class="brand-suffix">docs</span></a>
+  </div>
+  <div class="controls">
+    <button class="ctrl" id="themeBtn" title="Toggle theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" id="themeIcon">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+      <span id="themeLabel">Light</span>
+    </button>
+    <a class="ctrl" href="../index.html" title="View Presentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <span>Presentation</span>
+    </a>
+    <a class="ctrl" href="https://github.com/LynkByte/ensemble" target="_blank" rel="noopener" title="GitHub">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.58 2 12.25c0 4.54 2.87 8.39 6.84 9.74.5.1.68-.22.68-.48v-1.7c-2.78.62-3.37-1.35-3.37-1.35-.45-1.17-1.1-1.48-1.1-1.48-.9-.64.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.33 1.1 2.9.84.1-.66.35-1.1.63-1.36-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.3.1-2.72 0 0 .84-.28 2.76 1.05a9.3 9.3 0 0 1 5 0c1.9-1.33 2.75-1.05 2.75-1.05.55 1.42.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.48A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+      <span>GitHub</span>
+    </a>
+  </div>
+</header>
+
+<!-- Sidebar toggle (mobile) -->
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle navigation">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <path d="M4 6h16M4 12h16M4 18h16"/>
+  </svg>
+</button>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">For Users</h4>
+    <a href="index.html" class="sidebar-link">Overview</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+    <a href="ai-tool-compatibility.html" class="sidebar-link">AI Tool Compatibility</a>
+    <a href="cli-reference.html" class="sidebar-link active">CLI Reference</a>
+    <a href="configuration.html" class="sidebar-link">Configuration</a>
+    <a href="mcp-clients.html" class="sidebar-link">MCP Client Setup</a>
+    <a href="web-dashboard.html" class="sidebar-link">Web Dashboard</a>
+    <a href="troubleshooting.html" class="sidebar-link">Troubleshooting</a>
+  </div>
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">For Developers</h4>
+    <a href="tool-reference.html" class="sidebar-link">Tool Reference</a>
+    <a href="integration-guide.html" class="sidebar-link">Integration Guide</a>
+    <a href="architecture-overview.html" class="sidebar-link">Architecture Overview</a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">Resources</h4>
+    <a href="../index.html" class="sidebar-link">Presentation</a>
+    <a href="https://github.com/LynkByte/ensemble" class="sidebar-link" target="_blank" rel="noopener">GitHub &nearr;</a>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="content">
+  <h1>CLI Reference</h1>
+
+  <p>Complete reference for all <code class="inline">ensemble-mcp</code> CLI commands, flags, and options.</p>
+
+  <h2 id="entry-point">Entry Point</h2>
+
+  <pre class="code"><code>ensemble-mcp [command] [options]</code></pre>
+
+  <p>The CLI is registered as <code class="inline">ensemble-mcp</code> via the <code class="inline">pyproject.toml</code> entry point (<code class="inline">ensemble_mcp.__main__:main</code>).</p>
+
+  <p>Running <code class="inline">ensemble-mcp</code> with no command defaults to <code class="inline">serve</code>.</p>
+
+  <hr>
+
+  <h2 id="commands">Commands</h2>
+
+  <h3 id="serve"><code class="inline">serve</code> (default)</h3>
+
+  <p>Start the MCP server on stdio. This is the default when no subcommand is given.</p>
+
+  <pre class="code" data-lang="bash"><code>ensemble-mcp
+ensemble-mcp serve</code></pre>
+
+  <p>The server:</p>
+  <ul>
+    <li>Prints a startup banner to <strong>stderr</strong> (stdout is reserved for MCP protocol)</li>
+    <li>Downloads the ONNX model on first run (~22 MB)</li>
+    <li>Creates/opens the SQLite database at the configured path</li>
+    <li>Listens for MCP tool calls on stdin/stdout</li>
+  </ul>
+
+  <hr>
+
+  <h3 id="web"><code class="inline">web</code></h3>
+
+  <p>Start the local web dashboard.</p>
+
+  <pre class="code" data-lang="bash"><code>ensemble-mcp web [options]</code></pre>
+
+  <table>
+    <thead>
+      <tr><th>Flag</th><th>Type</th><th>Default</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="inline">--port</code></td><td>int</td><td><code class="inline">8787</code></td><td>Port to bind on</td></tr>
+      <tr><td><code class="inline">--no-open</code></td><td>flag</td><td><code class="inline">false</code></td><td>Don't auto-open browser</td></tr>
+      <tr><td><code class="inline">--reports-dir</code></td><td>path</td><td>auto</td><td>Directory containing Bug Hunter report files</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Examples:</strong></p>
+
+  <pre class="code" data-lang="bash"><code># Start dashboard on default port
+ensemble-mcp web
+
+# Custom port, no auto-open
+ensemble-mcp web --port 9000 --no-open
+
+# Specify reports directory
+ensemble-mcp web --reports-dir ./reports</code></pre>
+
+  <p>The dashboard binds to <code class="inline">127.0.0.1</code> only (local access, no authentication required). If the port is already in use, an error message suggests the next port.</p>
+
+  <p><strong>Reports directory auto-detection:</strong> When <code class="inline">--reports-dir</code> is not specified, the dashboard looks for a <code class="inline">reports/</code> directory in (1) the current working directory, then (2) the git repository root.</p>
+
+  <hr>
+
+  <h3 id="install"><code class="inline">install</code></h3>
+
+  <p>Auto-detect AI tools and register <code class="inline">ensemble-mcp</code> in their MCP configs.</p>
+
+  <pre class="code" data-lang="bash"><code>ensemble-mcp install [options]</code></pre>
+
+  <table>
+    <thead>
+      <tr><th>Flag</th><th>Type</th><th>Default</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="inline">--local</code></td><td>flag</td><td><code class="inline">false</code></td><td>Register in project-local configs instead of global</td></tr>
+      <tr><td><code class="inline">--project-path</code></td><td>path</td><td>cwd</td><td>Project root directory</td></tr>
+      <tr><td><code class="inline">--tools</code></td><td>string</td><td>all</td><td>Comma-separated list of tools (e.g. <code class="inline">--tools opencode,cursor</code>)</td></tr>
+      <tr><td><code class="inline">--dry-run</code></td><td>flag</td><td><code class="inline">false</code></td><td>Show plan without making changes</td></tr>
+      <tr><td><code class="inline">--yes</code>, <code class="inline">-y</code></td><td>flag</td><td><code class="inline">false</code></td><td>Skip confirmation prompt</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Supported tool names:</strong> <code class="inline">opencode</code>, <code class="inline">claude_code</code>, <code class="inline">copilot</code>, <code class="inline">cursor</code>, <code class="inline">windsurf</code>, <code class="inline">devin</code></p>
+
+  <p><strong>Examples:</strong></p>
+
+  <pre class="code" data-lang="bash"><code># Auto-detect and register globally
+ensemble-mcp install
+
+# Register only in Cursor and OpenCode
+ensemble-mcp install --tools cursor,opencode
+
+# Project-local registration
+ensemble-mcp install --local
+
+# Preview without changes
+ensemble-mcp install --dry-run
+
+# Non-interactive (CI/CD)
+ensemble-mcp install --yes</code></pre>
+
+  <p>The installer:</p>
+  <ol>
+    <li>Detects installed AI tools by checking for config directories</li>
+    <li>Displays a plan showing what will be registered</li>
+    <li>Creates backups of existing config files (<code class="inline">.bak</code>)</li>
+    <li>Registers the MCP server entry</li>
+    <li>Copies bundled agent files to tool-specific directories</li>
+    <li>Copies bundled skill files to project-local directories</li>
+  </ol>
+
+  <hr>
+
+  <h3 id="uninstall"><code class="inline">uninstall</code></h3>
+
+  <p>Remove <code class="inline">ensemble-mcp</code> registration from AI tool configs.</p>
+
+  <pre class="code" data-lang="bash"><code>ensemble-mcp uninstall [options]</code></pre>
+
+  <table>
+    <thead>
+      <tr><th>Flag</th><th>Type</th><th>Default</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="inline">--local</code></td><td>flag</td><td><code class="inline">false</code></td><td>Remove from project-local configs</td></tr>
+      <tr><td><code class="inline">--project-path</code></td><td>path</td><td>cwd</td><td>Project root directory</td></tr>
+      <tr><td><code class="inline">--tools</code></td><td>string</td><td>all</td><td>Comma-separated list of tools</td></tr>
+      <tr><td><code class="inline">--remove-agents</code></td><td>flag</td><td><code class="inline">false</code></td><td>Also remove agent/skill files</td></tr>
+      <tr><td><code class="inline">--clean-data</code></td><td>flag</td><td><code class="inline">false</code></td><td>Remove <code class="inline">~/.cache/ensemble-mcp/</code> and <code class="inline">~/.config/ensemble-mcp/</code></td></tr>
+      <tr><td><code class="inline">--dry-run</code></td><td>flag</td><td><code class="inline">false</code></td><td>Show plan without making changes</td></tr>
+      <tr><td><code class="inline">--yes</code>, <code class="inline">-y</code></td><td>flag</td><td><code class="inline">false</code></td><td>Skip confirmation prompt</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Examples:</strong></p>
+
+  <pre class="code" data-lang="bash"><code># Remove from all detected tools
+ensemble-mcp uninstall
+
+# Full cleanup: deregister, remove agents, delete data
+ensemble-mcp uninstall --remove-agents --clean-data --yes
+
+# Preview uninstall plan
+ensemble-mcp uninstall --dry-run</code></pre>
+
+  <hr>
+
+  <h3 id="add-agents"><code class="inline">add-agents</code></h3>
+
+  <p>Copy bundled agent files to tool-specific directories without MCP registration.</p>
+
+  <pre class="code" data-lang="bash"><code>ensemble-mcp add-agents [options]</code></pre>
+
+  <table>
+    <thead>
+      <tr><th>Flag</th><th>Type</th><th>Default</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="inline">--local</code></td><td>flag</td><td><code class="inline">false</code></td><td>Copy to project-local agent dirs</td></tr>
+      <tr><td><code class="inline">--project-path</code></td><td>path</td><td>cwd</td><td>Project root directory</td></tr>
+      <tr><td><code class="inline">--tools</code></td><td>string</td><td>all</td><td>Comma-separated list of tools</td></tr>
+      <tr><td><code class="inline">--dry-run</code></td><td>flag</td><td><code class="inline">false</code></td><td>Show plan without making changes</td></tr>
+      <tr><td><code class="inline">--yes</code>, <code class="inline">-y</code></td><td>flag</td><td><code class="inline">false</code></td><td>Skip confirmation prompt</td></tr>
+    </tbody>
+  </table>
+
+  <p>Bundled agents include the 7-agent orchestration pipeline: <code class="inline">team-ensemble</code>, <code class="inline">team-scope</code>, <code class="inline">team-craft</code>, <code class="inline">team-forge</code>, <code class="inline">team-trace</code>, <code class="inline">team-lens</code>, <code class="inline">team-signal</code>.</p>
+
+  <p><strong>Examples:</strong></p>
+
+  <pre class="code" data-lang="bash"><code># Copy agents globally for all detected tools
+ensemble-mcp add-agents
+
+# Copy agents locally for OpenCode only
+ensemble-mcp add-agents --local --tools opencode</code></pre>
+
+  <hr>
+
+  <h3 id="add-skills"><code class="inline">add-skills</code></h3>
+
+  <p>Copy bundled skill files to tool-specific directories without MCP registration.</p>
+
+  <pre class="code" data-lang="bash"><code>ensemble-mcp add-skills [options]</code></pre>
+
+  <table>
+    <thead>
+      <tr><th>Flag</th><th>Type</th><th>Default</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="inline">--local</code></td><td>flag</td><td>default</td><td>Copy to project-local skill dirs (default)</td></tr>
+      <tr><td><code class="inline">--global</code></td><td>flag</td><td><code class="inline">false</code></td><td>Copy to global skill dirs instead</td></tr>
+      <tr><td><code class="inline">--project-path</code></td><td>path</td><td>cwd</td><td>Project root directory</td></tr>
+      <tr><td><code class="inline">--tools</code></td><td>string</td><td>all</td><td>Comma-separated list of tools</td></tr>
+      <tr><td><code class="inline">--dry-run</code></td><td>flag</td><td><code class="inline">false</code></td><td>Show plan without making changes</td></tr>
+      <tr><td><code class="inline">--yes</code>, <code class="inline">-y</code></td><td>flag</td><td><code class="inline">false</code></td><td>Skip confirmation prompt</td></tr>
+    </tbody>
+  </table>
+
+  <div class="panel panel-blue">
+    <h5>Note</h5>
+    <p><code class="inline">add-skills</code> defaults to <strong>local</strong> scope (unlike <code class="inline">add-agents</code> which defaults to global). Use <code class="inline">--global</code> to override.</p>
+  </div>
+
+  <p>Bundled skills include the <code class="inline">ensemble-mcp-workflow</code> skill that teaches AI agents when and how to invoke ensemble-mcp tools.</p>
+
+  <p><strong>Examples:</strong></p>
+
+  <pre class="code" data-lang="bash"><code># Copy skills locally (default)
+ensemble-mcp add-skills
+
+# Copy skills globally
+ensemble-mcp add-skills --global
+
+# Preview what would be copied
+ensemble-mcp add-skills --dry-run</code></pre>
+
+  <hr>
+
+  <h2 id="environment-variables">Environment Variables</h2>
+
+  <p>All settings fields can be overridden via environment variables with the <code class="inline">ENSEMBLE_MCP_</code> prefix:</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Variable</th><th>Type</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="inline">ENSEMBLE_MCP_DB_PATH</code></td><td>path</td><td>Override database file location</td></tr>
+      <tr><td><code class="inline">ENSEMBLE_MCP_CACHE_DIR</code></td><td>path</td><td>Override cache directory</td></tr>
+      <tr><td><code class="inline">ENSEMBLE_MCP_MODEL_DIR</code></td><td>path</td><td>Override model directory</td></tr>
+      <tr><td><code class="inline">ENSEMBLE_MCP_MAX_PATTERNS</code></td><td>int</td><td>Maximum stored patterns</td></tr>
+      <tr><td><code class="inline">ENSEMBLE_MCP_DEFAULT_TOP_K</code></td><td>int</td><td>Default search result count</td></tr>
+      <tr><td><code class="inline">ENSEMBLE_MCP_DEFAULT_MIN_SCORE</code></td><td>float</td><td>Minimum similarity threshold</td></tr>
+      <tr><td><code class="inline">ENSEMBLE_MCP_DRIFT_THRESHOLD_ALIGNED</code></td><td>float</td><td>Drift score below which changes are &ldquo;aligned&rdquo;</td></tr>
+      <tr><td><code class="inline">ENSEMBLE_MCP_DRIFT_THRESHOLD_MINOR</code></td><td>float</td><td>Drift score below which changes are &ldquo;minor&rdquo;</td></tr>
+      <tr><td><code class="inline">ENSEMBLE_MCP_IDEMPOTENCY_KEY_TTL_HOURS</code></td><td>int</td><td>Hours before idempotency keys expire</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>See <a href="configuration.html">Configuration</a> for the full list of settings.</p>
+
+  <h2 id="exit-codes">Exit Codes</h2>
+
+  <table>
+    <thead>
+      <tr><th>Code</th><th>Meaning</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>0</td><td>Success</td></tr>
+      <tr><td>1</td><td>Error (invalid args, port in use, unknown tool names, etc.)</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="next-steps">Next Steps</h2>
+
+  <ul>
+    <li><a href="configuration.html">Configuration</a> &mdash; config file format and all options</li>
+    <li><a href="mcp-clients.html">MCP Client Setup</a> &mdash; per-tool registration details</li>
+  </ul>
+</main>
+
+<script>
+  /* ── Theme Toggle ── */
+  (function(){
+    const html = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    const label = document.getElementById('themeLabel');
+    const stored = localStorage.getItem('ensemble-theme');
+    if (stored) html.setAttribute('data-theme', stored);
+    function updateLabel(){
+      label.textContent = html.getAttribute('data-theme') === 'dark' ? 'Light' : 'Dark';
+    }
+    updateLabel();
+    btn.addEventListener('click', function(){
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('ensemble-theme', next);
+      updateLabel();
+    });
+  })();
+
+  /* ── Sidebar Toggle (Mobile) ── */
+  (function(){
+    const toggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    function close(){ sidebar.classList.remove('open'); overlay.classList.remove('open'); }
+    toggle.addEventListener('click', function(){
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('open');
+    });
+    overlay.addEventListener('click', close);
+  })();
+
+  /* ── Active Page Highlight ── */
+  (function(){
+    var page = location.pathname.split('/').pop() || 'index.html';
+    var links = document.querySelectorAll('.sidebar-link');
+    links.forEach(function(a){
+      a.classList.remove('active');
+      var href = a.getAttribute('href');
+      if (href === page) a.classList.add('active');
+    });
+  })();
+</script>
+</body>
+</html>

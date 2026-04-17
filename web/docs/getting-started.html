@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Getting Started — Ensemble mcp docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,wght@0,400..900;1,400..900&family=Google+Sans+Code:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="docs-theme.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+</head>
+<body>
+
+<!-- Topbar -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-dot"></div>
+    <a href="index.html"><strong>Ensemble</strong> mcp <span class="brand-suffix">docs</span></a>
+  </div>
+  <div class="controls">
+    <button class="ctrl" id="themeBtn" title="Toggle theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" id="themeIcon">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+      <span id="themeLabel">Light</span>
+    </button>
+    <a class="ctrl" href="../index.html" title="View Presentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <span>Presentation</span>
+    </a>
+    <a class="ctrl" href="https://github.com/LynkByte/ensemble" target="_blank" rel="noopener" title="GitHub">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.58 2 12.25c0 4.54 2.87 8.39 6.84 9.74.5.1.68-.22.68-.48v-1.7c-2.78.62-3.37-1.35-3.37-1.35-.45-1.17-1.1-1.48-1.1-1.48-.9-.64.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.33 1.1 2.9.84.1-.66.35-1.1.63-1.36-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.3.1-2.72 0 0 .84-.28 2.76 1.05a9.3 9.3 0 0 1 5 0c1.9-1.33 2.75-1.05 2.75-1.05.55 1.42.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.48A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+      <span>GitHub</span>
+    </a>
+  </div>
+</header>
+
+<!-- Sidebar toggle (mobile) -->
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle navigation">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <path d="M4 6h16M4 12h16M4 18h16"/>
+  </svg>
+</button>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">For Users</h4>
+    <a href="index.html" class="sidebar-link">Overview</a>
+    <a href="getting-started.html" class="sidebar-link active">Getting Started</a>
+    <a href="installation.html" class="sidebar-link">Installation</a>
+    <a href="ai-tool-compatibility.html" class="sidebar-link">AI Tool Compatibility</a>
+    <a href="cli-reference.html" class="sidebar-link">CLI Reference</a>
+    <a href="configuration.html" class="sidebar-link">Configuration</a>
+    <a href="mcp-clients.html" class="sidebar-link">MCP Client Setup</a>
+    <a href="web-dashboard.html" class="sidebar-link">Web Dashboard</a>
+    <a href="troubleshooting.html" class="sidebar-link">Troubleshooting</a>
+  </div>
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">For Developers</h4>
+    <a href="tool-reference.html" class="sidebar-link">Tool Reference</a>
+    <a href="integration-guide.html" class="sidebar-link">Integration Guide</a>
+    <a href="architecture-overview.html" class="sidebar-link">Architecture Overview</a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">Resources</h4>
+    <a href="../index.html" class="sidebar-link">Presentation</a>
+    <a href="https://github.com/LynkByte/ensemble" class="sidebar-link" target="_blank" rel="noopener">GitHub &nearr;</a>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="content">
+  <h1>Getting Started</h1>
+
+  <p>Get <code class="inline">ensemble-mcp</code> up and running in under 5 minutes. This guide covers installation, registration with your AI tool, and a first-use walkthrough.</p>
+
+  <h2 id="what-does-ensemble-mcp-do">What Does ensemble-mcp Do?</h2>
+
+  <p><strong>Agent = Model + Harness.</strong> Your AI coding tool (Claude Code, Cursor, Copilot, etc.) already provides a harness with filesystem access, bash execution, and a sandbox. ensemble-mcp <strong>extends that harness</strong> with intelligence infrastructure &mdash; memory, skills, drift detection, model routing, and context management &mdash; delivered seamlessly via MCP.</p>
+
+  <pre class="diagram">Your AI Tool (execution harness)  +  ensemble-mcp (intelligence layer)
+         &boxv;                                      &boxv;
+    Filesystem                             Memory &amp; Search
+    Bash / Code                            Skills Discovery
+    Sandbox                                Drift Detection
+    Browser                                Model Routing
+    Git                                    Context Compression
+                                           Session Persistence
+                                           Codebase Indexing</pre>
+
+  <h2 id="prerequisites">Prerequisites</h2>
+
+  <ul>
+    <li><strong>Python 3.11+</strong> (3.12 and 3.13 also supported)</li>
+    <li><strong>pip</strong> (or <a href="https://docs.astral.sh/uv/">uv</a> / <a href="https://pipx.pypa.io/">pipx</a> for isolated installs)</li>
+    <li>An AI coding tool that supports MCP: <a href="https://opencode.ai">OpenCode</a>, <a href="https://claude.ai">Claude Code</a>, <a href="https://github.com/features/copilot">GitHub Copilot</a>, <a href="https://cursor.sh">Cursor</a>, <a href="https://windsurf.com">Windsurf</a>, or <a href="https://devin.ai">Devin CLI</a></li>
+  </ul>
+
+  <h2 id="quick-install">Quick Install</h2>
+
+  <pre class="code" data-lang="bash"><code>pip install ensemble-mcp</code></pre>
+
+  <p>Or with <code class="inline">uvx</code> (no install needed &mdash; runs directly):</p>
+
+  <pre class="code" data-lang="bash"><code>uvx ensemble-mcp</code></pre>
+
+  <h2 id="register-with-your-ai-tool">Register with Your AI Tool</h2>
+
+  <p>Auto-detect installed AI tools and register the MCP server in their configs:</p>
+
+  <pre class="code" data-lang="bash"><code>ensemble-mcp install</code></pre>
+
+  <p>This scans for installed tools (OpenCode, Claude Code, Copilot, Cursor, Windsurf, Devin CLI), shows a plan, and asks for confirmation before modifying any config files. Backups are created automatically.</p>
+
+  <div class="panel">
+    <h5>Tip</h5>
+    <p>Use <code class="inline">--dry-run</code> to preview changes without applying them:</p>
+    <pre class="code" data-lang="bash"><code>ensemble-mcp install --dry-run</code></pre>
+  </div>
+
+  <h2 id="verify-the-server">Verify the Server</h2>
+
+  <p>Run the server directly to confirm everything works:</p>
+
+  <pre class="code" data-lang="bash"><code>ensemble-mcp</code></pre>
+
+  <p>You should see a startup banner on stderr:</p>
+
+  <pre class="code"><code>ensemble-mcp v0.1.0b4
+  Config:   ~/.config/ensemble-mcp/config.toml
+  Database: ~/.cache/ensemble-mcp/data.db
+  Models:   ~/.cache/ensemble-mcp/models
+
+Server started &mdash; listening on stdio</code></pre>
+
+  <p>The first run downloads the ONNX embedding model (~22 MB) to <code class="inline">~/.cache/ensemble-mcp/models/</code>.</p>
+
+  <h2 id="how-it-works">How It Works</h2>
+
+  <p>ensemble-mcp runs as a local MCP server that your AI tool connects to via stdio. It extends your agent's harness with intelligence primitives &mdash; all processing happens locally with zero API calls:</p>
+
+  <div class="mermaid-wrap">
+    <div class="mermaid">
+flowchart LR
+    User([User]) --> AI[AI Coding Tool\nExecution Harness]
+    AI -->|MCP Protocol\nstdio| Server["ensemble-mcp\nIntelligence\nInfrastructure"]
+    Server --> SQLite[(SQLite DB\n~/.cache/ensemble-mcp/data.db)]
+    Server --> ONNX[ONNX Runtime\nMiniLM-L6-v2]
+
+    style Server fill:#2563eb,color:#fff
+    style SQLite fill:#059669,color:#fff
+    style ONNX fill:#7c3aed,color:#fff
+    </div>
+  </div>
+
+  <p>All processing is <strong>local</strong> &mdash; no API calls, no cloud services. The ONNX embedding model runs in ~5ms per embedding, and all data stays in a local SQLite database.</p>
+
+  <h2 id="first-use-example">First Use Example</h2>
+
+  <p>Once registered, your AI tool can invoke ensemble-mcp's harness tools automatically. Here's a typical first interaction:</p>
+
+  <ol>
+    <li><strong>Index your project</strong> &mdash; the AI tool calls <code class="inline">project_index</code> to build codebase awareness</li>
+    <li><strong>Search for patterns</strong> &mdash; <code class="inline">patterns_search</code> finds relevant past solutions (memory &amp; search)</li>
+    <li><strong>Discover skills</strong> &mdash; <code class="inline">skills_discover</code> loads task-relevant skills (progressive disclosure)</li>
+    <li><strong>Check drift</strong> &mdash; during implementation, <code class="inline">drift_check</code> ensures changes stay on task (self-verification)</li>
+    <li><strong>Save progress</strong> &mdash; <code class="inline">session_save</code> creates checkpoints for long horizon execution</li>
+  </ol>
+
+  <p>You can also explore your data through the web dashboard:</p>
+
+  <pre class="code" data-lang="bash"><code>ensemble-mcp web</code></pre>
+
+  <p>This opens a browser at <code class="inline">http://127.0.0.1:8787</code> showing patterns, sessions, drift history, indexed projects, and more.</p>
+
+  <h2 id="next-steps">Next Steps</h2>
+
+  <ul>
+    <li><a href="installation.html">Installation Guide</a> &mdash; detailed install options (Docker, from source)</li>
+    <li><a href="cli-reference.html">CLI Reference</a> &mdash; all commands and flags</li>
+    <li><a href="configuration.html">Configuration</a> &mdash; customize thresholds, paths, and behavior</li>
+    <li><a href="mcp-clients.html">MCP Client Setup</a> &mdash; per-tool registration details</li>
+    <li><a href="tool-reference.html">Tool Reference</a> &mdash; all 19 MCP tools documented</li>
+  </ul>
+</main>
+
+<script>
+  /* ── Theme Toggle ── */
+  (function(){
+    const html = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    const label = document.getElementById('themeLabel');
+    const stored = localStorage.getItem('ensemble-theme');
+    if (stored) html.setAttribute('data-theme', stored);
+    function updateLabel(){
+      label.textContent = html.getAttribute('data-theme') === 'dark' ? 'Light' : 'Dark';
+    }
+    updateLabel();
+    btn.addEventListener('click', function(){
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('ensemble-theme', next);
+      updateLabel();
+    });
+  })();
+
+  /* ── Sidebar Toggle (Mobile) ── */
+  (function(){
+    const toggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    function close(){ sidebar.classList.remove('open'); overlay.classList.remove('open'); }
+    toggle.addEventListener('click', function(){
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('open');
+    });
+    overlay.addEventListener('click', close);
+  })();
+
+  /* ── Active Page Highlight ── */
+  (function(){
+    var page = location.pathname.split('/').pop() || 'index.html';
+    var links = document.querySelectorAll('.sidebar-link');
+    links.forEach(function(a){
+      a.classList.remove('active');
+      var href = a.getAttribute('href');
+      if (href === page) a.classList.add('active');
+    });
+  })();
+
+  /* ── Mermaid Init ── */
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  mermaid.initialize({ startOnLoad: true, theme: isDark ? 'dark' : 'default', themeVariables: { primaryColor: '#10b981' } });
+</script>
+</body>
+</html>

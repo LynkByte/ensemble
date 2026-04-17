@@ -1,0 +1,2672 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ensemble-mcp · The Harness Infrastructure Layer for AI Agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,wght@0,400..900;1,400..900&family=Google+Sans+Code:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+:root[data-theme="dark"]{
+  --bg: #0b0f0d; --bg-soft: #10151291; --bg-card: #111815;
+  --ink: #e8ece8; --ink-dim: #a8b0aa; --ink-soft: #6b7570;
+  --rule: #1f2a24; --rule-hi: #2a3a33;
+  --accent: #10b981; --accent-2: #f59e0b; --accent-3: #3b82f6;
+  --accent-4: #ef4444; --accent-5: #8b5cf6; --accent-6: #ec4899;
+  --glow: rgba(16,185,129,.12); --grid: rgba(255,255,255,.025);
+  --code-bg: #0d1311; --shadow-lg: 0 30px 80px -20px rgba(0,0,0,.6);
+  --noise-op: .025;
+}
+:root[data-theme="light"]{
+  --bg: #faf8f3; --bg-soft: #f2efe6; --bg-card: #ffffff;
+  --ink: #14201b; --ink-dim: #4a5751; --ink-soft: #8a948e;
+  --rule: #d9d2c4; --rule-hi: #b8ae9b;
+  --accent: #047857; --accent-2: #b45309; --accent-3: #1d4ed8;
+  --accent-4: #b91c1c; --accent-5: #6d28d9; --accent-6: #be185d;
+  --glow: rgba(4,120,87,.08); --grid: rgba(0,0,0,.035);
+  --code-bg: #efeadb; --shadow-lg: 0 30px 80px -20px rgba(55,40,20,.18);
+  --noise-op: .04;
+}
+
+*,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ height:100%; }
+html{ scroll-behavior:smooth; }
+body{
+  background: var(--bg); color: var(--ink);
+  font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px; line-height: 1.55; letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden; transition: background .45s ease, color .45s ease;
+}
+body::before{
+  content:""; position: fixed; inset:0; z-index:1; pointer-events:none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='1'/></svg>");
+  opacity: var(--noise-op); mix-blend-mode: overlay;
+}
+
+.serif { font-family: 'Google Sans', sans-serif; }
+.mono  { font-family: 'Google Sans Code', ui-monospace, 'SF Mono', 'Menlo', monospace; }
+.instrument { font-family: 'Google Sans', sans-serif; font-style: italic; }
+
+/* TOP BAR */
+.topbar{
+  position: fixed; top:0; left:0; right:0; z-index:100;
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 18px 32px;
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  border-bottom: 1px solid var(--rule);
+  transition: all .4s ease;
+}
+.brand{
+  display:flex; align-items:center; gap:12px;
+  font-family:'Google Sans Code', monospace;
+  font-size:12px; letter-spacing:.12em; text-transform:uppercase;
+  color: var(--ink-dim);
+}
+.brand-dot{
+  width:8px; height:8px; border-radius:50%;
+  background: var(--accent); box-shadow: 0 0 14px var(--accent);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse{ 0%,100%{ opacity:.6; transform:scale(.85);} 50%{ opacity:1; transform:scale(1.1);} }
+.brand strong{ color: var(--ink); font-weight:500; letter-spacing:.1em;}
+
+.controls{ display:flex; align-items:center; gap: 10px; }
+.ctrl{
+  height:36px; padding: 0 12px;
+  display:inline-flex; align-items:center; gap:8px;
+  background: transparent; color: var(--ink-dim);
+  border:1px solid var(--rule); border-radius: 999px;
+  font-family:'Google Sans Code', monospace;
+  font-size: 11px; letter-spacing:.08em; text-transform:uppercase;
+  cursor:pointer; text-decoration: none;
+  transition: all .3s ease;
+}
+.ctrl:hover{ color: var(--ink); border-color: var(--rule-hi); background: var(--bg-soft); }
+.ctrl svg{ width:14px; height:14px; }
+
+.progress{
+  position: fixed; top:0; left:0; right:0; height:2px; z-index:101;
+  background: transparent;
+}
+.progress-fill{
+  height:100%; width:0;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width .15s ease-out;
+}
+
+/* SLIDE NAV */
+.slide-nav{
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  z-index: 99;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  box-shadow: var(--shadow-lg);
+}
+.nav-btn{
+  width: 42px; height: 42px; border-radius: 50%;
+  border: 1px solid var(--rule); background: var(--bg-card); color: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .25s ease;
+  font-family: 'Google Sans', sans-serif;
+}
+.nav-btn:hover:not(:disabled){ background: var(--ink); color: var(--bg); border-color: var(--ink); transform: scale(1.06); }
+.nav-btn:active:not(:disabled){ transform: scale(0.96); }
+.nav-btn:disabled{ opacity: 0.35; cursor: not-allowed; }
+.nav-btn svg{ width: 16px; height: 16px; stroke-width: 2; }
+.nav-counter{
+  font-family: 'Google Sans Code', monospace;
+  font-size: 11px; letter-spacing: .12em;
+  color: var(--ink-dim); padding: 0 16px;
+  width: 92px; text-align: center; user-select: none;
+  flex-shrink: 0; white-space: nowrap;
+  line-height: 42px;
+}
+.nav-counter .n-curr{ color: var(--ink); font-weight: 500; }
+.nav-counter .n-sep{ opacity: .35; margin: 0 4px; }
+.nav-title{
+  font-family: 'Google Sans', sans-serif;
+  font-size: 12px; color: var(--ink); font-weight: 500;
+  padding: 0 16px 0 14px;
+  width: 200px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border-left: 1px solid var(--rule); line-height: 42px;
+  flex-shrink: 0;
+}
+@media (max-width: 700px){
+  .nav-title{ display: none; }
+  .slide-nav{ bottom: 20px; padding: 6px; gap: 4px; }
+  .nav-btn{ width: 38px; height: 38px; }
+}
+
+/* RAIL */
+.rail{
+  position: fixed; right:24px; top:50%; transform: translateY(-50%);
+  z-index:90; display:flex; flex-direction:column; gap:8px;
+  padding: 14px 8px; max-height: 70vh; overflow-y: auto;
+  scrollbar-width: none;
+}
+.rail::-webkit-scrollbar{ display: none; }
+.rail-dot{
+  width:6px; height:6px; border-radius:50%;
+  background: var(--rule-hi); border: none; cursor:pointer;
+  padding: 0; flex-shrink: 0; transition: all .3s ease;
+}
+.rail-dot:hover{ transform: scale(1.5); background: var(--ink-dim); }
+.rail-dot.active{ background: var(--accent); width:6px; height:18px; border-radius:4px; box-shadow:0 0 10px var(--glow); }
+@media (max-width: 1100px){ .rail{ display:none; } }
+
+/* ==============================================================
+   SLIDE SHELL — FIX #3: content can't bleed into next slide
+   - min-height: 100vh fills viewport for short content
+   - overflow: hidden clips anything that would leak past border
+   - content that naturally exceeds 100vh just makes the slide taller;
+     next slide still starts at its own offsetTop (no overlap)
+   ============================================================== */
+.deck{ position: relative; z-index:2; }
+.slide{
+  min-height: 100vh;
+  padding: 130px 64px 130px;
+  position: relative;
+  display: flex; flex-direction: column; justify-content: center;
+  border-bottom: 1px solid var(--rule);
+  overflow: hidden;
+}
+
+/* FIX #2: Wider content column — 1240px → 1440px */
+.slide-inner{
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  position: relative; z-index:2;
+}
+.slide-num{
+  position: absolute; top: 110px; left: 64px;
+  font-family:'Google Sans Code', monospace;
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--ink-soft);
+  display:flex; align-items:center; gap:10px;
+}
+.slide-num::before{
+  content:""; display:inline-block; width: 28px; height:1px;
+  background: var(--rule-hi);
+}
+.slide-tag{ color: var(--accent); }
+
+.eyebrow{
+  font-family:'Google Sans Code', monospace;
+  font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 24px;
+  display: inline-flex; align-items:center; gap:10px;
+}
+.eyebrow::before{ content:""; width:18px; height:1px; background: var(--accent); }
+
+h1.display{
+  font-family:'Google Sans', sans-serif;
+  font-weight: 700; font-size: clamp(58px, 9.5vw, 150px);
+  line-height: .92; letter-spacing: -0.035em;
+  color: var(--ink); margin-bottom: 28px;
+}
+h2.title{
+  font-family:'Google Sans', sans-serif;
+  font-weight: 600; font-size: clamp(40px, 5vw, 68px);
+  line-height: 1.04; letter-spacing: -0.028em;
+  margin-bottom: 18px;
+}
+h3.sub{
+  font-family:'Google Sans', sans-serif; font-style: italic;
+  font-weight: 400; font-size: clamp(20px, 2.1vw, 28px);
+  line-height: 1.3; color: var(--ink-dim);
+  letter-spacing: -0.01em; margin-bottom: 40px;
+}
+h4{
+  font-family:'Google Sans', sans-serif;
+  font-size: 14px; font-weight: 600;
+  letter-spacing: .05em; text-transform: uppercase;
+  color: var(--ink); margin-bottom: 14px;
+}
+p, li { color: var(--ink-dim); font-size: 16px; line-height: 1.65; }
+p strong, li strong { color: var(--ink); font-weight: 600; }
+.lede{
+  font-family:'Google Sans', sans-serif; font-style: italic;
+  font-weight: 400; font-size: clamp(19px, 1.9vw, 24px);
+  line-height: 1.45; color: var(--ink-dim);
+  max-width: 900px; letter-spacing: -0.005em;
+}
+.lede strong{ color: var(--ink); font-style: normal; font-weight: 600;}
+
+.grid-bg{
+  position:absolute; inset:0; pointer-events:none; z-index:1;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at 30% 30%, black 0%, transparent 75%);
+  -webkit-mask-image: radial-gradient(circle at 30% 30%, black 0%, transparent 75%);
+}
+.orb{
+  position:absolute; border-radius:50%;
+  filter: blur(90px); pointer-events:none;
+  opacity:.35; z-index:0;
+}
+
+.card{
+  background: var(--bg-card); border:1px solid var(--rule);
+  border-radius: 6px; padding: 28px; position:relative;
+  transition: border-color .3s ease, transform .3s ease;
+}
+.card:hover{ border-color: var(--rule-hi); }
+
+table{ width: 100%; border-collapse: collapse; font-size: 14px; }
+table th, table td{
+  text-align: left; padding: 14px 16px;
+  border-bottom: 1px solid var(--rule); vertical-align: top;
+}
+table th{
+  font-family:'Google Sans Code', monospace;
+  font-size: 11px; letter-spacing:.1em; text-transform:uppercase;
+  color: var(--ink-soft); font-weight: 500;
+  border-bottom:1px solid var(--rule-hi); padding: 10px 16px;
+}
+table td{ color: var(--ink-dim); }
+table td:first-child{ color: var(--ink); font-weight: 500; }
+table tr:hover td{ background: color-mix(in srgb, var(--accent) 4%, transparent); }
+table.mono-data td{ font-family:'Google Sans Code', monospace; font-size:13px;}
+
+pre.code, code.inline{
+  font-family:'Google Sans Code', monospace;
+  background: var(--code-bg); color: var(--ink);
+  border:1px solid var(--rule); border-radius: 6px;
+  padding: 20px 22px; font-size: 13px; line-height: 1.65;
+  overflow-x:auto; white-space: pre; position: relative;
+}
+pre.code::before{
+  content: attr(data-lang);
+  position:absolute; top:10px; right:14px;
+  font-size:9px; letter-spacing:.2em; text-transform:uppercase;
+  color: var(--ink-soft);
+}
+code.inline{ display:inline; padding: 2px 7px; font-size: .88em; border-radius: 3px; }
+.code-comment{ color: var(--ink-soft); }
+.code-string{ color: var(--accent-2); }
+.code-key{ color: var(--accent); }
+.code-num{ color: var(--accent-5); }
+
+.two-col{ display:grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: start; }
+.two-col.wide{ gap: 80px; }
+.two-col.uneven{ grid-template-columns: 1.3fr 1fr; }
+.three-col{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 24px;}
+.five-col{ display:grid; grid-template-columns: repeat(5, 1fr); gap: 16px;}
+@media (max-width: 1000px){
+  .slide{ padding: 110px 32px 110px;}
+  .slide-num{ left: 32px; top: 90px;}
+  .two-col, .three-col, .five-col, .two-col.uneven{ grid-template-columns: 1fr; gap: 32px;}
+}
+
+.chip{
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family:'Google Sans Code', monospace;
+  font-size: 11px; letter-spacing: .05em;
+  padding: 4px 10px;
+  border: 1px solid var(--rule-hi); border-radius: 999px;
+  color: var(--ink-dim); background: var(--bg-soft);
+}
+.chip-accent{ color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent);}
+.chip-warn{ color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 40%, transparent); background: color-mix(in srgb, var(--accent-2) 10%, transparent);}
+
+.kpi{ padding: 20px 0; border-top: 1px solid var(--rule);}
+.kpi-val{
+  font-family:'Google Sans', sans-serif;
+  font-weight: 600; font-size: 54px; line-height: 1;
+  letter-spacing: -0.03em; color: var(--ink);
+}
+.kpi-val.accent{ color: var(--accent); }
+.kpi-label{
+  font-family:'Google Sans Code', monospace;
+  font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--ink-soft); margin-top: 6px;
+}
+
+.reveal{
+  opacity: 0; transform: translateY(24px);
+  transition: opacity .9s cubic-bezier(.2,.7,.2,1), transform .9s cubic-bezier(.2,.7,.2,1);
+}
+.reveal.in{ opacity: 1; transform: translateY(0); }
+.reveal.d1{ transition-delay: .08s; }
+.reveal.d2{ transition-delay: .16s; }
+.reveal.d3{ transition-delay: .24s; }
+.reveal.d4{ transition-delay: .32s; }
+.reveal.d5{ transition-delay: .40s; }
+.reveal.d6{ transition-delay: .48s; }
+.reveal.d7{ transition-delay: .56s; }
+.reveal.d8{ transition-delay: .64s; }
+.reveal.d9{ transition-delay: .72s; }
+
+/* HERO */
+.hero{ min-height: 100vh; padding-top: 140px; }
+.hero .slide-inner{ max-width: 1500px; }
+.hero-meta{
+  display:flex; align-items: center; gap: 32px;
+  font-family:'Google Sans Code', monospace;
+  font-size: 11px; letter-spacing:.18em; text-transform:uppercase;
+  color: var(--ink-soft); margin-bottom: 54px; flex-wrap: wrap;
+}
+.hero-meta span{ display: inline-flex; align-items: center; gap: 8px; }
+.hero-meta .dot-sep{ width: 3px; height: 3px; border-radius: 50%; background: var(--rule-hi); }
+.hero-headline{
+  font-family:'Google Sans', sans-serif;
+  font-weight: 700; font-size: clamp(72px, 13vw, 220px);
+  line-height: .88; letter-spacing: -0.045em;
+  margin-bottom: 28px;
+}
+.hero-headline .ital{
+  font-family:'Google Sans', sans-serif; font-style: italic;
+  font-weight: 500; color: var(--accent); letter-spacing: -0.03em;
+}
+.hero-sub{
+  font-family:'Google Sans', sans-serif;
+  font-weight: 400; font-size: clamp(20px, 2.3vw, 30px);
+  line-height: 1.38; color: var(--ink-dim);
+  max-width: 900px; margin-bottom: 64px;
+}
+.hero-sub em{ font-style: italic; color: var(--accent);}
+.hero-stats{
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 36px; border-top: 1px solid var(--rule);
+  padding-top: 28px; margin-top: 40px;
+}
+@media (max-width: 900px){ .hero-stats{ grid-template-columns: repeat(2,1fr);} }
+.hero-cta{
+  display:flex; gap: 16px; align-items:center; margin-top: 32px; flex-wrap: wrap;
+}
+.cta-btn{
+  display:inline-flex; align-items:center; gap: 10px;
+  padding: 14px 22px; background: var(--ink); color: var(--bg);
+  border: none; border-radius: 999px;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 13px; font-weight: 500; letter-spacing: .02em;
+  cursor:pointer; text-decoration: none; transition: all .3s ease;
+}
+.cta-btn:hover{ transform: translateY(-2px); box-shadow: var(--shadow-lg);}
+.cta-btn.ghost{ background: transparent; color: var(--ink); border:1px solid var(--rule-hi); }
+.cta-btn.ghost:hover{ background: var(--bg-soft); }
+.cta-code{
+  font-family:'Google Sans Code', monospace;
+  font-size: 12px; color: var(--ink-dim);
+  padding: 12px 18px; background: var(--bg-soft);
+  border:1px dashed var(--rule-hi); border-radius: 6px;
+  display: inline-flex; align-items: center; gap: 10px;
+}
+.cta-code::before{ content: "$"; color: var(--accent); }
+
+.corner-marks::before, .corner-marks::after{
+  content:""; position:absolute;
+  width: 36px; height: 36px;
+  border: 1px solid var(--rule-hi); z-index: 1;
+}
+.corner-marks::before{ top: 96px; left: 48px; border-right: 0; border-bottom: 0; }
+.corner-marks::after{ bottom: 48px; right: 48px; border-left: 0; border-top: 0; }
+
+/* AGENDA */
+.agenda-list{ list-style: none; counter-reset: agenda; }
+.agenda-list li{
+  counter-increment: agenda;
+  display: flex; gap: 28px; align-items: baseline;
+  padding: 16px 0; border-top: 1px solid var(--rule);
+  font-size: 19px; color: var(--ink);
+  transition: padding-left .4s ease, color .3s ease;
+  cursor: default;
+}
+.agenda-list li:last-child{ border-bottom: 1px solid var(--rule);}
+.agenda-list li:hover{ padding-left: 16px; }
+.agenda-list li:hover .agenda-num{ color: var(--accent);}
+.agenda-list li:hover .agenda-title em{ color: var(--accent); }
+.agenda-num{
+  font-family:'Google Sans Code', monospace;
+  font-size: 11px; letter-spacing: .15em;
+  color: var(--ink-soft); min-width: 40px;
+  transition: color .3s ease;
+}
+.agenda-title{
+  flex: 1;
+  font-family: 'Google Sans', sans-serif;
+  font-weight: 500; font-size: 22px; letter-spacing: -0.018em;
+}
+.agenda-title em{ font-style: italic; color: var(--ink-dim); font-weight: 400; transition: color .3s ease; }
+.agenda-desc{
+  font-family:'Google Sans Code', monospace;
+  font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+  color: var(--ink-soft); flex-shrink: 0;
+}
+
+/* PROBLEM */
+.session-loop{
+  font-family:'Google Sans Code', monospace;
+  font-size: 14px; background: var(--code-bg);
+  border:1px solid var(--rule); border-radius: 6px;
+  padding: 22px; line-height: 2.1;
+}
+.session-loop .s-ok{ color: var(--accent); }
+.session-loop .s-fail{ color: var(--accent-4); }
+.session-loop .s-count{ color: var(--ink-soft); }
+
+.problem-box{
+  padding: 18px 22px;
+  border-left: 3px solid var(--accent-4);
+  background: color-mix(in srgb, var(--accent-4) 6%, transparent);
+  border-radius: 0 6px 6px 0;
+  font-family: 'Google Sans', sans-serif; font-style: italic;
+  font-size: 17px; line-height: 1.5;
+}
+.problem-box strong{ font-style: normal; color: var(--ink); font-weight: 600;}
+
+.four-problems{ display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.four-problems .p-card{
+  padding: 20px; border:1px solid var(--rule); border-radius: 6px;
+  position: relative; overflow: hidden; transition: all .3s ease;
+}
+.four-problems .p-card:hover{ border-color: var(--rule-hi); transform: translateY(-2px); }
+.four-problems .p-card::before{
+  content:""; position: absolute; top:0; left:0; width: 3px; height: 100%;
+  background: var(--ink-soft); transition: background .3s ease;
+}
+.four-problems .p-card:nth-child(1)::before{ background: var(--accent-2); }
+.four-problems .p-card:nth-child(2)::before{ background: var(--accent-4); }
+.four-problems .p-card:nth-child(3)::before{ background: var(--accent-3); }
+.four-problems .p-card:nth-child(4)::before{ background: var(--accent-5); }
+.four-problems .p-card h5{ font-family: 'Google Sans', sans-serif; font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.four-problems .p-card p{ font-size: 13px; color: var(--ink-dim); line-height: 1.5;}
+.four-problems .p-card .p-label{
+  font-family: 'Google Sans Code', monospace;
+  font-size: 9px; letter-spacing: .15em; text-transform: uppercase;
+  color: var(--ink-soft); margin-top: 8px; display: block;
+}
+
+/* FACTS */
+.facts-tbl{ width: 100%; }
+.facts-tbl td{ padding: 11px 0; border-bottom: 1px solid var(--rule); }
+.facts-tbl td:first-child{
+  color: var(--ink-soft); font-family:'Google Sans Code', monospace;
+  font-size:11px; letter-spacing: .14em; text-transform: uppercase;
+  width: 40%;
+}
+.facts-tbl td:last-child{
+  color: var(--ink); font-family: 'Google Sans', sans-serif;
+  text-align: right; font-size: 14px; font-weight: 500;
+}
+.facts-tbl td:last-child .mono { font-family:'Google Sans Code', monospace; font-size: 13px;}
+
+/* TOOL GRID */
+.tool-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.tool-col{
+  padding: 26px; border:1px solid var(--rule); border-radius: 8px;
+  background: var(--bg-card); position: relative; transition: all .4s ease;
+}
+.tool-col:hover{ transform: translateY(-4px); border-color: var(--rule-hi);}
+.tool-col::before{
+  content:""; position:absolute; top: 0; left: 20px; width: 56px; height: 3px;
+  transform: translateY(-50%);
+}
+.tool-col.tc-mem::before{ background: var(--accent); box-shadow: 0 0 24px var(--accent);}
+.tool-col.tc-int::before{ background: var(--accent-3); box-shadow: 0 0 24px var(--accent-3);}
+.tool-col.tc-eff::before{ background: var(--accent-2); box-shadow: 0 0 24px var(--accent-2);}
+.tool-col h4{
+  font-family: 'Google Sans', sans-serif;
+  font-size: 20px; font-weight: 600;
+  text-transform: none; letter-spacing: -0.01em;
+  color: var(--ink); margin-bottom: 4px;
+}
+.tool-col .kicker{
+  font-family: 'Google Sans Code', monospace;
+  font-size: 10px; letter-spacing: .22em; text-transform:uppercase;
+  color: var(--ink-soft); margin-bottom: 14px; display:block;
+}
+.tool-sub{
+  font-family: 'Google Sans Code', monospace;
+  font-size: 10px; letter-spacing: .2em; text-transform:uppercase;
+  color: var(--ink-dim); margin: 16px 0 8px;
+  padding-bottom: 6px; border-bottom: 1px dashed var(--rule);
+}
+.tool-list{ list-style: none; }
+.tool-list li{
+  font-family: 'Google Sans Code', monospace;
+  font-size: 13px; color: var(--ink);
+  padding: 4px 0; display:flex; align-items:center; gap: 10px;
+}
+.tool-list li::before{
+  content:""; width: 4px; height: 4px; border-radius: 50%;
+  background: currentColor; opacity: .4;
+}
+.tc-mem .tool-list li code{ color: var(--accent);}
+.tc-int .tool-list li code{ color: var(--accent-3);}
+.tc-eff .tool-list li code{ color: var(--accent-2);}
+.tool-list li code{ font-family: inherit; }
+
+/* DRIFT */
+.drift-box{
+  padding: 22px; border: 1px solid var(--rule);
+  border-radius: 8px; background: var(--bg-card);
+}
+.drift-box.ok{ border-color: color-mix(in srgb, var(--accent) 40%, var(--rule));}
+.drift-box.warn{ border-color: color-mix(in srgb, var(--accent-4) 40%, var(--rule));}
+.drift-box h5{
+  display:flex; align-items:center; gap:8px;
+  font-family:'Google Sans', sans-serif; font-size: 20px; font-weight: 600;
+  margin-bottom: 16px;
+}
+.drift-box .drift-icon{ width: 10px; height: 10px; border-radius: 50%; }
+.drift-box.ok .drift-icon{ background: var(--accent);}
+.drift-box.warn .drift-icon{ background: var(--accent-4);}
+.drift-box pre{
+  font-family:'Google Sans Code', monospace;
+  font-size: 13px; line-height: 1.8;
+  background: var(--code-bg);
+  padding: 16px; border-radius: 4px;
+  border:1px solid var(--rule); color: var(--ink);
+  white-space: pre;
+}
+.verdict-scale{
+  display: flex; align-items: center; gap: 0;
+  border-radius: 999px; overflow: hidden; margin-top: 12px;
+}
+.verdict-cell{ flex: 1; padding: 16px; text-align: center; }
+.v-ok{ background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--ink);}
+.v-mid{ background: color-mix(in srgb, var(--accent-2) 22%, transparent); color: var(--ink);}
+.v-bad{ background: color-mix(in srgb, var(--accent-4) 22%, transparent); color: var(--ink);}
+.verdict-cell .v-score{ font-family:'Google Sans Code', monospace; font-size: 11px; letter-spacing: .1em; color: var(--ink-soft); display:block; margin-bottom: 4px; }
+.verdict-cell .v-label{ font-family: 'Google Sans', sans-serif; font-size: 16px; font-weight: 600;}
+
+/* VS */
+.vs-block{
+  display:grid; grid-template-columns: 1fr auto 1fr; gap: 0;
+  border:1px solid var(--rule); border-radius: 8px; overflow: hidden;
+}
+.vs-side{ padding: 32px; background: var(--bg-card);}
+.vs-side.bad{ background: color-mix(in srgb, var(--accent-4) 8%, var(--bg-card));}
+.vs-side.good{ background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));}
+.vs-side h4{ margin-bottom: 18px;}
+.vs-side.bad h4::before{ content:"×  "; color: var(--accent-4);}
+.vs-side.good h4::before{ content:"◆  "; color: var(--accent);}
+.vs-side ul{ list-style: none; }
+.vs-side li{
+  padding: 6px 0; font-size: 14px;
+  font-family: 'Google Sans Code', monospace;
+  color: var(--ink-dim);
+}
+.vs-side li strong{ color: var(--ink); font-family: 'Google Sans', sans-serif; font-weight: 500;}
+.vs-divider{ width: 1px; background: var(--rule); position: relative; }
+.vs-divider::after{
+  content:"VS"; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-family:'Google Sans', sans-serif; font-style: italic;
+  font-size: 18px; font-weight: 500; color: var(--ink-soft);
+  background: var(--bg-card); padding: 8px 12px;
+}
+@media (max-width: 1000px){
+  .vs-block{ grid-template-columns: 1fr;}
+  .vs-divider{ height: 1px; width: 100%;}
+}
+
+/* ROUTING */
+.routing-tbl td{
+  font-family: 'Google Sans Code', monospace; font-size: 12px;
+  text-align: center; padding: 14px 8px;
+}
+.routing-tbl td:first-child{ text-align: left; font-family:'Google Sans', sans-serif; font-size: 14px; font-weight: 500;}
+.tier{
+  display: inline-block; padding: 4px 12px; border-radius: 3px;
+  font-size: 11px; letter-spacing: .05em;
+}
+.tier-cheap{ background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent);}
+.tier-mid{ background: color-mix(in srgb, var(--accent-2) 16%, transparent); color: var(--accent-2);}
+.tier-best{ background: color-mix(in srgb, var(--accent-5) 20%, transparent); color: var(--accent-5); font-weight: 600;}
+
+/* MERMAID */
+.mermaid-wrap{
+  padding: 28px; border:1px solid var(--rule);
+  border-radius: 8px; background: var(--bg-card); overflow-x: auto;
+}
+.mermaid{ display: flex; justify-content: center;}
+.mermaid svg{ max-width: 100%; height: auto;}
+
+.flywheel{
+  padding: 28px; border:1px solid var(--rule); border-radius: 8px;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--accent-3) 12%, transparent) 0%, transparent 60%),
+    var(--bg-card);
+}
+.flywheel .arrow{
+  font-family:'Google Sans Code', monospace;
+  font-size: 13px; color: var(--ink); line-height: 2;
+}
+.flywheel .arrow .dim{ color: var(--ink-soft);}
+.flywheel .arrow .hi{ color: var(--accent);}
+
+/* PILLARS */
+.pillar-grid{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.pillar{
+  padding: 26px 18px; border:1px solid var(--rule); border-radius: 8px;
+  text-align:center; position: relative; overflow: hidden;
+  background: var(--bg-card);
+  transition: transform .4s ease, border-color .3s ease;
+}
+.pillar:hover{ transform: translateY(-6px); border-color: var(--rule-hi);}
+.pillar::before{
+  content:""; position: absolute; top:0; left: 50%; transform: translateX(-50%);
+  width: 40%; height: 2px;
+}
+.pillar.p1::before{ background: var(--accent);}
+.pillar.p2::before{ background: var(--accent-4);}
+.pillar.p3::before{ background: var(--accent-3);}
+.pillar.p4::before{ background: var(--accent-2);}
+.pillar.p5::before{ background: var(--accent-5);}
+.pillar .p-num{
+  font-family:'Google Sans Code', monospace;
+  font-size: 10px; letter-spacing: .2em;
+  color: var(--ink-soft); margin-bottom: 14px;
+}
+.pillar h3{
+  font-family: 'Google Sans', sans-serif; font-weight: 600;
+  font-size: 20px; letter-spacing: -0.015em; margin-bottom: 10px;
+  line-height: 1.15;
+}
+.pillar p{ font-size: 12px; line-height: 1.5;}
+@media (max-width: 1000px){ .pillar-grid{ grid-template-columns: 1fr 1fr;} }
+
+/* STEPS */
+.step-list{ counter-reset: stp; list-style: none;}
+.step-list li{
+  counter-increment: stp;
+  padding: 14px 0 14px 48px; position: relative;
+  border-bottom: 1px solid var(--rule);
+}
+.step-list li::before{
+  content: "0" counter(stp);
+  position: absolute; left: 0; top: 14px;
+  font-family:'Google Sans Code', monospace;
+  font-size: 11px; letter-spacing: .1em; color: var(--accent);
+}
+.step-list code{
+  font-family:'Google Sans Code', monospace;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  padding: 1px 6px; border-radius: 3px; font-size: 12px;
+}
+
+.cost-hero{
+  padding: 44px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, var(--bg-card)), var(--bg-card));
+  border:1px solid var(--rule); border-radius: 8px; text-align:center;
+}
+.cost-hero .big-pct{
+  font-family:'Google Sans', sans-serif;
+  font-weight: 700; font-size: clamp(80px, 12vw, 160px);
+  line-height: 1; letter-spacing: -0.04em; color: var(--accent);
+}
+.cost-hero .big-label{
+  font-family:'Google Sans', sans-serif; font-style: italic;
+  font-size: 22px; color: var(--ink-dim); margin-top: 12px;
+  line-height: 1.35;
+}
+
+.install{
+  padding: 28px; border:1px solid var(--rule); border-radius: 8px;
+  background: var(--code-bg);
+  font-family: 'Google Sans Code', monospace;
+  font-size: 13px; line-height: 1.9;
+}
+.install .prompt{ color: var(--accent); user-select: none;}
+.install .comment{ color: var(--ink-soft);}
+
+.status-dot{
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px;
+}
+.status-done{ background: var(--accent);}
+.status-prog{ background: var(--accent-2);}
+.status-plan{ background: var(--ink-soft);}
+
+.closing{
+  min-height: 100vh;
+  display:flex; flex-direction:column; justify-content: center; align-items: center;
+  text-align: center; padding: 140px 40px;
+}
+.closing h2{
+  font-family:'Google Sans', sans-serif;
+  font-weight: 700; font-size: clamp(56px, 9vw, 140px);
+  line-height: .9; letter-spacing: -0.045em; margin-bottom: 40px;
+}
+.closing .ital{ font-style: italic; color: var(--accent); font-weight: 500;}
+.closing .install-line{
+  background: var(--bg-card);
+  border:1px solid var(--rule-hi); border-radius: 999px;
+  padding: 18px 36px;
+  font-family:'Google Sans Code', monospace;
+  font-size: 14px; color: var(--ink);
+  margin: 32px 0 40px;
+  display: inline-flex; align-items:center; gap:14px;
+  transition: all .3s ease;
+}
+.closing .install-line::before{ content:"$"; color: var(--accent);}
+.closing .install-line:hover{ border-color: var(--accent); box-shadow: 0 0 32px var(--glow);}
+.closing .meta-line{
+  font-family:'Google Sans Code', monospace;
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* ==============================================================
+   FIX #3 CRITICAL: section-div fills a FULL viewport (100vh)
+   This is what was causing the bleed in the screenshot —
+   section dividers were 70vh so next slide's content started
+   appearing in the remaining 30vh of viewport space.
+   ============================================================== */
+.section-div{
+  min-height: 100vh;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 100px 64px;
+}
+.section-div .sec-num{
+  font-family:'Google Sans Code', monospace;
+  font-size: 12px; letter-spacing:.3em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 28px;
+}
+.section-div h2{
+  font-family:'Google Sans', sans-serif;
+  font-weight: 700; font-size: clamp(64px, 11vw, 170px);
+  line-height: .9; letter-spacing: -0.045em;
+}
+.section-div h2 .ital{ font-style: italic; color: var(--ink-dim); font-weight: 500; }
+.section-div .tag{
+  font-family:'Google Sans', sans-serif; font-style: italic;
+  font-size: clamp(20px, 2.3vw, 28px);
+  color: var(--ink-dim); margin-top: 24px; max-width: 800px;
+}
+
+.scroll-hint{
+  position: absolute;
+  bottom: 100px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  font-family:'Google Sans Code', monospace;
+  font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.scroll-hint .line{
+  width: 1px; height: 32px;
+  background: linear-gradient(to bottom, var(--accent), transparent);
+  animation: scrollhint 2s ease-in-out infinite;
+}
+@keyframes scrollhint{
+  0%{ transform: scaleY(0); transform-origin: top;}
+  50%{ transform: scaleY(1); transform-origin: top;}
+  100%{ transform: scaleY(0); transform-origin: bottom;}
+}
+
+.cat-bars{
+  display:flex; gap: 6px; height: 10px;
+  margin: 20px 0 28px; border-radius: 999px; overflow: hidden;
+}
+.cat-bars .cb{ border-radius: 999px;}
+
+.panel{
+  padding: 24px 26px;
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: 0 6px 6px 0;
+}
+.panel h5{ font-family: 'Google Sans', sans-serif; font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+.panel.panel-blue{ border-left-color: var(--accent-3); background: color-mix(in srgb, var(--accent-3) 6%, transparent);}
+.panel.panel-amber{ border-left-color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 6%, transparent);}
+
+.cache-block{
+  font-family:'Google Sans Code', monospace; font-size: 12px;
+  border: 1px solid var(--rule); border-radius: 6px; overflow: hidden;
+}
+.cache-row{
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--rule);
+  display:flex; justify-content: space-between; align-items:center;
+}
+.cache-row:last-child{ border-bottom: none;}
+.cache-row.static{ background: color-mix(in srgb, var(--accent) 12%, transparent);}
+.cache-row.project{ background: color-mix(in srgb, var(--accent-2) 10%, transparent);}
+.cache-row.task{ background: color-mix(in srgb, var(--accent-4) 8%, transparent);}
+.cache-row .row-label{ color: var(--ink); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; font-weight: 600;}
+.cache-row .row-desc{ color: var(--ink-dim); font-size: 11px; margin-top: 2px;}
+.cache-row .row-tag{
+  padding: 3px 9px; border-radius: 3px; font-size: 10px; letter-spacing: .08em;
+  border: 1px solid currentColor;
+}
+
+.comp-demo{
+  font-family:'Google Sans Code', monospace; font-size: 13px;
+  padding: 22px; border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--code-bg);
+}
+.comp-demo .label{
+  font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--ink-soft); margin-bottom: 6px; display:block;
+}
+.comp-demo .in{ color: var(--ink-dim); text-decoration: line-through; text-decoration-color: var(--accent-4); padding: 6px 0; }
+.comp-demo .out{ color: var(--accent); padding: 6px 0; }
+.comp-demo .arrow{ color: var(--accent-2); padding: 6px 0;}
+
+.status-supported{ color: var(--accent);}
+.status-partial{ color: var(--accent-2);}
+.status-future{ color: var(--accent-5);}
+
+/* HARNESS DIAGRAM — "Agent = Model + Harness" visualization */
+.harness-diagram{
+  padding: 36px 32px;
+  border:1px solid var(--rule); border-radius: 8px;
+  background: var(--bg-card);
+  position: relative;
+}
+.harness-outer{
+  border: 2px dashed color-mix(in srgb, var(--accent) 45%, var(--rule));
+  border-radius: 10px;
+  padding: 22px 20px 16px;
+  position: relative;
+  background: color-mix(in srgb, var(--accent) 3%, transparent);
+}
+.harness-outer-label{
+  position: absolute; top: -11px; left: 20px;
+  background: var(--bg-card); padding: 0 10px;
+  font-family:'Google Sans Code', monospace;
+  font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--accent);
+}
+.harness-inner{
+  border:1px solid var(--rule-hi);
+  border-radius: 8px; padding: 22px 20px 16px;
+  margin-top: 12px; position: relative;
+  background: var(--bg);
+}
+.harness-inner-label{
+  position: absolute; top: -11px; left: 18px;
+  background: var(--bg); padding: 0 10px;
+  font-family:'Google Sans Code', monospace;
+  font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.harness-layers{ list-style: none; }
+.harness-layers li{
+  padding: 8px 0;
+  font-family: 'Google Sans Code', monospace;
+  font-size: 13px; color: var(--ink);
+  display: flex; align-items: center; gap: 10px;
+}
+.harness-layers li::before{ content:"▸"; color: var(--accent); font-size: 10px; }
+.model-core{
+  margin: 24px auto 4px; padding: 14px 32px;
+  background: var(--ink); color: var(--bg);
+  border-radius: 999px;
+  font-family:'Google Sans', sans-serif;
+  font-size: 13px; font-weight: 600; letter-spacing: .1em;
+  display: inline-block;
+  box-shadow: 0 0 32px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.harness-inner-center{ text-align: center;}
+
+/* HARNESS STACK — 3-layer visualization */
+.stack{
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 28px;
+  border:1px solid var(--rule); border-radius: 8px;
+  background: var(--bg-card);
+}
+.stack-layer{
+  padding: 18px 22px;
+  border-radius: 8px;
+  border: 1px solid var(--rule-hi);
+  position: relative;
+  transition: all .3s ease;
+}
+.stack-layer:hover{ transform: translateX(4px);}
+.stack-layer.exec{ background: color-mix(in srgb, var(--accent-3) 8%, var(--bg));}
+.stack-layer.intel{
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--rule-hi));
+}
+.stack-layer.orch{ background: color-mix(in srgb, var(--accent-2) 8%, var(--bg));}
+.stack-layer .layer-label{
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 15px; font-weight: 600;
+  color: var(--ink); margin-bottom: 4px;
+}
+.stack-layer .layer-label .ours-badge{
+  font-family: 'Google Sans Code', monospace;
+  font-size: 9px; letter-spacing: .2em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 3px;
+  background: var(--accent); color: var(--bg);
+  font-weight: 700;
+}
+.stack-layer .layer-sub{
+  font-family: 'Google Sans Code', monospace;
+  font-size: 12px; color: var(--ink-dim);
+}
+.stack-plus{
+  text-align: center;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 16px; color: var(--ink-soft);
+  margin: -2px 0; font-weight: 500;
+}
+.stack-model{
+  padding: 14px 24px;
+  background: var(--ink); color: var(--bg);
+  border-radius: 999px;
+  font-family:'Google Sans', sans-serif;
+  font-size: 13px; font-weight: 600; letter-spacing: .1em;
+  margin: 8px auto 0;
+  align-self: center; text-align: center;
+  min-width: 180px;
+}
+</style>
+</head>
+<body>
+
+<!-- Progress bar -->
+<div class="progress"><div class="progress-fill" id="progressBar"></div></div>
+
+<!-- Slide navigation -->
+<nav class="slide-nav" id="slideNav" aria-label="Slide navigation">
+  <button class="nav-btn" id="navPrev" aria-label="Previous slide" title="Previous (←)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 18l-6-6 6-6"/>
+    </svg>
+  </button>
+  <div class="nav-counter">
+    <span class="n-curr" id="navCurrent">01</span>
+    <span class="n-sep">/</span>
+    <span id="navTotal">00</span>
+  </div>
+  <div class="nav-title" id="navTitle">Intro</div>
+  <button class="nav-btn" id="navNext" aria-label="Next slide" title="Next (→)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+  </button>
+</nav>
+
+<!-- Top nav -->
+<div class="topbar" id="topbar">
+  <div class="brand">
+    <div class="brand-dot"></div>
+    <span><strong>Ensemble</strong> mcp</span>
+  </div>
+  <div class="controls">
+    <button class="ctrl" id="themeBtn" title="Toggle theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" id="themeIcon">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+      <span id="themeLabel">Light</span>
+    </button>
+    <a class="ctrl" href="docs/index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+      <span>Docs</span>
+    </a>
+    <a class="ctrl" href="https://github.com/LynkByte/ensemble" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.58 2 12.25c0 4.54 2.87 8.39 6.84 9.74.5.1.68-.22.68-.48v-1.7c-2.78.62-3.37-1.35-3.37-1.35-.45-1.17-1.1-1.48-1.1-1.48-.9-.64.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.33 1.1 2.9.84.1-.66.35-1.1.63-1.36-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.3.1-2.72 0 0 .84-.28 2.76 1.05a9.3 9.3 0 0 1 5 0c1.9-1.33 2.75-1.05 2.75-1.05.55 1.42.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.48A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+      <span>GitHub</span>
+    </a>
+  </div>
+</div>
+
+<div class="rail" id="rail"></div>
+
+<div class="deck">
+
+<!-- SLIDE 1: HERO -->
+<section class="slide hero corner-marks" data-title="Intro">
+  <div class="grid-bg"></div>
+  <div class="orb" style="background: var(--accent); width:520px; height:520px; top: 30%; right: -180px;"></div>
+  <div class="orb" style="background: var(--accent-2); width:380px; height:380px; bottom: -120px; left: -100px; opacity:.22;"></div>
+
+  <div class="slide-inner">
+    <div class="hero-meta reveal">
+      <span><span class="dot-sep"></span>Harness Infrastructure</span>
+      <span>v1.0</span>
+      <span>MIT License</span>
+      <span>2026</span>
+    </div>
+
+    <h1 class="hero-headline reveal d1">
+      Ensemble<span class="ital"> mcp</span>
+    </h1>
+
+    <p class="hero-sub reveal d2">
+      The <em>harness infrastructure layer</em> for AI agents —<br/>
+      a local server that extends any agent harness with memory,
+      skills, drift detection, and intelligence.
+    </p>
+
+    <div class="hero-cta reveal d3">
+      <a class="cta-btn" href="#agenda">
+        Begin presentation
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+      </a>
+      <a class="cta-btn ghost" href="docs/index.html">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+        Browse documentation
+      </a>
+      <span class="cta-code">pip install ensemble-mcp</span>
+    </div>
+
+    <div class="hero-stats reveal d4">
+      <div class="kpi"><div class="kpi-val accent">19</div><div class="kpi-label">Harness Tools</div></div>
+      <div class="kpi"><div class="kpi-val">0</div><div class="kpi-label">External API Calls</div></div>
+      <div class="kpi"><div class="kpi-val">573</div><div class="kpi-label">Tests Passing</div></div>
+      <div class="kpi"><div class="kpi-val accent">~5ms</div><div class="kpi-label">Embedding Speed</div></div>
+    </div>
+  </div>
+
+  <div class="scroll-hint">
+    <span>Scroll</span>
+    <span class="line"></span>
+  </div>
+</section>
+
+<!-- SLIDE 2: AGENDA -->
+<section class="slide" id="agenda" data-title="Agenda">
+  <span class="slide-num"><span class="slide-tag">§ 01</span> Contents</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">What we'll cover</div>
+    <h2 class="title reveal d1">Twelve chapters, <em>one story</em>.</h2>
+    <h3 class="sub reveal d2">From the harness concept to live installation.</h3>
+
+    <ol class="agenda-list">
+      <li class="reveal d1"><span class="agenda-num">01</span><span class="agenda-title">The Problem <em>— why AI coding tools are wasteful today</em></span><span class="agenda-desc">Context</span></li>
+      <li class="reveal d2"><span class="agenda-num">02</span><span class="agenda-title">What is an Agent Harness? <em>— the model + harness equation</em></span><span class="agenda-desc">Framing</span></li>
+      <li class="reveal d3"><span class="agenda-num">03</span><span class="agenda-title">What is Ensemble mcp? <em>— the harness infrastructure layer</em></span><span class="agenda-desc">Thesis</span></li>
+      <li class="reveal d4"><span class="agenda-num">04</span><span class="agenda-title">19 Harness Tools <em>— memory, drift, routing, indexing, skills, compression</em></span><span class="agenda-desc">Surface</span></li>
+      <li class="reveal d5"><span class="agenda-num">05</span><span class="agenda-title">Zero-LLM Architecture <em>— how it's efficient</em></span><span class="agenda-desc">Under</span></li>
+      <li class="reveal d6"><span class="agenda-num">06</span><span class="agenda-title">Token &amp; Cost Reduction <em>— five mechanisms that save money</em></span><span class="agenda-desc">Economics</span></li>
+      <li class="reveal d7"><span class="agenda-num">07</span><span class="agenda-title">Live Workflow <em>— what happens behind the scenes</em></span><span class="agenda-desc">Behavior</span></li>
+      <li class="reveal d8"><span class="agenda-num">08</span><span class="agenda-title">Technical Architecture <em>— under the hood</em></span><span class="agenda-desc">System</span></li>
+      <li class="reveal d9"><span class="agenda-num">09</span><span class="agenda-title">Dashboard <em>— observability &amp; visualization</em></span><span class="agenda-desc">UI</span></li>
+      <li class="reveal d9"><span class="agenda-num">10</span><span class="agenda-title">Installation <em>— one command to get started</em></span><span class="agenda-desc">Onboarding</span></li>
+      <li class="reveal d9"><span class="agenda-num">11</span><span class="agenda-title">Future Roadmap <em>— what's next</em></span><span class="agenda-desc">Horizon</span></li>
+      <li class="reveal d9"><span class="agenda-num">12</span><span class="agenda-title">Key Takeaways <em>— the harness pillars</em></span><span class="agenda-desc">Close</span></li>
+    </ol>
+  </div>
+</section>
+
+<!-- SLIDE 3: SECTION — PROBLEM -->
+<section class="slide section-div" data-title="The Problem">
+  <div class="slide-inner">
+    <div class="sec-num reveal">Chapter One</div>
+    <h2 class="reveal d1">The <span class="ital">problem</span>.</h2>
+    <p class="tag reveal d2">AI coding tools today are wasteful and forgetful.</p>
+  </div>
+</section>
+
+<!-- SLIDE 4: EVERY SESSION FROM ZERO -->
+<section class="slide" data-title="Every session from zero">
+  <span class="slide-num"><span class="slide-tag">§ 01.01</span> The Groundhog Day loop</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Developer experience today</div>
+    <h2 class="title reveal d1">Every session starts <em>from zero</em>.</h2>
+
+    <div class="two-col wide" style="margin-top: 40px;">
+      <div>
+        <h4 class="reveal d2">The Developer Experience</h4>
+        <div class="session-loop reveal d3">
+          <div><span class="s-count">Session 1:</span> "Use service classes"  <span class="s-ok">✓ Works!</span></div>
+          <div><span class="s-count">Session 2:</span> "Use service classes"  <span class="s-fail">✗ Forgot</span></div>
+          <div><span class="s-count">Session 3:</span> "Use service classes"  <span class="s-fail">✗ Again</span></div>
+          <div><span class="s-count">Session 4:</span> "Use service classes"  <span class="s-fail">✗ …</span></div>
+        </div>
+        <div class="problem-box reveal d4" style="margin-top: 24px;">
+          A team of 10 engineers running 10 pipelines / day wastes an estimated
+          <strong>16.2M tokens per month</strong> on redundant context alone.
+        </div>
+      </div>
+
+      <div>
+        <h4 class="reveal d3">The four core problems</h4>
+        <div class="four-problems">
+          <div class="p-card reveal d4">
+            <h5>No Memory</h5>
+            <p>No continual learning across sessions.</p>
+            <span class="p-label">Harness Gap</span>
+          </div>
+          <div class="p-card reveal d5">
+            <h5>Silent Drift</h5>
+            <p>No self-verification loop.</p>
+            <span class="p-label">Harness Gap</span>
+          </div>
+          <div class="p-card reveal d6">
+            <h5>Static Routing</h5>
+            <p>No intelligent orchestration.</p>
+            <span class="p-label">Harness Gap</span>
+          </div>
+          <div class="p-card reveal d7">
+            <h5>Redundant Exploration</h5>
+            <p>No codebase awareness.</p>
+            <span class="p-label">Harness Gap</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 5: SECTION — WHAT IS AN AGENT HARNESS? -->
+<section class="slide section-div" data-title="What is an Agent Harness?">
+  <div class="slide-inner">
+    <div class="sec-num reveal">Chapter Two</div>
+    <h2 class="reveal d1">What is an<br/><span class="ital">agent harness?</span></h2>
+    <p class="tag reveal d2">The model + harness equation.</p>
+  </div>
+</section>
+
+<!-- SLIDE 6: AGENT = MODEL + HARNESS -->
+<section class="slide" data-title="Agent = Model + Harness">
+  <span class="slide-num"><span class="slide-tag">§ 02.01</span> The equation</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Agent = Model + Harness</div>
+    <h2 class="title reveal d1">A harness is <em>everything around</em> the model.</h2>
+
+    <div class="two-col wide" style="margin-top: 36px; align-items: start;">
+      <div>
+        <p class="reveal d2" style="font-size: 17px; margin-bottom: 24px; color: var(--ink);">
+          A <strong>harness</strong> is every piece of code, configuration, and execution logic that wraps a model to turn it into a useful agent.
+        </p>
+        <ul style="list-style: none;">
+          <li class="reveal d3" style="padding: 12px 0; border-bottom: 1px solid var(--rule);"><strong>System prompts</strong> — shape agent behavior</li>
+          <li class="reveal d4" style="padding: 12px 0; border-bottom: 1px solid var(--rule);"><strong>Tools, skills &amp; MCPs</strong> — capabilities</li>
+          <li class="reveal d5" style="padding: 12px 0; border-bottom: 1px solid var(--rule);"><strong>Execution environment</strong> — filesystem, bash, sandbox</li>
+          <li class="reveal d6" style="padding: 12px 0; border-bottom: 1px solid var(--rule);"><strong>Orchestration</strong> — subagent spawning, routing</li>
+          <li class="reveal d7" style="padding: 12px 0; border-bottom: 1px solid var(--rule);"><strong>Memory &amp; context management</strong> — compaction, persistence</li>
+          <li class="reveal d8" style="padding: 12px 0; border-bottom: 1px solid var(--rule);"><strong>Hooks &amp; middleware</strong> — linting, drift checks</li>
+        </ul>
+        <div class="panel panel-blue reveal d8" style="margin-top: 24px;">
+          <p style="font-size: 13px; color: var(--ink-dim);">
+            See <em>The Anatomy of an Agent Harness</em> by LangChain for a deeper breakdown.
+          </p>
+        </div>
+      </div>
+
+      <div class="reveal d3">
+        <div class="harness-diagram">
+          <div class="harness-outer">
+            <span class="harness-outer-label">Agent</span>
+            <div class="harness-inner">
+              <span class="harness-inner-label">Harness</span>
+              <ul class="harness-layers">
+                <li>System Prompts</li>
+                <li>Tools, Skills &amp; MCPs</li>
+                <li>Execution Environment</li>
+                <li>Orchestration Logic</li>
+                <li>Memory &amp; Context Mgmt</li>
+                <li>Hooks &amp; Middleware</li>
+              </ul>
+              <div class="harness-inner-center">
+                <div class="model-core">MODEL</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 7: THE HARNESS STACK -->
+<section class="slide" data-title="The Harness Stack">
+  <span class="slide-num"><span class="slide-tag">§ 02.02</span> Harness layers</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Layered architecture</div>
+    <h2 class="title reveal d1">The harness <em>stack</em>.</h2>
+    <h3 class="sub reveal d2">Agent harnesses have layers. Different providers handle different layers.</h3>
+
+    <div class="stack reveal d3" style="margin-top: 24px;">
+      <div class="stack-layer exec">
+        <div class="layer-label">Execution Layer</div>
+        <div class="layer-sub">Claude Code / Codex / Cursor · Filesystem, Bash, Sandbox, Browser, Git</div>
+      </div>
+      <div class="stack-plus">+</div>
+      <div class="stack-layer intel">
+        <div class="layer-label">
+          Intelligence Infrastructure
+          <span class="ours-badge">Us</span>
+        </div>
+        <div class="layer-sub">ensemble-mcp · Memory, Skills, Drift, Routing, Compression, Sessions, Codebase Indexing</div>
+      </div>
+      <div class="stack-plus">+</div>
+      <div class="stack-layer orch">
+        <div class="layer-label">Orchestration</div>
+        <div class="layer-sub">Ensemble 7-agent pipeline · Captain · Scope · Craft · Forge · Lens · Signal</div>
+      </div>
+      <div class="stack-model">MODEL</div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 8: SECTION — WHAT IS ENSEMBLE-MCP? -->
+<section class="slide section-div" data-title="What is ensemble-mcp?">
+  <div class="slide-inner">
+    <div class="sec-num reveal">Chapter Three</div>
+    <h2 class="reveal d1">What is<br/><span class="ital">Ensemble mcp?</span></h2>
+    <p class="tag reveal d2">The harness infrastructure layer.</p>
+  </div>
+</section>
+
+<!-- SLIDE 9: DEFINITION + KEY FACTS -->
+<section class="slide" data-title="Definition">
+  <span class="slide-num"><span class="slide-tag">§ 03.01</span> The intelligence layer</span>
+  <div class="slide-inner">
+    <div class="two-col uneven" style="gap: 88px;">
+      <div>
+        <div class="eyebrow reveal">The definition</div>
+        <h2 class="title reveal d1">A <em>harness infrastructure layer</em> delivered as a local Python MCP server.</h2>
+        <p class="lede reveal d2" style="margin-top: 14px;">
+          It extends any agent harness with memory, skills, drift detection, and intelligence — without a single external API call.
+        </p>
+
+        <div class="panel reveal d3" style="margin-top: 32px;">
+          <h5>Adds the intelligence layer</h5>
+          <p>Your AI tool already has a harness (filesystem, bash, sandbox). ensemble-mcp adds the intelligence layer that makes it learn, stay on task, and work smarter over time.</p>
+        </div>
+
+        <div class="panel panel-blue reveal d4" style="margin-top: 14px;">
+          <h5>Invisible by design</h5>
+          <p>The developer never types an ensemble-mcp command. The AI agent calls its harness tools automatically in the background.</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="eyebrow reveal d2">Key facts</div>
+        <table class="facts-tbl reveal d3">
+          <tr><td>Role</td><td>Harness infrastructure</td></tr>
+          <tr><td>Language</td><td>Python 3.11+</td></tr>
+          <tr><td>Protocol</td><td>MCP <span class="mono" style="color:var(--ink-soft)">(Model Context Protocol)</span></td></tr>
+          <tr><td>Harness tools</td><td>19 · 8 categories</td></tr>
+          <tr><td>LLM calls</td><td style="color: var(--accent);">Zero</td></tr>
+          <tr><td>Storage</td><td><span class="mono">SQLite (WAL mode)</span></td></tr>
+          <tr><td>Embeddings</td><td><span class="mono">ONNX · ~5ms</span></td></tr>
+          <tr><td>Install</td><td><span class="mono">uvx ensemble-mcp</span></td></tr>
+          <tr><td>Size</td><td>~90 MB</td></tr>
+          <tr><td>Tests</td><td>573 passing</td></tr>
+          <tr><td>License</td><td>MIT</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 10: SECTION — 19 HARNESS TOOLS -->
+<section class="slide section-div" data-title="19 Harness Tools">
+  <div class="slide-inner">
+    <div class="sec-num reveal">Chapter Four</div>
+    <h2 class="reveal d1">19 harness tools<br/><span class="ital">in action.</span></h2>
+    <p class="tag reveal d2">The primitives: memory · drift · routing · indexing · skills · compression.</p>
+  </div>
+</section>
+
+<!-- SLIDE 11: CATEGORY GRID -->
+<section class="slide" data-title="Harness primitives">
+  <span class="slide-num"><span class="slide-tag">§ 04.01</span> Primitives map</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Harness primitives at a glance</div>
+    <h2 class="title reveal d1">Nineteen primitives, <em>eight categories</em>, one envelope.</h2>
+
+    <div class="cat-bars reveal d2">
+      <div class="cb" style="flex:6; background: var(--accent);"></div>
+      <div class="cb" style="flex:7; background: var(--accent-3);"></div>
+      <div class="cb" style="flex:6; background: var(--accent-2);"></div>
+    </div>
+
+    <div class="tool-grid">
+      <div class="tool-col tc-mem reveal d2">
+        <span class="kicker">Group I</span>
+        <h4>Memory &amp; Session</h4>
+        <p style="font-size:13px;color:var(--ink-dim);">Continual learning. Long-horizon execution.</p>
+        <div class="tool-sub">Memory &amp; Search</div>
+        <ul class="tool-list">
+          <li><code>patterns_search</code></li>
+          <li><code>patterns_store</code></li>
+          <li><code>patterns_prune</code></li>
+        </ul>
+        <div class="tool-sub">Session Persistence</div>
+        <ul class="tool-list">
+          <li><code>session_save</code></li>
+          <li><code>session_load</code></li>
+          <li><code>session_search</code></li>
+        </ul>
+      </div>
+
+      <div class="tool-col tc-int reveal d3">
+        <span class="kicker">Group II</span>
+        <h4>Intelligence</h4>
+        <p style="font-size:13px;color:var(--ink-dim);">Self-verification, routing, progressive disclosure.</p>
+        <div class="tool-sub">Self-Verification</div>
+        <ul class="tool-list">
+          <li><code>drift_check</code></li>
+        </ul>
+        <div class="tool-sub">Model Routing</div>
+        <ul class="tool-list">
+          <li><code>model_recommend</code></li>
+        </ul>
+        <div class="tool-sub">Skills (Progressive Disclosure)</div>
+        <ul class="tool-list">
+          <li><code>skills_discover</code></li>
+          <li><code>skills_suggest</code></li>
+          <li><code>skills_generate</code></li>
+        </ul>
+      </div>
+
+      <div class="tool-col tc-eff reveal d4">
+        <span class="kicker">Group III</span>
+        <h4>Context &amp; Codebase</h4>
+        <p style="font-size:13px;color:var(--ink-dim);">Context rot prevention + codebase awareness.</p>
+        <div class="tool-sub">Context Rot Prevention</div>
+        <ul class="tool-list">
+          <li><code>context_compress</code></li>
+          <li><code>context_prepare</code></li>
+        </ul>
+        <div class="tool-sub">Codebase Awareness</div>
+        <ul class="tool-list">
+          <li><code>project_index</code></li>
+          <li><code>project_query</code></li>
+          <li><code>project_dependencies</code></li>
+          <li><code>project_snapshot</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 12: PATTERN MEMORY -->
+<section class="slide" data-title="Pattern memory">
+  <span class="slide-num"><span class="slide-tag">§ 04.02</span> Memory</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Continual learning</div>
+    <h2 class="title reveal d1">Pattern memory.</h2>
+    <h3 class="sub reveal d2">Agents <em>remember</em> what worked before — the harness enables continual learning.</h3>
+
+    <div class="two-col" style="align-items:start; gap: 56px; margin-top: 24px;">
+      <div>
+        <ul style="list-style: none;">
+          <li class="reveal d2" style="padding: 14px 0; border-bottom: 1px solid var(--rule);">
+            <strong>384-dim vectors</strong> — text embedded via ONNX MiniLM-L6-v2
+          </li>
+          <li class="reveal d3" style="padding: 14px 0; border-bottom: 1px solid var(--rule);">
+            <strong>SQLite-backed</strong> — stored alongside rich metadata
+          </li>
+          <li class="reveal d4" style="padding: 14px 0; border-bottom: 1px solid var(--rule);">
+            <strong>Semantic search</strong> via cosine similarity — not keyword matching
+          </li>
+          <li class="reveal d5" style="padding: 14px 0; border-bottom: 1px solid var(--rule);">
+            <strong>~5ms</strong> per embedding · <strong>&lt;1ms</strong> per search
+          </li>
+        </ul>
+      </div>
+
+      <div class="mermaid-wrap reveal d4">
+        <div class="mermaid">
+graph LR
+    S1["Session 1:<br/>patterns_store('laravel auth setup', ...)"] --> DB[(SQLite Vector Store)]
+    DB --> S5["Session 5:<br/>patterns_search('authentication')"]
+    S5 --> R["Returns Session 1's<br/>approach instantly"]
+    classDef db fill:#f59e0b,stroke:#f59e0b,color:#fff,rx:4
+    classDef ret fill:#10b981,stroke:#10b981,color:#fff,rx:4
+    class DB db
+    class R ret
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 13: DRIFT DETECTION -->
+<section class="slide" data-title="Drift detection">
+  <span class="slide-num"><span class="slide-tag">§ 04.03</span> Self-verification</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Self-verification loop</div>
+    <h2 class="title reveal d1">Drift detection.</h2>
+    <h3 class="sub reveal d2">A harness primitive that catches agents going off-task <em>before damage is done.</em></h3>
+
+    <div class="two-col" style="margin-top: 20px;">
+      <div class="drift-box ok reveal d2">
+        <h5><span class="drift-icon"></span> Aligned</h5>
+        <pre>Task:    "Add user authentication"
+Changes: auth controllers, login views
+
+→ score:   0.12
+→ verdict: "aligned"</pre>
+      </div>
+
+      <div class="drift-box warn reveal d3">
+        <h5><span class="drift-icon"></span> Significant Drift</h5>
+        <pre>Task:    "Add user authentication"
+Changes: blog system, payment gateway
+
+→ score:   0.78
+→ verdict: "significant_drift"
+→ Agent warned before continuing</pre>
+      </div>
+    </div>
+
+    <div style="margin-top: 40px;" class="reveal d4">
+      <h4>Verdict scale</h4>
+      <div class="verdict-scale">
+        <div class="verdict-cell v-ok">
+          <span class="v-score">Score &lt; 0.25</span>
+          <span class="v-label"><code class="inline">aligned</code></span>
+          <div style="color: var(--ink-dim); font-size: 12px; margin-top: 4px;">Proceed normally</div>
+        </div>
+        <div class="verdict-cell v-mid">
+          <span class="v-score">0.25 – 0.59</span>
+          <span class="v-label"><code class="inline">minor_drift</code></span>
+          <div style="color: var(--ink-dim); font-size: 12px; margin-top: 4px;">Log a warning</div>
+        </div>
+        <div class="verdict-cell v-bad">
+          <span class="v-score">Score ≥ 0.60</span>
+          <span class="v-label"><code class="inline">significant_drift</code></span>
+          <div style="color: var(--ink-dim); font-size: 12px; margin-top: 4px;">Intervention required</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 14: MODEL ROUTING -->
+<section class="slide" data-title="Model routing">
+  <span class="slide-num"><span class="slide-tag">§ 04.04</span> Routing</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Right model for the right job</div>
+    <h2 class="title reveal d1">Smart model routing.</h2>
+    <h3 class="sub reveal d2">Stop paying premium prices for simple tasks.</h3>
+
+    <div class="reveal d3" style="margin-top: 20px;">
+      <table class="routing-tbl">
+        <thead>
+          <tr><th>Agent</th><th>Trivial</th><th>Simple</th><th>Standard</th><th>Complex</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Signal · Git</td><td><span class="tier tier-cheap">cheapest</span></td><td><span class="tier tier-cheap">cheapest</span></td><td><span class="tier tier-cheap">cheapest</span></td><td><span class="tier tier-cheap">cheapest</span></td></tr>
+          <tr><td>Forge · Test</td><td><span class="tier tier-cheap">cheapest</span></td><td><span class="tier tier-cheap">cheapest</span></td><td><span class="tier tier-mid">mid</span></td><td><span class="tier tier-mid">mid</span></td></tr>
+          <tr><td>Lens · Review</td><td><span class="tier tier-cheap">cheapest</span></td><td><span class="tier tier-cheap">cheapest</span></td><td><span class="tier tier-mid">mid</span></td><td><span class="tier tier-mid">mid</span></td></tr>
+          <tr><td>Craft · Code</td><td><span class="tier tier-mid">mid</span></td><td><span class="tier tier-mid">mid</span></td><td><span class="tier tier-best">best</span></td><td><span class="tier tier-best">best</span></td></tr>
+          <tr><td>Scope · Plan</td><td><span class="tier tier-mid">mid</span></td><td><span class="tier tier-mid">mid</span></td><td><span class="tier tier-best">best</span></td><td><span class="tier tier-best">best</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel panel-amber reveal d4" style="margin-top: 28px; text-align:center;">
+      <p style="font-style: italic; font-size: 18px; color: var(--ink);">
+        A typo fix doesn't need the same model as a new microservice architecture.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 15: INDEXING -->
+<section class="slide" data-title="Codebase indexing">
+  <span class="slide-num"><span class="slide-tag">§ 04.05</span> Indexing</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Index once, query instantly</div>
+    <h2 class="title reveal d1">Codebase indexing.</h2>
+    <h3 class="sub reveal d2">Stop re-exploring the same files on every single run.</h3>
+
+    <div class="two-col wide" style="margin-top: 20px;">
+      <div>
+        <ul style="list-style:none;">
+          <li class="reveal d2" style="padding: 12px 0; border-bottom: 1px solid var(--rule);"><strong>30+ languages</strong> detected by extension</li>
+          <li class="reveal d3" style="padding: 12px 0; border-bottom: 1px solid var(--rule);"><strong>12 role categories</strong> — test, migration, config, model, controller, service…</li>
+          <li class="reveal d4" style="padding: 12px 0; border-bottom: 1px solid var(--rule);"><strong>Exported symbols</strong> with signatures and docstrings</li>
+          <li class="reveal d5" style="padding: 12px 0; border-bottom: 1px solid var(--rule);"><strong>Import/dependency graph</strong> across the project</li>
+          <li class="reveal d6" style="padding: 12px 0; border-bottom: 1px solid var(--rule);">Respects <code class="inline">.gitignore</code> patterns</li>
+          <li class="reveal d7" style="padding: 12px 0; border-bottom: 1px solid var(--rule);"><strong>Incremental</strong> updates via file <span class="mono">mtime</span></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="reveal d3">Tools</h4>
+        <table class="reveal d4" style="margin-bottom: 28px;">
+          <tr><td><code class="inline">project_index</code></td><td>Build / refresh index</td></tr>
+          <tr><td><code class="inline">project_query</code></td><td>Query by language, path, text</td></tr>
+          <tr><td><code class="inline">project_dependencies</code></td><td>Import / dependency graph</td></tr>
+          <tr><td><code class="inline">project_snapshot</code></td><td>Compact project summary</td></tr>
+        </table>
+        <h4 class="reveal d5">Performance</h4>
+        <table class="reveal d6">
+          <tr><td>Index 1K files</td><td style="text-align:right; color: var(--accent);">&lt; 5s</td></tr>
+          <tr><td>Index 10K files</td><td style="text-align:right; color: var(--accent);">&lt; 30s</td></tr>
+          <tr><td>Incremental (10 files)</td><td style="text-align:right; color: var(--accent);">&lt; 1s</td></tr>
+          <tr><td>Query response</td><td style="text-align:right; color: var(--accent);">&lt; 5ms</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 16: SKILLS (PROGRESSIVE DISCLOSURE) -->
+<section class="slide" data-title="Skill intelligence">
+  <span class="slide-num"><span class="slide-tag">§ 04.06</span> Progressive disclosure</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Patterns graduate into skills</div>
+    <h2 class="title reveal d1">Skill intelligence — <em>progressive disclosure</em>.</h2>
+    <h3 class="sub reveal d2">A harness primitive that prevents context rot by loading only what's needed.</h3>
+
+    <div class="mermaid-wrap reveal d3" style="margin-top: 24px;">
+      <div class="mermaid">
+graph LR
+    P["patterns_store<br/>after each pipeline"] --> A["Accumulate<br/>20+ patterns"]
+    A --> C["Cluster detected<br/>cosine sim ≥ 0.75"]
+    C --> S["skills_suggest<br/>confidence: 0.87"]
+    S --> U{User decision}
+    U -->|Accept| G["skills_generate<br/>.ai/skills/skill.md"]
+    U -->|Dismiss| D["Permanently<br/>suppressed"]
+    U -->|Defer| P
+    G --> L["skills_discover<br/>auto-loads in future<br/>sessions"]
+    classDef gen fill:#10b981,stroke:#10b981,color:#fff,rx:4
+    classDef sug fill:#3b82f6,stroke:#3b82f6,color:#fff,rx:4
+    class G gen
+    class S sug
+      </div>
+    </div>
+
+    <div class="panel reveal d4" style="margin-top: 24px;">
+      <h5>Result</h5>
+      <p>Every future project starts with your team's learned knowledge — no re-explaining needed.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 17: SESSION + CONTEXT ROT -->
+<section class="slide" data-title="Session &amp; context rot">
+  <span class="slide-num"><span class="slide-tag">§ 04.07</span> Long-horizon execution</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Session persistence &amp; context rot prevention</div>
+    <h2 class="title reveal d1">Resume, and <em>say less</em>.</h2>
+
+    <div class="two-col wide" style="margin-top: 36px;">
+      <div>
+        <h4 class="reveal d2">Long-horizon execution</h4>
+        <p class="reveal d2" style="margin-bottom: 18px;">
+          <strong>Crash-proof pipeline execution</strong> — the harness maintains durable state across context windows.
+        </p>
+        <ul style="list-style: none;">
+          <li class="reveal d3" style="padding: 10px 0; border-bottom: 1px solid var(--rule);"><code class="inline">session_save</code> — checkpoint with optimistic versioning</li>
+          <li class="reveal d4" style="padding: 10px 0; border-bottom: 1px solid var(--rule);"><code class="inline">session_load</code> — load latest or specific checkpoint</li>
+          <li class="reveal d5" style="padding: 10px 0; border-bottom: 1px solid var(--rule);"><code class="inline">session_search</code> — find past sessions by semantic similarity</li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="reveal d3">Context rot prevention</h4>
+        <p class="reveal d3" style="margin-bottom: 16px;">
+          Context rot degrades model performance as the context window fills up — these tools fight it.
+        </p>
+        <div class="comp-demo reveal d4">
+          <span class="label">Input</span>
+          <div class="in">"I'd be happy to help! So basically, in order to make use of the API, you'll definitely need to take into consideration the auth requirements."</div>
+          <div class="arrow">↓</div>
+          <span class="label">Output</span>
+          <div class="out">"To use API, consider auth requirements."</div>
+          <div style="font-size:11px; color: var(--ink-soft); margin-top: 12px; letter-spacing: .1em; text-transform: uppercase;">
+            → 23 tokens → 7 tokens · <span style="color: var(--accent);">70% reduction</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 18px;" class="reveal d5">
+          <div style="display:flex; gap:10px; flex-wrap: wrap;">
+            <span class="chip chip-accent">Preserved: code blocks</span>
+            <span class="chip chip-accent">URLs</span>
+            <span class="chip chip-accent">paths</span>
+            <span class="chip chip-accent">tables</span>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 8px;">
+            <span class="chip chip-warn">Compressed: filler</span>
+            <span class="chip chip-warn">pleasantries</span>
+            <span class="chip chip-warn">hedging</span>
+            <span class="chip chip-warn">verbose phrases</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 18: SECTION — ZERO-LLM -->
+<section class="slide section-div" data-title="Zero-LLM Architecture">
+  <div class="slide-inner">
+    <div class="sec-num reveal">Chapter Five</div>
+    <h2 class="reveal d1">Zero-LLM<br/><span class="ital">architecture.</span></h2>
+    <p class="tag reveal d2">Everything runs locally. Nothing leaves your machine.</p>
+  </div>
+</section>
+
+<!-- SLIDE 19: EVERYTHING LOCAL -->
+<section class="slide" data-title="Everything local">
+  <span class="slide-num"><span class="slide-tag">§ 05.01</span> Local-only</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Zero external API calls</div>
+    <h2 class="title reveal d1">Everything runs <em>locally</em>.</h2>
+    <p class="lede reveal d2">
+      <strong>ensemble-mcp makes zero external API calls.</strong> All intelligence runs locally on your machine.
+    </p>
+
+    <table class="reveal d3" style="margin-top: 36px;">
+      <thead>
+        <tr><th>Component</th><th>Technology</th><th style="text-align:right;">Speed</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Embeddings</td><td><span class="mono">ONNX Runtime + MiniLM-L6-v2</span></td><td style="text-align:right;color:var(--accent);font-family:'Google Sans Code',monospace;">~5ms per text</td></tr>
+        <tr><td>Vector search</td><td><span class="mono">numpy cosine similarity</span></td><td style="text-align:right;color:var(--accent);font-family:'Google Sans Code',monospace;">&lt;1ms per query</td></tr>
+        <tr><td>Storage</td><td><span class="mono">SQLite (WAL mode)</span></td><td style="text-align:right;color:var(--accent);font-family:'Google Sans Code',monospace;">&lt;5ms per op</td></tr>
+        <tr><td>Compression</td><td><span class="mono">Rule-based regex engine</span></td><td style="text-align:right;color:var(--accent);font-family:'Google Sans Code',monospace;">&lt;2ms per text</td></tr>
+      </tbody>
+    </table>
+
+    <div class="vs-block reveal d4" style="margin-top: 36px;">
+      <div class="vs-side bad">
+        <h4>Traditional approach</h4>
+        <ul>
+          <li>Every operation → <strong>API call</strong></li>
+          <li>Latency: <strong>500ms – 2000ms</strong></li>
+          <li>Cost: <strong>$0.001 – $0.01 each</strong></li>
+          <li>Requires internet</li>
+          <li>Data <strong>leaves</strong> your machine</li>
+        </ul>
+      </div>
+      <div class="vs-divider"></div>
+      <div class="vs-side good">
+        <h4>ensemble-mcp approach</h4>
+        <ul>
+          <li>Every operation → <strong>LOCAL</strong></li>
+          <li>Latency: <strong>1ms – 10ms</strong></li>
+          <li>Cost: <strong>$0.00</strong></li>
+          <li>Works <strong>offline</strong></li>
+          <li>Data <strong>stays local</strong></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 20: MARGIN -->
+<section class="slide" data-title="Near-zero marginal cost">
+  <span class="slide-num"><span class="slide-tag">§ 05.02</span> Economics</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Near-zero marginal cost</div>
+    <h2 class="title reveal d1">The economics <em>of running nothing</em>.</h2>
+
+    <div class="two-col" style="gap: 56px; margin-top: 36px; align-items: center;">
+      <div>
+        <table class="reveal d2">
+          <thead>
+            <tr><th>Cost component</th><th style="text-align:right;">Per user / month</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Compute (MCP server)</td><td style="text-align:right; color: var(--accent);font-family:'Google Sans Code',monospace;">$0.00</td></tr>
+            <tr><td>LLM API calls</td><td style="text-align:right; color: var(--accent);font-family:'Google Sans Code',monospace;">$0.00</td></tr>
+            <tr><td>ONNX model serving</td><td style="text-align:right; color: var(--accent);font-family:'Google Sans Code',monospace;">$0.00</td></tr>
+            <tr><td>Data storage</td><td style="text-align:right; color: var(--accent);font-family:'Google Sans Code',monospace;">$0.00</td></tr>
+            <tr style="border-top: 2px solid var(--rule-hi);">
+              <td><strong>Total COGS</strong></td>
+              <td style="text-align:right; color: var(--accent);font-family:'Google Sans Code',monospace; font-size:16px; font-weight:700;">$0.00</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="cost-hero reveal d3">
+        <div class="big-pct">~97<span style="font-size: 0.5em;">%</span></div>
+        <div class="big-label">gross margin on any paid tier — achievable from day one</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 21: SECTION — TOKEN SAVINGS -->
+<section class="slide section-div" data-title="Token &amp; Cost Reduction">
+  <div class="slide-inner">
+    <div class="sec-num reveal">Chapter Six</div>
+    <h2 class="reveal d1">Token &amp; cost<br/><span class="ital">reduction.</span></h2>
+    <p class="tag reveal d2">Five mechanisms that save money.</p>
+  </div>
+</section>
+
+<!-- SLIDE 22: MECH 1 + 2 -->
+<section class="slide" data-title="Mechanisms 1 &amp; 2">
+  <span class="slide-num"><span class="slide-tag">§ 06.01</span> Mechanisms 1 &amp; 2</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Pattern memory · codebase indexing</div>
+    <h2 class="title reveal d1">Pattern memory <em>&amp;</em> indexing.</h2>
+
+    <div class="two-col wide" style="margin-top: 30px;">
+      <div class="reveal d2">
+        <h4>Mechanism 1 · Pattern memory</h4>
+        <p style="margin-bottom: 14px; color: var(--ink);">
+          ~15–25% savings on pattern context
+        </p>
+        <div class="vs-block">
+          <div class="vs-side bad" style="padding: 20px;">
+            <h4 style="font-size: 11px;">Without ensemble-mcp</h4>
+            <pre class="code" style="font-size:12px; padding: 12px; border:none; background: transparent;">Every session:
+  Agent reads 30 pattern entries
+  → ~8,000 tokens consumed</pre>
+          </div>
+          <div class="vs-divider"></div>
+          <div class="vs-side good" style="padding: 20px;">
+            <h4 style="font-size: 11px;">With ensemble-mcp</h4>
+            <pre class="code" style="font-size:12px; padding: 12px; border:none; background: transparent;">Every session:
+  Agent queries top-3 patterns
+  → ~800 tokens consumed
+
+Savings: ~90% → ~$8.10/dev/mo</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="reveal d3">
+        <h4>Mechanism 2 · Codebase indexing</h4>
+        <p style="margin-bottom: 14px; color: var(--ink);">
+          ~20–40% savings on codebase exploration
+        </p>
+        <div class="vs-block">
+          <div class="vs-side bad" style="padding: 20px;">
+            <h4 style="font-size: 11px;">Without ensemble-mcp</h4>
+            <pre class="code" style="font-size:12px; padding: 12px; border:none; background: transparent;">Agent explores:
+  glob("**/*.php")
+  grep("class.*Controller")
+  read file by file…
+
+→ ~4-6K tokens per cycle</pre>
+          </div>
+          <div class="vs-divider"></div>
+          <div class="vs-side good" style="padding: 20px;">
+            <h4 style="font-size: 11px;">With ensemble-mcp</h4>
+            <pre class="code" style="font-size:12px; padding: 12px; border:none; background: transparent;">Agent queries:
+  project_query(
+    query="TodoController",
+    file_types=["php"]
+  )
+
+→ ~700 tokens · ~$4-6/mo</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 23: MECH 3 -->
+<section class="slide" data-title="Mechanism 3 — Routing">
+  <span class="slide-num"><span class="slide-tag">§ 06.02</span> Mechanism 3</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Smart model routing</div>
+    <h2 class="title reveal d1">Tier the task,<br/><em>save the budget</em>.</h2>
+    <h3 class="sub reveal d2">~30–60% cost savings by using the right tier for each task.</h3>
+
+    <div class="vs-block reveal d3" style="margin-top: 30px;">
+      <div class="vs-side bad">
+        <h4>Without ensemble-mcp</h4>
+        <pre class="code" style="background:transparent; border:none; padding:0; font-size:13px;">Every task → Claude Opus
+  $15/M input, $75/M output
+
+Including:
+  ✗ Typo fixes   → Opus
+  ✗ Test runs    → Opus
+  ✗ Git commits  → Opus</pre>
+      </div>
+      <div class="vs-divider"></div>
+      <div class="vs-side good">
+        <h4>With ensemble-mcp</h4>
+        <pre class="code" style="background:transparent; border:none; padding:0; font-size:13px;">Complex tasks → Opus   $15/M
+Simple tasks  → Sonnet $3/M   · 80% cheaper
+Trivial tasks → Haiku  $0.25/M · 98% cheaper</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 24: MECH 4 + 5 -->
+<section class="slide" data-title="Mechanisms 4 &amp; 5">
+  <span class="slide-num"><span class="slide-tag">§ 06.03</span> Mechanisms 4 &amp; 5</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Compression + caching</div>
+    <h2 class="title reveal d1">Compression <em>&amp; caching</em>.</h2>
+
+    <div class="two-col wide" style="margin-top: 30px;">
+      <div class="reveal d2">
+        <h4>Context compression</h4>
+        <p style="margin-bottom: 14px;"><strong>What gets compressed:</strong></p>
+        <ul style="list-style:none; margin-bottom: 20px;">
+          <li style="padding: 3px 0; font-family:'Google Sans Code', monospace; font-size:13px;">• Filler — <span style="color: var(--ink-soft);">"just", "really", "basically"</span></li>
+          <li style="padding: 3px 0; font-family:'Google Sans Code', monospace; font-size:13px;">• Pleasantries — <span style="color: var(--ink-soft);">"I'd be happy to help!"</span></li>
+          <li style="padding: 3px 0; font-family:'Google Sans Code', monospace; font-size:13px;">• Verbose — <span style="color: var(--ink-soft);">"in order to" → "to"</span></li>
+          <li style="padding: 3px 0; font-family:'Google Sans Code', monospace; font-size:13px;">• Hedging — <span style="color: var(--ink-soft);">"I think", "it seems"</span></li>
+        </ul>
+        <p style="margin-bottom: 14px;"><strong>What stays untouched:</strong></p>
+        <ul style="list-style:none;">
+          <li style="padding: 3px 0; font-family:'Google Sans Code', monospace; font-size:13px;">• Code blocks, URLs, file paths</li>
+          <li style="padding: 3px 0; font-family:'Google Sans Code', monospace; font-size:13px;">• Headings, tables, technical content</li>
+        </ul>
+        <div class="panel reveal d3" style="margin-top: 18px;">
+          <strong>Result:</strong> ~10–23% fewer tokens.
+        </div>
+      </div>
+
+      <div class="reveal d3">
+        <h4>Prompt cache optimization</h4>
+        <div class="cache-block">
+          <div class="cache-row static">
+            <div>
+              <div class="row-label">Static</div>
+              <div class="row-desc">System prompt, rules — always same</div>
+            </div>
+            <span class="row-tag" style="color: var(--accent);">Cached</span>
+          </div>
+          <div class="cache-row project">
+            <div>
+              <div class="row-label">Project</div>
+              <div class="row-desc">Conventions, structure — rarely changes</div>
+            </div>
+            <span class="row-tag" style="color: var(--accent-2);">Often Cached</span>
+          </div>
+          <div class="cache-row task">
+            <div>
+              <div class="row-label">Task</div>
+              <div class="row-desc">Current request, diff — changes each time</div>
+            </div>
+            <span class="row-tag" style="color: var(--accent-4);">Not Cached</span>
+          </div>
+        </div>
+        <p style="margin-top: 18px; font-size: 14px;">
+          <code class="inline">context_prepare</code> maximizes the stable prefix so LLM providers cache more tokens.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 25: TOTAL SAVINGS -->
+<section class="slide" data-title="Total savings">
+  <span class="slide-num"><span class="slide-tag">§ 06.04</span> The bottom line</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Total cost savings</div>
+    <h2 class="title reveal d1">The cumulative effect.</h2>
+
+    <div class="two-col wide" style="margin-top: 30px; gap: 52px;">
+      <div class="reveal d2">
+        <h4>Per developer · monthly</h4>
+        <table>
+          <thead>
+            <tr><th>Savings source</th><th style="text-align:right;">Mechanism</th><th style="text-align:right;">Monthly</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Pattern memory</td><td style="text-align:right;">Top-3 vs full dump</td><td style="text-align:right; color: var(--accent); font-family:'Google Sans Code',monospace;">~$8.10</td></tr>
+            <tr><td>Codebase indexing</td><td style="text-align:right;">Query vs exploration</td><td style="text-align:right; color: var(--accent); font-family:'Google Sans Code',monospace;">~$4–6</td></tr>
+            <tr><td>Model routing</td><td style="text-align:right;">Right tier per task</td><td style="text-align:right; color: var(--accent); font-family:'Google Sans Code',monospace;">Variable</td></tr>
+            <tr><td>Compression</td><td style="text-align:right;">Rule-based</td><td style="text-align:right; color: var(--accent); font-family:'Google Sans Code',monospace;">10–23%</td></tr>
+            <tr><td>Prompt caching</td><td style="text-align:right;">Section ordering</td><td style="text-align:right; color: var(--accent); font-family:'Google Sans Code',monospace;">Variable</td></tr>
+            <tr style="border-top: 2px solid var(--rule-hi);">
+              <td><strong>Total</strong></td><td></td>
+              <td style="text-align:right; color: var(--accent); font-family:'Google Sans Code',monospace; font-weight:700;">$12–18+</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="reveal d3">
+        <h4>At scale · annually</h4>
+        <table>
+          <thead>
+            <tr><th>Team size</th><th style="text-align:right;">Low</th><th style="text-align:right;">High</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>10 developers</td><td style="text-align:right; font-family:'Google Sans Code',monospace;">$1,440</td><td style="text-align:right; font-family:'Google Sans Code',monospace;">$2,160</td></tr>
+            <tr><td>50 developers</td><td style="text-align:right; font-family:'Google Sans Code',monospace;">$7,200</td><td style="text-align:right; font-family:'Google Sans Code',monospace;">$10,800</td></tr>
+            <tr><td>100 developers</td><td style="text-align:right; font-family:'Google Sans Code',monospace;">$14,400</td><td style="text-align:right; font-family:'Google Sans Code',monospace;">$21,600</td></tr>
+            <tr><td>500 developers</td><td style="text-align:right; font-family:'Google Sans Code',monospace; color: var(--accent);">$72,000</td><td style="text-align:right; font-family:'Google Sans Code',monospace; color: var(--accent); font-weight:700;">$108,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 26: SECTION — LIVE WORKFLOW -->
+<section class="slide section-div" data-title="Live Workflow">
+  <div class="slide-inner">
+    <div class="sec-num reveal">Chapter Seven</div>
+    <h2 class="reveal d1">Live<br/><span class="ital">workflow.</span></h2>
+    <p class="tag reveal d2">What happens behind the scenes.</p>
+  </div>
+</section>
+
+<!-- SLIDE 27: SESSION 1 + 5 -->
+<section class="slide" data-title="Session flows">
+  <span class="slide-num"><span class="slide-tag">§ 07.01</span> Then &amp; now</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Two sessions, side by side</div>
+    <h2 class="title reveal d1">The flywheel <em>in motion</em>.</h2>
+
+    <div class="two-col wide" style="margin-top: 30px; gap: 56px;">
+      <div class="reveal d2">
+        <h4><span class="chip chip-accent">Session 1</span>  New project</h4>
+        <div class="panel" style="margin: 14px 0 20px;">
+          <p class="mono" style="color: var(--ink); font-size: 13px;">"Set up a smart todo app with auth, CRUD, and auto-categorization."</p>
+        </div>
+        <ol class="step-list">
+          <li><code>model_recommend</code> — Recommends "mid" tier (Sonnet) · saves cost</li>
+          <li><code>patterns_search</code> — Empty on first project</li>
+          <li><code>project_index</code> — Indexes the Laravel scaffold · 200ms</li>
+          <li><em>Agent writes code</em> — Uses indexed structure</li>
+          <li><code>drift_check</code> — Score 0.12 ✓</li>
+          <li><code>patterns_store</code> — Saves for future use</li>
+        </ol>
+      </div>
+
+      <div class="reveal d3">
+        <h4><span class="chip chip-accent">Session 5</span>  New project, similar task</h4>
+        <div class="panel panel-blue" style="margin: 14px 0 20px;">
+          <p class="mono" style="color: var(--ink); font-size: 13px;">"Set up a recipe app with auth and CRUD."</p>
+        </div>
+        <ol class="step-list">
+          <li><code>patterns_search</code> — <strong>Finds</strong> "laravel todo crud setup"</li>
+          <li><em>Agent applies</em> — Already knows: Breeze, service classes</li>
+          <li><em>Faster output</em> — No re-explaining needed</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="flywheel reveal d4" style="margin-top: 40px;">
+      <h4 style="font-family:'Google Sans', serif; font-size: 18px; text-transform: none; letter-spacing: -0.01em; margin-bottom: 12px; font-weight: 600;">
+        <em style="color: var(--accent-3);">The flywheel effect</em>
+      </h4>
+      <div class="arrow">
+        <span class="dim">More sessions →</span> <span class="hi">More patterns</span> <span class="dim">→ Better matching →</span> <span class="hi">Faster dev</span> <span class="dim">→ More patterns →</span> <span class="hi">...</span>
+      </div>
+      <div class="arrow" style="margin-top: 10px; color: var(--ink-dim); font-size: 12px;">
+        After 20+ patterns: <span class="hi">Skills auto-detected</span> → <span class="hi">Permanent project skills created</span> → Every future project starts with learned knowledge.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 28: SECTION — ARCHITECTURE -->
+<section class="slide section-div" data-title="Technical Architecture">
+  <div class="slide-inner">
+    <div class="sec-num reveal">Chapter Eight</div>
+    <h2 class="reveal d1">Technical<br/><span class="ital">architecture.</span></h2>
+    <p class="tag reveal d2">The harness under the hood.</p>
+  </div>
+</section>
+
+<!-- SLIDE 29: HARNESS LAYER ARCHITECTURE -->
+<section class="slide" data-title="Harness layer architecture">
+  <span class="slide-num"><span class="slide-tag">§ 08.01</span> Layer architecture</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Harness layer architecture</div>
+    <h2 class="title reveal d1">Four layers. <em>One contract.</em></h2>
+
+    <div class="reveal d2" style="margin-top: 32px;">
+      <table>
+        <thead>
+          <tr><th>Harness layer</th><th>Provider</th><th>Primitives</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Execution</strong></td>
+            <td>Claude Code / Codex / Cursor</td>
+            <td style="font-family:'Google Sans Code',monospace;font-size:12px;">Filesystem, Bash, Sandbox, Browser, Git</td>
+          </tr>
+          <tr style="background: color-mix(in srgb, var(--accent) 6%, transparent);">
+            <td style="color: var(--accent);"><strong>Intelligence</strong></td>
+            <td style="color: var(--accent);"><strong>ensemble-mcp</strong></td>
+            <td style="font-family:'Google Sans Code',monospace;font-size:12px;">Memory, Skills, Drift, Routing, Compression, Sessions, Indexing</td>
+          </tr>
+          <tr>
+            <td><strong>Orchestration</strong></td>
+            <td>Ensemble Pipeline</td>
+            <td style="font-family:'Google Sans Code',monospace;font-size:12px;">Captain, Scope, Craft, Forge, Lens, Signal, Trace</td>
+          </tr>
+          <tr>
+            <td><strong>Model</strong></td>
+            <td>Claude / GPT / Gemini</td>
+            <td style="font-family:'Google Sans Code',monospace;font-size:12px;">Raw intelligence (text in → text out)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel panel-blue reveal d3" style="margin-top: 28px;">
+      <p style="font-style: italic; font-size: 17px; color: var(--ink);">
+        ensemble-mcp is <strong>harness-agnostic</strong> — it plugs into any MCP-compatible agent via the standard MCP protocol. Not tied to any specific execution environment.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 30: SYSTEM DIAGRAM -->
+<section class="slide" data-title="System overview">
+  <span class="slide-num"><span class="slide-tag">§ 08.02</span> System overview</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Clients · Server · Storage</div>
+    <h2 class="title reveal d1">Six harnesses. One intelligence layer.</h2>
+
+    <div class="mermaid-wrap reveal d2" style="margin-top: 28px;">
+      <div class="mermaid">
+graph TB
+    subgraph "Agent Harnesses (Execution Layer)"
+        C1[OpenCode]
+        C2[Claude Code]
+        C3[Copilot]
+        C4[Cursor]
+        C5[Windsurf]
+        C6[Devin]
+    end
+
+    subgraph "ensemble-mcp (Intelligence Infrastructure)"
+        SRV[Server — Tool Dispatch]
+        SRV --> PAT["patterns.py (3)"]
+        SRV --> DFT["drift.py (1)"]
+        SRV --> RTG["routing.py (1)"]
+        SRV --> SKL["skills.py (3)"]
+        SRV --> SES["session.py (3)"]
+        SRV --> IDX["indexer.py (4)"]
+        SRV --> CMP["compress.py (2)"]
+        SRV --> UTL["health + reset (2)"]
+    end
+
+    subgraph "Local Storage"
+        DB[(SQLite WAL)]
+        MDL[ONNX Model 22MB]
+    end
+
+    C1 --> SRV
+    C2 --> SRV
+    C3 --> SRV
+    C4 --> SRV
+    C5 --> SRV
+    C6 --> SRV
+    PAT --> DB
+    DFT --> DB
+    SKL --> DB
+    SES --> DB
+    IDX --> DB
+    PAT --> MDL
+    DFT --> MDL
+    SKL --> MDL
+
+    classDef srv fill:#10b981,stroke:#10b981,color:#fff,rx:4
+    classDef db fill:#f59e0b,stroke:#f59e0b,color:#fff,rx:4
+    classDef mdl fill:#8b5cf6,stroke:#8b5cf6,color:#fff,rx:4
+    class SRV srv
+    class DB db
+    class MDL mdl
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 31: ENVELOPE & ERRORS -->
+<section class="slide" data-title="Envelope &amp; errors">
+  <span class="slide-num"><span class="slide-tag">§ 08.03</span> Contracts</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Response envelope &amp; error taxonomy</div>
+    <h2 class="title reveal d1">One envelope. <em>Every tool.</em></h2>
+
+    <div class="two-col wide" style="margin-top: 32px;">
+      <div>
+        <h4 class="reveal d2">Every tool returns this</h4>
+        <pre class="code reveal d3" data-lang="JSON">{
+  <span class="code-key">"ok"</span>: <span class="code-num">true</span>,
+  <span class="code-key">"data"</span>: { <span class="code-string">"...payload..."</span> },
+  <span class="code-key">"error"</span>: <span class="code-num">null</span>,
+  <span class="code-key">"meta"</span>: {
+    <span class="code-key">"duration_ms"</span>: <span class="code-num">12</span>,
+    <span class="code-key">"source"</span>: <span class="code-string">"sqlite"</span>,
+    <span class="code-key">"confidence"</span>: <span class="code-string">"exact"</span>
+  }
+}</pre>
+        <p class="reveal d4" style="margin-top: 16px; font-family:'Google Sans Code', monospace; font-size: 12px;">
+          Confidence: <code class="inline">exact</code> · <code class="inline">partial</code> · <code class="inline">estimated</code>
+        </p>
+      </div>
+
+      <div>
+        <h4 class="reveal d3">Structured error codes</h4>
+        <table class="reveal d4">
+          <thead><tr><th>Category</th><th style="text-align:right;">Retry?</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">VALIDATION_*</code></td><td style="text-align:right; color: var(--accent-4);">Never</td></tr>
+            <tr><td><code class="inline">NOT_FOUND_*</code></td><td style="text-align:right; color: var(--accent-4);">Never</td></tr>
+            <tr><td><code class="inline">CONFLICT_*</code></td><td style="text-align:right; color: var(--accent-2);">After refresh</td></tr>
+            <tr><td><code class="inline">TIMEOUT_*</code></td><td style="text-align:right; color: var(--accent-2);">With backoff</td></tr>
+            <tr><td><code class="inline">IO_*</code></td><td style="text-align:right; color: var(--accent-2);">With backoff</td></tr>
+            <tr><td><code class="inline">INTERNAL_*</code></td><td style="text-align:right; color: var(--accent-3);">If marked</td></tr>
+          </tbody>
+        </table>
+        <p class="reveal d5" style="margin-top: 18px; font-size: 14px;">
+          Every error has a <strong>code</strong>, <strong>retry guidance</strong>, and <strong>structured details</strong>.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 32: SECURITY -->
+<section class="slide" data-title="Security">
+  <span class="slide-num"><span class="slide-tag">§ 08.04</span> Security</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Local-first by design</div>
+    <h2 class="title reveal d1">Security.</h2>
+    <h3 class="sub reveal d2">Secrets never leave the machine. Boundaries are explicit.</h3>
+
+    <ul style="list-style: none; margin-top: 24px;">
+      <li class="reveal d2" style="padding: 20px 0; border-top: 1px solid var(--rule);">
+        <h4 style="margin-bottom: 4px;">Secret redaction</h4>
+        <p>9 regex patterns scan all text before storage — AWS keys, Bearer tokens, API keys, GitHub tokens, passwords — all replaced with <code class="inline">[REDACTED]</code>.</p>
+      </li>
+      <li class="reveal d3" style="padding: 20px 0; border-top: 1px solid var(--rule);">
+        <h4 style="margin-bottom: 4px;">Trust boundaries</h4>
+        <p>Data is classified by source — <code class="inline">local_state</code> (trusted) · <code class="inline">client_input</code> (validated) · <code class="inline">filesystem_scan</code> (read-only).</p>
+      </li>
+      <li class="reveal d4" style="padding: 20px 0; border-top: 1px solid var(--rule);">
+        <h4 style="margin-bottom: 4px;">Local-only dashboard</h4>
+        <p>Binds to <code class="inline">127.0.0.1</code>, never exposed to the network.</p>
+      </li>
+      <li class="reveal d5" style="padding: 20px 0; border-top: 1px solid var(--rule);">
+        <h4 style="margin-bottom: 4px;">DOMPurify sanitization</h4>
+        <p>All rendered markdown is XSS-sanitized before it ever hits the DOM.</p>
+      </li>
+      <li class="reveal d6" style="padding: 20px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);">
+        <h4 style="margin-bottom: 4px;">Destructive operations</h4>
+        <p>Require an explicit <code class="inline">confirm=true</code> flag. No accidents.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- SLIDE 33: SECTION — DASHBOARD -->
+<section class="slide section-div" data-title="Dashboard">
+  <div class="slide-inner">
+    <div class="sec-num reveal">Chapter Nine</div>
+    <h2 class="reveal d1">Dashboard &amp;<br/><span class="ital">observability.</span></h2>
+    <p class="tag reveal d2">Visualize everything at localhost:8787.</p>
+  </div>
+</section>
+
+<!-- SLIDE 34: DASHBOARD -->
+<section class="slide" data-title="Web dashboard">
+  <span class="slide-num"><span class="slide-tag">§ 09.01</span> Web dashboard</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Web dashboard</div>
+    <h2 class="title reveal d1">A window into the <em>living memory</em>.</h2>
+
+    <div class="install reveal d2" style="margin-top: 24px;">
+      <div><span class="prompt">$</span> ensemble-mcp web                <span class="comment"># Opens browser to localhost:8787</span></div>
+      <div><span class="prompt">$</span> ensemble-mcp web --port 9000   <span class="comment"># Custom port</span></div>
+    </div>
+
+    <table class="reveal d3" style="margin-top: 32px;">
+      <thead><tr><th>Page</th><th>What it shows</th></tr></thead>
+      <tbody>
+        <tr><td>Overview</td><td>Summary cards, drift trend chart, recent activity feed</td></tr>
+        <tr><td>Patterns</td><td>All stored patterns with match counts, search, filtering</td></tr>
+        <tr><td>Skills</td><td>Pending suggestions with confidence scores, stale detection</td></tr>
+        <tr><td>Projects</td><td>Indexed projects with language pie charts, role bar charts</td></tr>
+        <tr><td>Drift</td><td>Drift check history with scores, verdicts, flagged files</td></tr>
+        <tr><td>Sessions</td><td>Session list with lifecycle status, step-by-step detail</td></tr>
+        <tr><td>Reports</td><td>Bug Hunter scan results, health trend charts</td></tr>
+      </tbody>
+    </table>
+
+    <div class="reveal d4" style="margin-top: 28px; display:flex; flex-wrap: wrap; gap: 10px; padding-top: 20px; border-top: 1px solid var(--rule);">
+      <span class="chip">Alpine.js</span>
+      <span class="chip">Chart.js</span>
+      <span class="chip">Zero build step</span>
+      <span class="chip">Kinetic Architect design system</span>
+      <span class="chip">11+ JSON API endpoints</span>
+      <span class="chip chip-accent">Same SQLite DB · WAL no contention</span>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 35: SECTION — INSTALL -->
+<section class="slide section-div" data-title="Installation">
+  <div class="slide-inner">
+    <div class="sec-num reveal">Chapter Ten</div>
+    <h2 class="reveal d1">One command<br/><span class="ital">to get started.</span></h2>
+    <p class="tag reveal d2">Auto-detected. Auto-registered. No friction.</p>
+  </div>
+</section>
+
+<!-- SLIDE 36: GET STARTED -->
+<section class="slide" data-title="Getting started">
+  <span class="slide-num"><span class="slide-tag">§ 10.01</span> Getting started</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Getting started</div>
+    <h2 class="title reveal d1">Install · register · launch.</h2>
+
+    <div class="two-col wide" style="margin-top: 28px;">
+      <div>
+        <h4 class="reveal d2">Install &amp; register</h4>
+        <div class="install reveal d2" style="margin-bottom: 28px;">
+          <div><span class="comment"># Install the package</span></div>
+          <div><span class="prompt">$</span> pip install ensemble-mcp</div>
+          <div></div>
+          <div><span class="comment"># Or run directly (no install needed)</span></div>
+          <div><span class="prompt">$</span> uvx ensemble-mcp</div>
+          <div></div>
+          <div><span class="comment"># Auto-detect AI tools and register</span></div>
+          <div><span class="prompt">$</span> ensemble-mcp install</div>
+          <div></div>
+          <div><span class="comment"># Launch the dashboard</span></div>
+          <div><span class="prompt">$</span> ensemble-mcp web</div>
+        </div>
+
+        <h4 class="reveal d3">Smart command detection</h4>
+        <table class="reveal d3">
+          <thead><tr><th>Priority</th><th>Detection</th><th style="text-align:right;">Registered</th></tr></thead>
+          <tbody>
+            <tr><td>1st</td><td><code class="inline">ensemble-mcp</code> on PATH</td><td style="text-align:right; font-family:'Google Sans Code',monospace;">ensemble-mcp</td></tr>
+            <tr><td>2nd</td><td><code class="inline">uvx</code> available</td><td style="text-align:right; font-family:'Google Sans Code',monospace;">uvx ensemble-mcp</td></tr>
+            <tr><td>3rd</td><td>Neither</td><td style="text-align:right; font-family:'Google Sans Code',monospace;">python -m ensemble_mcp</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h4 class="reveal d3">Supported AI tools</h4>
+        <ul style="list-style: none;" class="reveal d4">
+          <li style="padding: 12px 0; border-bottom: 1px solid var(--rule); display:flex; justify-content:space-between; align-items: center;">
+            <span>OpenCode</span><span class="chip chip-accent">Auto-install</span>
+          </li>
+          <li style="padding: 12px 0; border-bottom: 1px solid var(--rule); display:flex; justify-content:space-between; align-items: center;">
+            <span>Claude Code</span><span class="chip chip-accent">Auto-install</span>
+          </li>
+          <li style="padding: 12px 0; border-bottom: 1px solid var(--rule); display:flex; justify-content:space-between; align-items: center;">
+            <span>GitHub Copilot (VS Code)</span><span class="chip chip-accent">Auto-install</span>
+          </li>
+          <li style="padding: 12px 0; border-bottom: 1px solid var(--rule); display:flex; justify-content:space-between; align-items: center;">
+            <span>Cursor</span><span class="chip chip-accent">Auto-install</span>
+          </li>
+          <li style="padding: 12px 0; border-bottom: 1px solid var(--rule); display:flex; justify-content:space-between; align-items: center;">
+            <span>Windsurf</span><span class="chip chip-accent">Auto-install</span>
+          </li>
+          <li style="padding: 12px 0; border-bottom: 1px solid var(--rule); display:flex; justify-content:space-between; align-items: center;">
+            <span>Devin CLI</span><span class="chip chip-accent">Auto-install</span>
+          </li>
+        </ul>
+
+        <div class="panel reveal d5" style="margin-top: 28px;">
+          <h5>That's it.</h5>
+          <p>The AI agent will call ensemble-mcp tools automatically. No further configuration needed.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 37: SECTION — ROADMAP -->
+<section class="slide section-div" data-title="Roadmap">
+  <div class="slide-inner">
+    <div class="sec-num reveal">Chapter Eleven</div>
+    <h2 class="reveal d1">Future<br/><span class="ital">roadmap.</span></h2>
+    <p class="tag reveal d2">What's done. What's next. What's intentionally deferred.</p>
+  </div>
+</section>
+
+<!-- SLIDE 38: ROADMAP -->
+<section class="slide" data-title="Roadmap">
+  <span class="slide-num"><span class="slide-tag">§ 11.01</span> Roadmap</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">What's done, what's next</div>
+    <h2 class="title reveal d1">Roadmap.</h2>
+
+    <div class="two-col wide" style="margin-top: 32px;">
+      <div>
+        <h4 class="reveal d2"><span class="status-dot status-done"></span>Completed</h4>
+        <ul style="list-style:none;">
+          <li class="reveal d2" style="padding: 11px 0; border-bottom: 1px solid var(--rule);">19 MCP tools (memory, drift, routing, skills, sessions, indexer, compress)</li>
+          <li class="reveal d3" style="padding: 11px 0; border-bottom: 1px solid var(--rule);">Web Dashboard with Kinetic Architect redesign</li>
+          <li class="reveal d4" style="padding: 11px 0; border-bottom: 1px solid var(--rule);">Skill Intelligence (pattern-to-skill auto-graduation)</li>
+          <li class="reveal d5" style="padding: 11px 0; border-bottom: 1px solid var(--rule);">Auto-installer for 6 AI tools</li>
+          <li class="reveal d6" style="padding: 11px 0; border-bottom: 1px solid var(--rule);">Context compression + prompt caching</li>
+          <li class="reveal d7" style="padding: 11px 0; border-bottom: 1px solid var(--rule);">Bug Hunter reports dashboard</li>
+          <li class="reveal d7" style="padding: 11px 0; border-bottom: 1px solid var(--rule);">Dashboard v2 (management UI)</li>
+          <li class="reveal d8" style="padding: 11px 0; border-bottom: 1px solid var(--rule); color: var(--accent);">573 tests passing</li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="reveal d3"><span class="status-dot status-prog"></span>Coming next</h4>
+        <table class="reveal d4">
+          <thead><tr><th>Feature</th><th style="text-align:right;">Priority</th></tr></thead>
+          <tbody>
+            <tr><td>Embedding Model Upgrade (512 tokens)</td><td style="text-align:right; color: var(--accent-2);">Medium</td></tr>
+            <tr><td>Real-Time Live View (WebSocket)</td><td style="text-align:right; color: var(--accent-2);">Medium</td></tr>
+            <tr><td>Plugin System</td><td style="text-align:right; color: var(--ink-soft);">Low</td></tr>
+            <tr><td>Advanced Indexing (tree-sitter)</td><td style="text-align:right; color: var(--ink-soft);">Low</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 39: SCALING -->
+<section class="slide" data-title="Scaling path">
+  <span class="slide-num"><span class="slide-tag">§ 11.02</span> Scaling</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">Scaling path</div>
+    <h2 class="title reveal d1">Right-sized <em>for today</em>.</h2>
+    <h3 class="sub reveal d2">With a clear map of where it grows next.</h3>
+
+    <table class="reveal d3" style="margin-top: 24px;">
+      <thead><tr><th>Scale</th><th>Files</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Small project</td><td style="font-family:'Google Sans Code',monospace;">&lt; 10K</td><td class="status-supported">✓ Fully supported, optimal</td></tr>
+        <tr><td>Medium project</td><td style="font-family:'Google Sans Code',monospace;">10K – 100K</td><td class="status-supported">✓ Supported with minor tuning</td></tr>
+        <tr><td>Large monorepo</td><td style="font-family:'Google Sans Code',monospace;">100K – 1M</td><td class="status-partial">⚠ Needs FAISS, parallel indexing</td></tr>
+        <tr><td>Enterprise</td><td style="font-family:'Google Sans Code',monospace;">1M+</td><td class="status-future">◊ Future — PostgreSQL, ANN, workers</td></tr>
+      </tbody>
+    </table>
+
+    <div class="reveal d4" style="margin-top: 36px;">
+      <h4>Intentionally deferred</h4>
+      <div class="two-col" style="gap: 36px; margin-top: 14px;">
+        <ul style="list-style: none;">
+          <li style="padding: 6px 0; font-size: 13px;">— No FAISS/Qdrant in v1 — numpy is perfect for &lt; 10K vectors</li>
+          <li style="padding: 6px 0; font-size: 13px;">— No PostgreSQL — SQLite is right for local storage</li>
+        </ul>
+        <ul style="list-style: none;">
+          <li style="padding: 6px 0; font-size: 13px;">— No distributed architecture — local model is correct</li>
+          <li style="padding: 6px 0; font-size: 13px;">— No premature abstraction — interfaces come with 2nd backend</li>
+        </ul>
+      </div>
+      <div class="panel panel-amber reveal d5" style="margin-top: 22px;">
+        <p style="font-style: italic; color: var(--ink); font-size: 16px;">
+          The current design is not wrong — it's <strong>correctly scoped.</strong> This documents the upgrade path for when scale demands change.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 40: SECTION — TAKEAWAYS -->
+<section class="slide section-div" data-title="Key Takeaways">
+  <div class="slide-inner">
+    <div class="sec-num reveal">Chapter Twelve</div>
+    <h2 class="reveal d1">Key<br/><span class="ital">takeaways.</span></h2>
+    <p class="tag reveal d2">Five pillars. Five principles. One thesis.</p>
+  </div>
+</section>
+
+<!-- SLIDE 41: HARNESS PILLARS -->
+<section class="slide" data-title="The harness pillars">
+  <span class="slide-num"><span class="slide-tag">§ 12.01</span> The harness pillars</span>
+  <div class="slide-inner">
+    <div class="eyebrow reveal">The harness pillars</div>
+    <h2 class="title reveal d1">Memory · Self-Verification · Orchestration · Context Rot · <em>Progressive Disclosure</em>.</h2>
+
+    <div class="pillar-grid" style="margin-top: 32px;">
+      <div class="pillar p1 reveal d2">
+        <div class="p-num">01</div>
+        <h3>Memory</h3>
+        <p>Continual learning across sessions</p>
+      </div>
+      <div class="pillar p2 reveal d3">
+        <div class="p-num">02</div>
+        <h3>Self-Verification</h3>
+        <p>Drift detection keeps agents on task</p>
+      </div>
+      <div class="pillar p3 reveal d4">
+        <div class="p-num">03</div>
+        <h3>Orchestration</h3>
+        <p>Right model for the right job</p>
+      </div>
+      <div class="pillar p4 reveal d5">
+        <div class="p-num">04</div>
+        <h3>Context Rot</h3>
+        <p>Fewer tokens, lower cost</p>
+      </div>
+      <div class="pillar p5 reveal d6">
+        <div class="p-num">05</div>
+        <h3>Progressive Disclosure</h3>
+        <p>Patterns → Skills → Institutional AI</p>
+      </div>
+    </div>
+
+    <div class="reveal d6" style="margin-top: 44px;">
+      <h4>Harness design principles</h4>
+      <ol class="step-list">
+        <li><strong>Zero-LLM-Call</strong> — The harness infrastructure never calls external APIs</li>
+        <li><strong>Local-First</strong> — All data stays on the developer's machine</li>
+        <li><strong>Harness-Agnostic</strong> — Works with any MCP-compatible agent harness</li>
+        <li><strong>Progressive Disclosure</strong> — Load only task-relevant skills and context</li>
+        <li><strong>Contract-First</strong> — All tools use <code class="inline">{ok, data, error, meta}</code> envelope</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 42: CLOSING -->
+<section class="slide" data-title="Get started">
+  <div class="closing">
+    <div class="eyebrow reveal">Ready when you are</div>
+    <h2 class="reveal d1">Get <span class="ital">started.</span></h2>
+    <div class="install-line reveal d2">
+      pip install ensemble-mcp &amp;&amp; ensemble-mcp install &amp;&amp; ensemble-mcp web
+    </div>
+    <div class="hero-cta reveal d3" style="margin-top: 8px; justify-content: center;">
+      <a class="cta-btn" href="https://github.com/LynkByte/ensemble" target="_blank" rel="noopener">
+        GitHub
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H8M17 7v9"/></svg>
+      </a>
+      <a class="cta-btn ghost" href="https://github.com/LynkByte/ensemble/tree/main/docs" target="_blank" rel="noopener">
+        Docs
+      </a>
+      <span class="cta-code">MIT License</span>
+    </div>
+    <div class="meta-line reveal d4" style="margin-top: 64px;">
+      Python 3.11+ · ONNX Runtime · SQLite · 573 tests · 19 harness tools · Zero external API calls
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script>
+function mermaidConfig(){
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return {
+    startOnLoad: false, theme: 'base', securityLevel: 'loose',
+    themeVariables: isDark ? {
+      background: '#111815', primaryColor: '#1a2420',
+      primaryTextColor: '#e8ece8', primaryBorderColor: '#2a3a33',
+      lineColor: '#6b7570', secondaryColor: '#10b981',
+      tertiaryColor: '#1a2420',
+      fontFamily: '"Google Sans Code", monospace', fontSize: '14px',
+      edgeLabelBackground: '#111815', nodeBorder: '#2a3a33',
+      clusterBkg: 'rgba(16,185,129,0.03)', clusterBorder: '#2a3a33',
+    } : {
+      background: '#ffffff', primaryColor: '#f2efe6',
+      primaryTextColor: '#14201b', primaryBorderColor: '#b8ae9b',
+      lineColor: '#8a948e', secondaryColor: '#047857',
+      tertiaryColor: '#f2efe6',
+      fontFamily: '"Google Sans Code", monospace', fontSize: '14px',
+      edgeLabelBackground: '#faf8f3',
+      clusterBkg: 'rgba(4,120,87,0.05)', clusterBorder: '#b8ae9b',
+    },
+    flowchart: { curve: 'basis', padding: 18, nodeSpacing: 30, rankSpacing: 50 }
+  };
+}
+
+function renderMermaid(){
+  if (!window.mermaid) return;
+  mermaid.initialize(mermaidConfig());
+  document.querySelectorAll('.mermaid').forEach((el, i) => {
+    if (el.dataset.src){ el.innerHTML = el.dataset.src;}
+    else { el.dataset.src = el.innerHTML;}
+    el.removeAttribute('data-processed');
+    el.id = 'mm-' + i;
+  });
+  try { mermaid.run({ nodes: document.querySelectorAll('.mermaid') });}
+  catch(e){ console.warn('Mermaid render:', e);}
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  renderMermaid();
+  buildRail();
+  setupReveal();
+  setupProgress();
+  setupTheme();
+  setupKeyboard();
+  setupNav();
+});
+
+function setupTheme(){
+  const btn = document.getElementById('themeBtn');
+  const label = document.getElementById('themeLabel');
+  const icon = document.getElementById('themeIcon');
+  const saved = localStorage.getItem('ensemble-theme');
+  if (saved){ document.documentElement.setAttribute('data-theme', saved);}
+  updateBtn();
+
+  btn.addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('ensemble-theme', next);
+    updateBtn();
+    setTimeout(renderMermaid, 100);
+  });
+
+  function updateBtn(){
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    label.textContent = isDark ? 'Light' : 'Dark';
+    if (isDark){
+      icon.innerHTML = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
+    } else {
+      icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+    }
+  }
+}
+
+function setupReveal(){
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting){ e.target.classList.add('in');}});
+  }, { threshold: 0.12, rootMargin: '0px 0px -50px 0px' });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+}
+
+function setupProgress(){
+  const bar = document.getElementById('progressBar');
+  const slides = document.querySelectorAll('.slide');
+  const rail = document.querySelectorAll('.rail-dot');
+  const navCurrent = document.getElementById('navCurrent');
+  const navTotal = document.getElementById('navTotal');
+  const navTitle = document.getElementById('navTitle');
+  const navPrev = document.getElementById('navPrev');
+  const navNext = document.getElementById('navNext');
+
+  if (navTotal) navTotal.textContent = String(slides.length).padStart(2, '0');
+
+  const onScroll = () => {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = Math.max(0, Math.min(1, window.scrollY / max));
+    bar.style.width = (pct * 100).toFixed(2) + '%';
+
+    let active = 0;
+    const mid = window.scrollY + window.innerHeight * 0.45;
+    slides.forEach((s, i) => { if (s.offsetTop <= mid) active = i;});
+    rail.forEach((d, i) => d.classList.toggle('active', i === active));
+
+    if (navCurrent){ navCurrent.textContent = String(active + 1).padStart(2, '0');}
+    if (navTitle){ navTitle.textContent = slides[active].dataset.title || ('Slide ' + (active + 1));}
+    if (navPrev) navPrev.disabled = (active === 0);
+    if (navNext) navNext.disabled = (active === slides.length - 1);
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+}
+
+function buildRail(){
+  const rail = document.getElementById('rail');
+  const slides = document.querySelectorAll('.slide');
+  slides.forEach((s, i) => {
+    const d = document.createElement('button');
+    d.className = 'rail-dot';
+    d.setAttribute('aria-label', 'Go to slide ' + (i+1));
+    d.title = s.dataset.title || ('Slide ' + (i+1));
+    d.addEventListener('click', () => {
+      window.scrollTo({ top: s.offsetTop, behavior: 'smooth' });
+    });
+    rail.appendChild(d);
+  });
+}
+
+function setupNav(){
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const navPrev = document.getElementById('navPrev');
+  const navNext = document.getElementById('navNext');
+  const currentIdx = () => {
+    const mid = window.scrollY + window.innerHeight * 0.45;
+    let idx = 0;
+    slides.forEach((s, i) => { if (s.offsetTop <= mid) idx = i;});
+    return idx;
+  };
+  navPrev.addEventListener('click', () => {
+    const i = currentIdx();
+    if (i > 0) window.scrollTo({ top: slides[i - 1].offsetTop, behavior: 'smooth' });
+  });
+  navNext.addEventListener('click', () => {
+    const i = currentIdx();
+    if (i < slides.length - 1) window.scrollTo({ top: slides[i + 1].offsetTop, behavior: 'smooth' });
+  });
+}
+
+function setupKeyboard(){
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const current = () => {
+    const mid = window.scrollY + window.innerHeight * 0.45;
+    let idx = 0;
+    slides.forEach((s, i) => { if (s.offsetTop <= mid) idx = i;});
+    return idx;
+  };
+  document.addEventListener('keydown', (e) => {
+    if (e.target.matches('input, textarea')) return;
+    const i = current();
+    if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ' || e.key === 'ArrowRight'){
+      e.preventDefault();
+      if (i < slides.length - 1) window.scrollTo({ top: slides[i+1].offsetTop, behavior: 'smooth' });
+    } else if (e.key === 'ArrowUp' || e.key === 'PageUp' || e.key === 'ArrowLeft'){
+      e.preventDefault();
+      if (i > 0) window.scrollTo({ top: slides[i-1].offsetTop, behavior: 'smooth' });
+    } else if (e.key === 'Home'){
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (e.key === 'End'){
+      window.scrollTo({ top: slides[slides.length - 1].offsetTop, behavior: 'smooth' });
+    } else if (e.key === 't' || e.key === 'T'){
+      document.getElementById('themeBtn').click();
+    }
+  });
+}
+</script>
+
+</body>
+</html>
