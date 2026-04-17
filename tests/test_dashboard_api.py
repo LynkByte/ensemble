@@ -904,10 +904,19 @@ class TestIndexMutations:
 
     @pytest.mark.asyncio
     async def test_reindex_project_not_found(self, client):
-        resp = await client.post("/api/projects/%2Fnonexistent%2Fpath/reindex")
+        resp = await client.post("/api/projects/%2Ftmp%2Fnonexistent_project_path/reindex")
         assert resp.status == 404
         body = await resp.json()
         assert body["ok"] is False
+
+    @pytest.mark.asyncio
+    async def test_reindex_project_unsafe_path(self, client):
+        """Reject project paths outside allowed root directories."""
+        resp = await client.post("/api/projects/%2Fetc%2Fpasswd/reindex")
+        assert resp.status == 400
+        body = await resp.json()
+        assert body["ok"] is False
+        assert "VALIDATION" in body["error"]["code"]
 
 
 class TestReportsEndpoints:

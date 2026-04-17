@@ -88,6 +88,23 @@ def _json_mutated(data: dict[str, Any], *, duration_ms: int = 0, status: int = 2
     return web.json_response(_envelope(data, duration_ms=duration_ms), status=status)
 
 
+_ALLOWED_ROOTS = ("/home", "/tmp", "/opt", "/workspace", "/var/www", "/srv")
+
+
+def _is_path_under_allowed_root(resolved: Path) -> bool:
+    """Check if a resolved path is under an allowed root directory.
+
+    Guards against path-traversal attacks by ensuring the resolved path
+    is under a known safe root directory.
+    """
+    path_str = str(resolved)
+    for root in _ALLOWED_ROOTS:
+        root_resolved = str(Path(root).resolve())
+        if path_str == root_resolved or path_str.startswith(root_resolved + "/"):
+            return True
+    return False
+
+
 async def _parse_json_body(request: web.Request) -> dict[str, Any]:
     """Parse and return JSON body from a request.
 
@@ -874,9 +891,13 @@ async def handle_pattern_edit(request: web.Request) -> web.Response:
 
     conn = _get_write_conn(request)
     try:
-        # Build SET clause and update in a single step (avoids TOCTOU race)
-        set_parts = [f"{k} = ?" for k in updates]
-        values = list(updates.values())
+        # Build SET clause from static field list (avoids taint on column names)
+        set_parts: list[str] = []
+        values: list[Any] = []
+        for field in ("name", "context", "approach", "outcome", "category"):
+            if field in updates:
+                set_parts.append(f"{field} = ?")
+                values.append(updates[field])
         values.append(pattern_id)
         cursor = conn.execute(
             f"UPDATE patterns SET {', '.join(set_parts)} WHERE id = ?",  # noqa: S608
@@ -1027,12 +1048,25 @@ async def handle_skill_action(request: web.Request) -> web.Response:
                 code="VALIDATION_INVALID_VALUE",
                 status=400,
             )
-        output_path = Path(output_dir)
+        cwd = Path.cwd().resolve()
+        output_path = (cwd / output_dir).resolve()
+        if not (str(output_path) + "/").startswith(str(cwd) + "/"):
+            return _error_envelope(
+                "output_dir resolves outside the working directory",
+                code="VALIDATION_INVALID_VALUE",
+                status=400,
+            )
         output_path.mkdir(parents=True, exist_ok=True)
 
         safe_name = proposed_name.replace("/", "_").replace("\\", "_")
         file_name = f"{safe_name}.md"
-        file_path = output_path / file_name
+        file_path = (output_path / file_name).resolve()
+        if not (str(file_path) + "/").startswith(str(cwd) + "/"):
+            return _error_envelope(
+                "Generated file path resolves outside the working directory",
+                code="VALIDATION_INVALID_VALUE",
+                status=400,
+            )
         file_path.write_text(proposed_content, encoding="utf-8")
 
         conn.execute(
@@ -1345,6 +1379,13 @@ async def handle_project_reindex(request: web.Request) -> web.Response:
     project_path = unquote(request.match_info["path"])
     project = Path(project_path).resolve()
 
+    if not _is_path_under_allowed_root(project):
+        return _error_envelope(
+            "Project path is not under an allowed root directory",
+            code="VALIDATION_INVALID_VALUE",
+            status=400,
+        )
+
     if not project.is_dir():
         return _error_envelope(
             f"Project directory not found: {project_path}",
@@ -1436,11 +1477,14 @@ async def handle_project_health(request: web.Request) -> web.Response:
         ).fetchall()
 
         missing_files: list[str] = []
-        project_dir = Path(project_path)
-        for r in rows:
-            full_path = project_dir / r["file_path"]
-            if not full_path.exists():
-                missing_files.append(r["file_path"])
+        project_dir = Path(project_path).resolve()
+        if _is_path_under_allowed_root(project_dir):
+            for r in rows:
+                full_path = (project_dir / r["file_path"]).resolve()
+                if not (str(full_path) + "/").startswith(str(project_dir) + "/"):
+                    continue  # file_path escapes project directory
+                if not full_path.exists():
+                    missing_files.append(r["file_path"])
 
         elapsed = int((time.monotonic() - start) * 1000)
         return _json_ok(
