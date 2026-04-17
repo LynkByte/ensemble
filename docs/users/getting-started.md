@@ -2,6 +2,22 @@
 
 Get `ensemble-mcp` up and running in under 5 minutes. This guide covers installation, registration with your AI tool, and a first-use walkthrough.
 
+## What Does ensemble-mcp Do?
+
+**Agent = Model + Harness.** Your AI coding tool (Claude Code, Cursor, Copilot, etc.) already provides a harness with filesystem access, bash execution, and a sandbox. ensemble-mcp **extends that harness** with intelligence infrastructure — memory, skills, drift detection, model routing, and context management — delivered seamlessly via MCP.
+
+```
+Your AI Tool (execution harness)  +  ensemble-mcp (intelligence layer)
+         │                                      │
+    Filesystem                             Memory & Search
+    Bash / Code                            Skills Discovery
+    Sandbox                                Drift Detection
+    Browser                                Model Routing
+    Git                                    Context Compression
+                                           Session Persistence
+                                           Codebase Indexing
+```
+
 ## Prerequisites
 
 - **Python 3.11+** (3.12 and 3.13 also supported)
@@ -58,10 +74,12 @@ The first run downloads the ONNX embedding model (~22 MB) to `~/.cache/ensemble-
 
 ## How It Works
 
+ensemble-mcp runs as a local MCP server that your AI tool connects to via stdio. It extends your agent's harness with intelligence primitives — all processing happens locally with zero API calls:
+
 ```mermaid
 flowchart LR
-    User([User]) --> AI[AI Coding Tool]
-    AI -->|MCP Protocol\nstdio| Server[ensemble-mcp\nMCP Server]
+    User([User]) --> AI[AI Coding Tool\nExecution Harness]
+    AI -->|MCP Protocol\nstdio| Server["ensemble-mcp\nIntelligence\nInfrastructure"]
     Server --> SQLite[(SQLite DB\n~/.cache/ensemble-mcp/data.db)]
     Server --> ONNX[ONNX Runtime\nMiniLM-L6-v2]
 
@@ -74,12 +92,13 @@ All processing is **local** — no API calls, no cloud services. The ONNX embedd
 
 ## First Use Example
 
-Once registered, your AI tool can invoke ensemble-mcp tools automatically. Here's a typical first interaction:
+Once registered, your AI tool can invoke ensemble-mcp's harness tools automatically. Here's a typical first interaction:
 
-1. **Index your project** — the AI tool calls `project_index` to scan your codebase
-2. **Search for patterns** — `patterns_search` finds relevant past solutions
-3. **Check drift** — during implementation, `drift_check` ensures changes stay on task
-4. **Save progress** — `session_save` creates checkpoints for resume capability
+1. **Index your project** — the AI tool calls `project_index` to build codebase awareness
+2. **Search for patterns** — `patterns_search` finds relevant past solutions (memory & search)
+3. **Discover skills** — `skills_discover` loads task-relevant skills (progressive disclosure)
+4. **Check drift** — during implementation, `drift_check` ensures changes stay on task (self-verification)
+5. **Save progress** — `session_save` creates checkpoints for long horizon execution
 
 You can also explore your data through the web dashboard:
 

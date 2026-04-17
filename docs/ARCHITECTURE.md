@@ -1,10 +1,25 @@
 # Architecture
 
-Technical architecture of **ensemble-mcp** — the local MCP server powering the Ensemble 7-agent AI orchestration system.
+Technical architecture of **ensemble-mcp** — the **harness infrastructure layer** powering the Ensemble 7-agent AI orchestration system.
+
+## Harness Positioning
+
+**Agent = Model + Harness.** A harness is everything that wraps a model to turn it into a useful agent — system prompts, tools, execution environment, orchestration logic, memory, and middleware.
+
+ensemble-mcp is specifically the **intelligence infrastructure layer** of the harness stack. It doesn't provide the execution layer (filesystem, bash, sandbox — that's Claude Code, Cursor, etc.) but rather the primitives that make agents smarter across sessions:
+
+| Harness Layer | Provider | What It Does |
+|---|---|---|
+| **Execution** | Claude Code / Codex / Cursor | Filesystem, bash, sandbox, browser, git |
+| **Intelligence Infrastructure** | **ensemble-mcp** | Memory, skills, drift detection, routing, compression, sessions, indexing |
+| **Orchestration** | Ensemble 7-agent pipeline | Captain, Scope, Craft, Forge, Lens, Signal, Trace |
+| **Model** | Claude / GPT / Gemini / etc. | Raw intelligence (text in, text out) |
+
+> *For a deeper dive on harness concepts, see [The Anatomy of an Agent Harness](https://www.langchain.com/blog/the-anatomy-of-an-agent-harness) by LangChain.*
 
 ## Design Principles
 
-1. **Zero-LLM-Call Principle**: The server makes no LLM or external API calls. All intelligence is local: ONNX Runtime embeddings (~5ms), numpy cosine similarity, SQLite storage.
+1. **Zero-LLM-Call Principle**: The harness infrastructure layer makes no LLM or external API calls. All intelligence is local: ONNX Runtime embeddings (~5ms), numpy cosine similarity, SQLite storage.
 
 2. **Single-Binary Simplicity**: One Python package, one SQLite database, one ONNX model. No Redis, no Postgres, no message queues.
 
@@ -12,7 +27,11 @@ Technical architecture of **ensemble-mcp** — the local MCP server powering the
 
 4. **Structured Error Contracts**: Every tool returns the same envelope shape. Every error has a code, retry guidance, and structured details.
 
+5. **Harness-Agnostic**: Works with any MCP-compatible agent harness — not tied to a specific execution environment or AI tool.
+
 ## System Overview
+
+The harness infrastructure layer is structured as a stdio MCP server with tool dispatch routing to 8 tool modules backed by shared infrastructure:
 
 ```
 MCP Client (OpenCode / Claude Code / etc.)
@@ -432,17 +451,17 @@ Tiers (`best`, `mid`, `cheapest`) are abstract — the consuming agent maps them
 - **Filtering**: Respects `.gitignore` patterns plus a built-in ignore list (node_modules, vendor, .git, etc.)
 - **Project snapshots**: `project_snapshot` generates a compact project baseline summary (language, framework, conventions, directory structure, test setup, build tools, key files) cached with mtime-based invalidation
 
-## Skill Intelligence
+## Skill Intelligence (Progressive Disclosure)
 
-`tools/skills.py` provides three capabilities:
+`tools/skills.py` provides three capabilities that implement the harness primitive of **progressive disclosure** — loading only task-relevant skills instead of dumping everything into context on start:
 
 1. **Discovery**: Scans 5 known skill directories (`.ai/skills/`, `.claude/skills/`, `.cursor/rules/`, `.github/copilot-instructions/`, `.opencode/skills/`) for existing skill files. Skill file content and embeddings are cached in SQLite with mtime-based invalidation; only changed files are re-read and re-embedded on subsequent calls
 2. **Suggestion**: Clusters stored patterns by embedding similarity (threshold >= 0.75) using single-linkage agglomerative clustering. Clusters with >= 3 members become skill suggestions
 3. **Generation**: Accepts/dismisses/defers suggestions. On accept, writes a Markdown skill file (zero-LLM generation from pattern content)
 
-## Context Compression & Prompt Caching
+## Context Compression & Prompt Caching (Context Rot Prevention)
 
-`compress/engine.py` implements a rule-based text compression pipeline that reduces token count while preserving all technical content. The pipeline follows an **Extract → Preserve → Compress → Rejoin** pattern:
+`compress/engine.py` implements a harness primitive for fighting **context rot** — the degradation of model performance as the context window fills up. The rule-based text compression pipeline reduces token count while preserving all technical content. The pipeline follows an **Extract → Preserve → Compress → Rejoin** pattern:
 
 ```
 Input Text
