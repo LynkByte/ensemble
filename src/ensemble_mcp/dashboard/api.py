@@ -88,6 +88,8 @@ def _json_mutated(data: dict[str, Any], *, duration_ms: int = 0, status: int = 2
     return web.json_response(_envelope(data, duration_ms=duration_ms), status=status)
 
 
+# Keep in sync with _find_missing_files() which inlines these as
+# startswith() literals for CodeQL path-injection sanitiser recognition.
 _ALLOWED_ROOTS = ("/home", "/opt", "/workspace", "/var/www", "/srv")
 
 
@@ -1457,15 +1459,9 @@ def _find_missing_files(
 
     resolved = os.path.realpath(project_path)
 
-    # Inline allowed-root guard with explicit startswith checks.
-    # CodeQL recognises this pattern as a path-injection sanitiser.
-    if not (
-        resolved.startswith("/home/")
-        or resolved.startswith("/opt/")
-        or resolved.startswith("/workspace/")
-        or resolved.startswith("/var/www/")
-        or resolved.startswith("/srv/")
-    ):
+    # Inline allowed-root guard — must match _ALLOWED_ROOTS at module level.
+    # Uses tuple-form startswith so CodeQL traces the sanitiser in-scope.
+    if not resolved.startswith(("/home/", "/opt/", "/workspace/", "/var/www/", "/srv/")):
         return [], True
 
     missing: list[str] = []
