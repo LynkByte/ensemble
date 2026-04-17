@@ -1442,6 +1442,32 @@ async def handle_project_delete(request: web.Request) -> web.Response:
         conn.close()
 
 
+def _find_missing_files(
+    project_path: str,
+    rows: list[Any],
+) -> tuple[list[str], bool]:
+    """Check for indexed files that are missing on disk.
+
+    Uses the early-return guard pattern so CodeQL can trace
+    that filesystem operations only run after path validation.
+
+    Returns ``(missing_files, path_restricted)``.
+    """
+    project_dir = Path(project_path).resolve()
+    if not _is_path_under_allowed_root(project_dir):
+        return [], True
+
+    missing: list[str] = []
+    prefix = str(project_dir) + "/"
+    for r in rows:
+        full_path = (project_dir / r["file_path"]).resolve()
+        if not str(full_path).startswith(prefix):
+            continue  # file_path escapes project directory
+        if not full_path.exists():
+            missing.append(r["file_path"])
+    return missing, False
+
+
 async def handle_project_health(request: web.Request) -> web.Response:
     """Return index staleness info: file count, oldest indexed_at, files missing on disk."""
     start = time.monotonic()
@@ -1476,28 +1502,7 @@ async def handle_project_health(request: web.Request) -> web.Response:
             (project_path,),
         ).fetchall()
 
-        missing_files: list[str] = []
-        project_dir = Path(project_path).resolve()
-        path_restricted = False
-        path_str = str(project_dir)
-
-        # Inline guard: check path is under an allowed root
-        _is_allowed = False
-        for _root in _ALLOWED_ROOTS:
-            _root_resolved = str(Path(_root).resolve())
-            if path_str == _root_resolved or path_str.startswith(_root_resolved + "/"):
-                _is_allowed = True
-                break
-
-        if _is_allowed:
-            for r in rows:
-                full_path = (project_dir / r["file_path"]).resolve()
-                if not (str(full_path) + "/").startswith(path_str + "/"):
-                    continue  # file_path escapes project directory
-                if not full_path.exists():
-                    missing_files.append(r["file_path"])
-        else:
-            path_restricted = True
+        missing_files, path_restricted = _find_missing_files(project_path, rows)
 
         elapsed = int((time.monotonic() - start) * 1000)
         return _json_ok(
