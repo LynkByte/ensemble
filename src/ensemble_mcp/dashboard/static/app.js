@@ -324,6 +324,9 @@ function dashboard() {
             const data = await this.api(`/api/projects/${encodeURIComponent(projectPath)}/health`);
             if (data) {
                 this.projectHealth = data;
+                if (data.path_restricted) {
+                    this.showToast('Filesystem checks skipped — project path is outside allowed directories. Disk-missing detection is unavailable.', 'info');
+                }
             }
         },
 

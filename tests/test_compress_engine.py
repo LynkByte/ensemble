@@ -32,7 +32,9 @@ class TestPreservers:
         kinds = [s.kind for s in spans]
         assert "url" in kinds
         url_span = next(s for s in spans if s.kind == "url")
-        assert "https://docs.python.org" in text[url_span.start : url_span.end]
+        assert (
+            text[url_span.start : url_span.end] == "https://docs.python.org/3/library/sqlite3.html"
+        )
 
     def test_file_path_detection(self):
         text = "Edit the file src/ensemble_mcp/config/defaults.py now."

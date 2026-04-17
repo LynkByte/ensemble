@@ -743,7 +743,8 @@
                         <button @click="reindexProject(selectedProject)"
                             class="btn btn-sm"
                             :class="reindexingProject === selectedProject ? 'btn-loading' : ''"
-                            :disabled="reindexingProject === selectedProject">Re-index</button>
+                            :disabled="reindexingProject === selectedProject || projectHealth?.path_restricted"
+                            :title="projectHealth?.path_restricted ? 'Re-index unavailable — path outside allowed directories' : 'Re-index'">Re-index</button>
                         <button @click="clearProjectIndex(selectedProject)" class="btn btn-sm btn-danger">Clear Index</button>
                     </div>
                     <div class="card mb-4">
@@ -761,6 +762,10 @@
                             <button @click="loadProjectHealth(selectedProject)" class="btn btn-sm">Check Health</button>
                         </div>
                         <div x-show="projectHealth" class="space-y-2 text-sm">
+                            <div x-show="projectHealth?.path_restricted" class="rounded-lg bg-tertiary/10 border border-tertiary/20 px-3 py-2 text-xs text-tertiary flex items-center gap-2">
+                                <span class="material-symbols-outlined !text-[16px]">warning</span>
+                                <span>Filesystem checks unavailable — project path is outside allowed directories. Missing file detection is skipped.</span>
+                            </div>
                             <div class="flex gap-6 text-on-surface-variant text-xs">
                                 <span>Indexed Files: <span class="text-on-surface font-mono" x-text="projectHealth?.file_count"></span></span>
                                 <span>Missing on Disk: <span class="font-mono"
