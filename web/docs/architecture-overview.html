@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Architecture Overview · ensemble-mcp docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,wght@0,400..900;1,400..900&family=Google+Sans+Code:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="docs-theme.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-dot"></div>
+      <a href="index.html"><strong>ensemble</strong>-mcp <span class="brand-suffix">docs</span></a>
+    </div>
+    <div class="controls">
+      <button class="ctrl" id="themeBtn" title="Toggle theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" id="themeIcon">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+        <span id="themeLabel">Light</span>
+      </button>
+      <a class="ctrl" href="../index.html">
+        <span>Presentation</span>
+      </a>
+      <a class="ctrl" href="https://github.com/LynkByte/ensemble" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;"><path d="M12 2C6.5 2 2 6.58 2 12.25c0 4.54 2.87 8.39 6.84 9.74.5.1.68-.22.68-.48v-1.7c-2.78.62-3.37-1.35-3.37-1.35-.45-1.17-1.1-1.48-1.1-1.48-.9-.64.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.33 1.1 2.9.84.1-.66.35-1.1.63-1.36-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.3.1-2.72 0 0 .84-.28 2.76 1.05a9.3 9.3 0 0 1 5 0c1.9-1.33 2.75-1.05 2.75-1.05.55 1.42.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.48A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+        <span>GitHub</span>
+      </a>
+    </div>
+  </header>
+
+  <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle navigation">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <h4 class="sidebar-heading">For Users</h4>
+      <a href="index.html" class="sidebar-link">Overview</a>
+      <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+      <a href="installation.html" class="sidebar-link">Installation</a>
+      <a href="ai-tool-compatibility.html" class="sidebar-link">AI Tool Compatibility</a>
+      <a href="cli-reference.html" class="sidebar-link">CLI Reference</a>
+      <a href="configuration.html" class="sidebar-link">Configuration</a>
+      <a href="mcp-clients.html" class="sidebar-link">MCP Client Setup</a>
+      <a href="web-dashboard.html" class="sidebar-link">Web Dashboard</a>
+      <a href="troubleshooting.html" class="sidebar-link">Troubleshooting</a>
+    </div>
+    <div class="sidebar-section">
+      <h4 class="sidebar-heading">For Developers</h4>
+      <a href="tool-reference.html" class="sidebar-link">Tool Reference</a>
+      <a href="integration-guide.html" class="sidebar-link">Integration Guide</a>
+      <a href="architecture-overview.html" class="sidebar-link active">Architecture Overview</a>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <h4 class="sidebar-heading">Resources</h4>
+      <a href="../index.html" class="sidebar-link">Presentation</a>
+      <a href="https://github.com/LynkByte/ensemble" class="sidebar-link" target="_blank" rel="noopener">GitHub &nearr;</a>
+    </div>
+  </nav>
+
+  <main class="content">
+    <h1>Architecture Overview</h1>
+    <p>Technical architecture of the <code class="inline">ensemble-mcp</code> server — a <strong>harness infrastructure layer</strong> for AI agent pipelines.</p>
+
+    <h2 id="what-is-an-agent-harness">What is an Agent Harness?</h2>
+    <p><strong>Agent = Model + Harness.</strong> A harness is every piece of code, configuration, and execution logic that wraps a model to make it useful. Without a harness, a model can only take in text and output text — it can't maintain state, execute code, or learn from past work.</p>
+    <p>ensemble-mcp is specifically the <strong>intelligence infrastructure layer</strong> of the harness — it provides memory, skills, drift detection, model routing, context management, and session persistence. The execution layer (filesystem, bash, sandbox) is provided by the host agent tool (Claude Code, Cursor, Codex, etc.).</p>
+
+    <div class="panel panel-blue">
+      <h5>Note</h5>
+      <p><em>For a deeper dive on harness concepts, see <a href="https://www.langchain.com/blog/the-anatomy-of-an-agent-harness" target="_blank" rel="noopener">The Anatomy of an Agent Harness</a> by LangChain.</em></p>
+    </div>
+
+    <h2 id="harness-component-mapping">Harness Component Mapping</h2>
+    <p>The following diagram shows how ensemble-mcp's subpackages map to harness primitives:</p>
+
+    <div class="mermaid-wrap"><div class="mermaid">
+flowchart TB
+    subgraph Harness["Agent Harness Primitives"]
+        direction TB
+        MEM["Memory &amp; Search\n(Continual Learning)"]
+        CTX["Context Management\n(Context Rot Prevention)"]
+        SKL["Skills\n(Progressive Disclosure)"]
+        DFT["Drift Detection\n(Self-Verification)"]
+        RTG["Model Routing\n(Orchestration)"]
+        SES["Session Persistence\n(Long Horizon Execution)"]
+        IDX["Codebase Awareness\n(Workspace Knowledge)"]
+    end
+
+    subgraph Impl["ensemble-mcp Implementation"]
+        direction TB
+        P["memory/\nONNX embeddings\n+ vector store"]
+        C["compress/\nRule-based compression\n+ prompt caching"]
+        S["tools/skills.py\nDiscover, suggest,\ngenerate skills"]
+        D["tools/drift.py\nCosine similarity\nscope checking"]
+        R["tools/routing.py\n7x4 agent-tier\nmatrix"]
+        SS["tools/session.py\nCheckpoint save/load\noptimistic versioning"]
+        I["tools/indexer.py\nFile index, exports,\nimports, snapshots"]
+    end
+
+    MEM --> P
+    CTX --> C
+    SKL --> S
+    DFT --> D
+    RTG --> R
+    SES --> SS
+    IDX --> I
+
+    style Harness fill:#1e40af,color:#fff
+    style Impl fill:#059669,color:#fff
+    </div></div>
+
+    <h2 id="high-level-design">High-Level Design</h2>
+    <p><code class="inline">ensemble-mcp</code> is a Python MCP server that runs locally as a stdio process. It provides 19 tools across 8 categories, all backed by local ONNX embeddings and SQLite storage.</p>
+
+    <div class="mermaid-wrap"><div class="mermaid">
+flowchart TB
+    subgraph External["External"]
+        AI[AI Coding Tool\nOpenCode / Cursor / Copilot / etc.]
+        Browser[Web Browser]
+    end
+
+    subgraph Server["ensemble-mcp Process"]
+        MCP[MCP Protocol Handler\nserver.py]
+        Dispatch[Tool Dispatcher\n19 tools]
+        CLI[CLI Entry Point\n__main__.py]
+        Banner[Startup Banner\ncli/banner.py]
+    end
+
+    subgraph Dashboard["Dashboard Process"]
+        HTTP[aiohttp Server\ndashboard/server.py]
+        API[JSON API\ndashboard/api.py]
+        SPA[Alpine.js SPA\ndashboard/static/]
+    end
+
+    subgraph Core["Core Engine"]
+        Embed[Embedding Model\nmemory/embeddings.py]
+        Store[Vector Store\nmemory/store.py]
+        Sim[Cosine Similarity\nmemory/similarity.py]
+        Schema[DB Schema\nmemory/schema.py]
+    end
+
+    subgraph Tools["Tool Implementations"]
+        Patterns[patterns.py]
+        Drift[drift.py]
+        Routing[routing.py]
+        Skills[skills.py]
+        Session[session.py]
+        Indexer[indexer.py]
+        Compress[compress.py]
+        Track[mcp_tracking.py]
+    end
+
+    subgraph Support["Support Layer"]
+        Config[Config\nconfig/]
+        Contracts[Contracts\ncontracts/]
+        Security[Security\nsecurity/]
+        State[State\nstate/]
+        CompEngine[Compression Engine\ncompress/]
+        Installer[Installer\ninstaller/]
+    end
+
+    subgraph Storage["Local Storage"]
+        SQLite[(SQLite DB\nWAL mode)]
+        ONNX[ONNX Model\nMiniLM-L6-v2]
+    end
+
+    AI &lt;--&gt;|stdio| MCP
+    MCP --> Dispatch
+    Dispatch --> Tools
+    CLI --> MCP
+    CLI --> Banner
+    CLI --> HTTP
+    Browser &lt;--&gt;|HTTP| HTTP
+    HTTP --> API
+    API --> SPA
+
+    Tools --> Core
+    Tools --> Support
+    Core --> Storage
+    API --> SQLite
+
+    style External fill:#94a3b8,color:#fff
+    style Server fill:#2563eb,color:#fff
+    style Dashboard fill:#0891b2,color:#fff
+    style Core fill:#059669,color:#fff
+    style Tools fill:#7c3aed,color:#fff
+    style Support fill:#d97706,color:#fff
+    style Storage fill:#dc2626,color:#fff
+    </div></div>
+
+    <h2 id="package-layout">Package Layout</h2>
+    <p>The project uses a <code class="inline">src</code> layout with the package at <code class="inline">src/ensemble_mcp/</code>:</p>
+
+    <pre class="code" data-lang="text"><code>src/ensemble_mcp/
+├── __init__.py
+├── __main__.py          # CLI entry point (argparse, 6 subcommands)
+├── server.py            # MCP server setup, tool registration, dispatch
+│
+├── config/              # Configuration management
+│   ├── defaults.py      # Constants, thresholds, paths
+│   └── settings.py      # Layered config loader (TOML + env vars)
+│
+├── contracts/           # Response envelope and error taxonomy
+│   ├── envelope.py      # {ok, data, error, meta} wrapper + @tool_handler
+│   └── errors.py        # ErrorCode enum, ToolError, retry guidance
+│
+├── memory/              # Embedding and vector storage
+│   ├── embeddings.py    # ONNX Runtime model loading and inference
+│   ├── similarity.py    # Cosine similarity, top-K search
+│   ├── store.py         # VectorStore class (SQLite + embeddings)
+│   └── schema.py        # DDL: CREATE TABLE statements
+│
+├── security/            # Input/output safety
+│   ├── redaction.py     # Secret/PII redaction
+│   └── trust.py         # Confirmation requirement enforcement
+│
+├── state/               # Session and lifecycle management
+│   ├── idempotency.py   # Idempotency key check/store
+│   ├── lifecycle.py     # SessionState/StepState enums, transitions
+│   └── locks.py         # SQLite connection management (WAL, threading)
+│
+├── tools/               # MCP tool implementations (19 tools)
+│   ├── patterns.py      # patterns_search, patterns_store, patterns_prune
+│   ├── drift.py         # drift_check
+│   ├── routing.py       # model_recommend
+│   ├── skills.py        # skills_discover, skills_suggest, skills_generate
+│   ├── session.py       # session_save, session_load, session_search
+│   ├── indexer.py       # project_index, project_query, project_dependencies, project_snapshot
+│   ├── compress.py      # context_compress, context_prepare
+│   └── mcp_tracking.py  # Record MCP call history
+│
+├── compress/            # Context compression engine
+│   ├── __init__.py      # Package init, re-exports compress + CompressResult
+│   ├── engine.py        # Rule-based text compression pipeline
+│   ├── preservers.py    # Regex patterns for preserving technical content
+│   └── tokens.py        # Token counting via HuggingFace tokenizer
+│
+├── installer/           # Auto-installer for AI tools
+│   ├── __init__.py      # ToolDefinition, InstallPlan, result types
+│   ├── setup.py         # detect → plan → confirm → execute flow
+│   ├── registry.py      # Config file read/write (JSON, TOML)
+│   └── agents.py        # Agent/skill file discovery and copying
+│
+├── dashboard/           # Web dashboard
+│   ├── __init__.py      # start_dashboard() export
+│   ├── server.py        # aiohttp app creation, static file serving
+│   ├── api.py           # 25+ JSON API endpoints
+│   └── static/          # SPA frontend
+│       ├── index.html
+│       ├── app.js
+│       └── style.css
+│
+├── cli/                 # Terminal UI
+│   └── banner.py        # Startup banner (Rich)
+│
+└── data/                # Bundled files
+    ├── agents/          # 7 agent markdown files
+    └── skills/          # Workflow skill file</code></pre>
+
+    <h2 id="subpackage-responsibilities">Subpackage Responsibilities</h2>
+    <p>Each subpackage implements one or more harness primitives:</p>
+
+    <h3 id="memory-subpackage"><code class="inline">memory/</code> — Memory &amp; Search (Continual Learning)</h3>
+    <p><strong>ONNX embeddings and vector storage.</strong> The foundation of the harness's memory system. Loads the MiniLM-L6-v2 model via ONNX Runtime (~5ms per embedding, 384 dimensions). <code class="inline">VectorStore</code> manages the SQLite database with schema migrations. Cosine similarity is computed via numpy — brute-force is sufficient for &lt;10K vectors. Enables agents to durably store knowledge from one session and inject it into future sessions.</p>
+
+    <h3 id="compress-subpackage"><code class="inline">compress/</code> — Context Rot Prevention (Compaction)</h3>
+    <p><strong>Rule-based text compression engine.</strong> Addresses context rot — the degradation of model performance as the context window fills up. Removes filler words, articles, hedging phrases, and pleasantries from prose sections while preserving all technical content (code blocks, URLs, file paths, headings, tables). Zero LLM calls. The <code class="inline">context_prepare</code> tool orders prompt sections for optimal LLM cache hit rates.</p>
+
+    <h3 id="tools-subpackage"><code class="inline">tools/</code> — Harness Tool Implementations (19 tools)</h3>
+    <p><strong>19 MCP tool implementations mapping to harness primitives.</strong> Each tool is an async function decorated with <code class="inline">@tool_handler</code>:</p>
+
+    <table>
+      <thead>
+        <tr><th>Harness Primitive</th><th>Tools</th><th>File</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Memory &amp; Search</td><td><code class="inline">patterns_search</code>, <code class="inline">patterns_store</code>, <code class="inline">patterns_prune</code></td><td><code class="inline">patterns.py</code></td></tr>
+        <tr><td>Drift Detection</td><td><code class="inline">drift_check</code></td><td><code class="inline">drift.py</code></td></tr>
+        <tr><td>Model Routing</td><td><code class="inline">model_recommend</code></td><td><code class="inline">routing.py</code></td></tr>
+        <tr><td>Skills (Progressive Disclosure)</td><td><code class="inline">skills_discover</code>, <code class="inline">skills_suggest</code>, <code class="inline">skills_generate</code></td><td><code class="inline">skills.py</code></td></tr>
+        <tr><td>Session Persistence</td><td><code class="inline">session_save</code>, <code class="inline">session_load</code>, <code class="inline">session_search</code></td><td><code class="inline">session.py</code></td></tr>
+        <tr><td>Codebase Awareness</td><td><code class="inline">project_index</code>, <code class="inline">project_query</code>, <code class="inline">project_dependencies</code>, <code class="inline">project_snapshot</code></td><td><code class="inline">indexer.py</code></td></tr>
+        <tr><td>Context Management</td><td><code class="inline">context_compress</code>, <code class="inline">context_prepare</code></td><td><code class="inline">compress.py</code></td></tr>
+      </tbody>
+    </table>
+
+    <p>The <code class="inline">mcp_tracking.py</code> module records every MCP call for observability (tool name, arguments, result, duration).</p>
+
+    <h3 id="config-subpackage"><code class="inline">config/</code> — Harness Configuration</h3>
+    <p><strong>Layered settings resolution.</strong> Loads defaults from <code class="inline">defaults.py</code>, merges global config (<code class="inline">~/.config/ensemble-mcp/config.toml</code>), project config (<code class="inline">.ensemble-mcp.toml</code>), and environment variables (<code class="inline">ENSEMBLE_MCP_*</code>). Scalar values override; maps merge shallowly; lists replace.</p>
+
+    <h3 id="contracts-subpackage"><code class="inline">contracts/</code> — Response Standardization</h3>
+    <p><strong>Response standardization and error taxonomy.</strong> Every tool returns <code class="inline">{ok, data, error, meta}</code> via the <code class="inline">@tool_handler</code> decorator, which handles timing, error wrapping, and the envelope format. Error codes follow a prefix-based taxonomy (<code class="inline">VALIDATION_*</code>, <code class="inline">NOT_FOUND_*</code>, <code class="inline">CONFLICT_*</code>, <code class="inline">TIMEOUT_*</code>, <code class="inline">IO_*</code>, <code class="inline">INTERNAL_*</code>) with built-in retry guidance.</p>
+
+    <h3 id="security-subpackage"><code class="inline">security/</code> — Trust Boundaries</h3>
+    <p><strong>Input safety.</strong> <code class="inline">redaction.py</code> strips secrets and PII before storage or embedding. <code class="inline">trust.py</code> enforces confirmation requirements for destructive operations (e.g., <code class="inline">reset</code> requires <code class="inline">confirm=true</code>).</p>
+
+    <h3 id="state-subpackage"><code class="inline">state/</code> — Lifecycle &amp; Idempotency</h3>
+    <p><strong>Session lifecycle and idempotency.</strong> Defines state machines for sessions (<code class="inline">pending → running → completed | failed | killed</code>) and steps (<code class="inline">pending → running → completed | failed | skipped</code>). Supports the long horizon execution harness primitive by enabling durable state across context windows. Idempotency keys prevent duplicate execution of mutating tools.</p>
+
+    <h3 id="installer-subpackage"><code class="inline">installer/</code> — Harness Setup</h3>
+    <p><strong>Auto-detection and registration of AI tools.</strong> Defines <code class="inline">ToolDefinition</code> for 6 supported tools (OpenCode, Claude Code, Copilot, Cursor, Windsurf, Devin CLI) with their config paths. Makes it easy to plug ensemble-mcp into any existing agent harness.</p>
+
+    <h3 id="dashboard-subpackage"><code class="inline">dashboard/</code> — Observability</h3>
+    <p><strong>Local web dashboard.</strong> An aiohttp server serving an Alpine.js SPA. Provides visibility into harness state — patterns, skills, drift history, sessions, and codebase index. The API layer (25+ endpoints) opens its own SQLite connections to avoid blocking the MCP server.</p>
+
+    <h3 id="cli-subpackage"><code class="inline">cli/</code> — Terminal UI</h3>
+    <p><strong>Terminal UI.</strong> Currently contains only the startup banner, which uses Rich to display server version, config paths, and database location on stderr.</p>
+
+    <h3 id="data-subpackage"><code class="inline">data/</code> — Bundled Harness Files</h3>
+    <p><strong>Bundled agent and skill files.</strong> The 7-agent orchestration pipeline (<code class="inline">team-ensemble</code>, <code class="inline">team-scope</code>, <code class="inline">team-craft</code>, <code class="inline">team-forge</code>, <code class="inline">team-trace</code>, <code class="inline">team-lens</code>, <code class="inline">team-signal</code>) and the <code class="inline">ensemble-mcp-workflow</code> skill file. These are the system prompts and AGENTS.md files that constitute the orchestration layer of the harness.</p>
+
+    <h2 id="data-flow">Data Flow</h2>
+
+    <h3 id="tool-call-flow">Tool Call Flow</h3>
+    <ol>
+      <li>AI tool sends MCP request over stdin</li>
+      <li><code class="inline">server.py</code> deserializes the request and routes to <code class="inline">_dispatch_tool()</code></li>
+      <li><code class="inline">_dispatch_tool()</code> matches the tool name and calls the handler</li>
+      <li>Handler function executes (embedding, DB queries, etc.)</li>
+      <li><code class="inline">@tool_handler</code> wraps the result in <code class="inline">{ok, data, error, meta}</code></li>
+      <li><code class="inline">mcp_tracking.py</code> records the call in <code class="inline">mcp_calls</code> table</li>
+      <li>Response is serialized to JSON and written to stdout</li>
+    </ol>
+
+    <h3 id="embedding-flow">Embedding Flow</h3>
+    <ol>
+      <li>Text input → tokenizer (HuggingFace <code class="inline">tokenizers</code> library)</li>
+      <li>Token IDs → ONNX Runtime inference (MiniLM-L6-v2)</li>
+      <li>Output → 384-dimensional float32 vector</li>
+      <li>Vector stored as raw bytes in SQLite BLOB column</li>
+      <li>Search: query vector compared against stored vectors via numpy cosine similarity</li>
+    </ol>
+
+    <h2 id="storage-layer">Storage Layer</h2>
+
+    <h3 id="sqlite-database">SQLite Database</h3>
+    <p>Location: <code class="inline">~/.cache/ensemble-mcp/data.db</code> (WAL mode for concurrent reads)</p>
+
+    <p><strong>Core tables:</strong></p>
+    <ul>
+      <li><code class="inline">patterns</code> — stored patterns with embeddings and match counts</li>
+      <li><code class="inline">session_checkpoints</code> — pipeline checkpoints with state JSON and embeddings</li>
+      <li><code class="inline">drift_history</code> — drift check results with scores and verdicts</li>
+      <li><code class="inline">project_files</code> — indexed files with language, role, size, mtime</li>
+      <li><code class="inline">file_exports</code> — extracted exports (functions, classes, etc.)</li>
+      <li><code class="inline">file_imports</code> — extracted imports per file</li>
+      <li><code class="inline">skill_suggestions</code> — proposed skill suggestions from clustering</li>
+      <li><code class="inline">skill_suggestion_patterns</code> — junction table linking suggestions to patterns</li>
+      <li><code class="inline">skill_usage_tracking</code> — usage metrics for discovered skills</li>
+      <li><code class="inline">skill_file_cache</code> — cached skill file content and embeddings</li>
+      <li><code class="inline">mcp_calls</code> — MCP call history for dashboard</li>
+      <li><code class="inline">idempotency_keys</code> — idempotency key deduplication (24h TTL)</li>
+      <li><code class="inline">project_snapshots</code> — cached project baseline summaries</li>
+    </ul>
+
+    <h3 id="onnx-model">ONNX Model</h3>
+    <p>Location: <code class="inline">~/.cache/ensemble-mcp/models/</code></p>
+
+    <p>Files:</p>
+    <ul>
+      <li><code class="inline">model.onnx</code> — MiniLM-L6-v2 ONNX model (~22 MB)</li>
+      <li><code class="inline">tokenizer.json</code> — HuggingFace tokenizer config</li>
+    </ul>
+
+    <p>Model: <code class="inline">sentence-transformers/all-MiniLM-L6-v2</code> — 384-dimensional embeddings, downloaded from Hugging Face on first use.</p>
+
+    <h2 id="extension-points">Extension Points</h2>
+
+    <h3 id="adding-a-new-tool">Adding a New Tool</h3>
+    <ol>
+      <li>Create or add to a file in <code class="inline">src/ensemble_mcp/tools/</code></li>
+      <li>Implement an async function decorated with <code class="inline">@tool_handler</code></li>
+      <li>Add a <code class="inline">Tool</code> definition in <code class="inline">server.py</code>'s <code class="inline">TOOL_DEFINITIONS</code> list</li>
+      <li>Add a case to <code class="inline">_dispatch_tool()</code> in <code class="inline">server.py</code></li>
+    </ol>
+
+    <h3 id="adding-a-new-ai-tool">Adding a New AI Tool (Installer)</h3>
+    <ol>
+      <li>Add a <code class="inline">ToolDefinition</code> to <code class="inline">TOOL_DEFINITIONS</code> in <code class="inline">src/ensemble_mcp/installer/__init__.py</code></li>
+      <li>Define: config format, config path, MCP section path, detection paths, server entry format</li>
+      <li>The installer automatically handles detection, registration, and backup</li>
+    </ol>
+
+    <h3 id="adding-configuration-options">Adding Configuration Options</h3>
+    <ol>
+      <li>Add a constant to <code class="inline">src/ensemble_mcp/config/defaults.py</code></li>
+      <li>Add a field to the <code class="inline">Settings</code> dataclass in <code class="inline">src/ensemble_mcp/config/settings.py</code></li>
+      <li>The field is automatically available via TOML config and <code class="inline">ENSEMBLE_MCP_*</code> env vars</li>
+    </ol>
+
+    <h2 id="design-principles">Design Principles</h2>
+    <ul>
+      <li><strong>Local-only harness intelligence:</strong> Zero LLM/API calls — all intelligence runs locally (ONNX embeddings, numpy similarity, rule-based compression). The harness infrastructure layer adds zero latency or cost from external services.</li>
+      <li><strong>Single-file storage:</strong> One SQLite database per user, WAL mode for concurrency</li>
+      <li><strong>Incremental indexing:</strong> mtime-based invalidation avoids re-processing unchanged files</li>
+      <li><strong>Standard envelope:</strong> Every tool returns <code class="inline">{ok, data, error, meta}</code> with typed error codes</li>
+      <li><strong>Idempotent mutations:</strong> Optional idempotency keys prevent duplicate execution</li>
+      <li><strong>Non-destructive installs:</strong> Config backups are created before any modification</li>
+      <li><strong>Harness-agnostic:</strong> Works with any MCP-compatible agent harness — not tied to a specific execution environment</li>
+    </ul>
+
+    <h2 id="next-steps">Next Steps</h2>
+    <ul>
+      <li><a href="tool-reference.html">Tool Reference</a> — complete tool documentation</li>
+      <li><a href="integration-guide.html">Integration Guide</a> — using tools in pipelines</li>
+      <li><a href="configuration.html">Configuration</a> — all configurable options</li>
+    </ul>
+  </main>
+
+<script>
+  /* ── Theme Toggle ── */
+  (function(){
+    const html = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    const label = document.getElementById('themeLabel');
+    const stored = localStorage.getItem('ensemble-theme');
+    if (stored) html.setAttribute('data-theme', stored);
+    function updateLabel(){
+      label.textContent = html.getAttribute('data-theme') === 'dark' ? 'Light' : 'Dark';
+    }
+    updateLabel();
+    btn.addEventListener('click', function(){
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('ensemble-theme', next);
+      updateLabel();
+    });
+  })();
+
+  /* ── Sidebar Toggle (Mobile) ── */
+  (function(){
+    const toggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    function close(){ sidebar.classList.remove('open'); overlay.classList.remove('open'); }
+    toggle.addEventListener('click', function(){
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('open');
+    });
+    overlay.addEventListener('click', close);
+  })();
+
+  /* ── Active Page Highlight ── */
+  (function(){
+    var page = location.pathname.split('/').pop() || 'index.html';
+    var links = document.querySelectorAll('.sidebar-link');
+    links.forEach(function(a){
+      a.classList.remove('active');
+      var href = a.getAttribute('href');
+      if (href === page) a.classList.add('active');
+    });
+  })();
+
+  /* ── Mermaid Init ── */
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  mermaid.initialize({ startOnLoad: true, theme: isDark ? 'dark' : 'default', themeVariables: { primaryColor: '#10b981' } });
+</script>
+</body>
+</html>

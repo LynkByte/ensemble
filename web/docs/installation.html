@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Installation — ensemble-mcp docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,wght@0,400..900;1,400..900&family=Google+Sans+Code:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="docs-theme.css">
+</head>
+<body>
+
+<!-- Topbar -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-dot"></div>
+    <a href="index.html"><strong>ensemble</strong>-mcp <span class="brand-suffix">docs</span></a>
+  </div>
+  <div class="controls">
+    <button class="ctrl" id="themeBtn" title="Toggle theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" id="themeIcon">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+      <span id="themeLabel">Light</span>
+    </button>
+    <a class="ctrl" href="../index.html" title="View Presentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <span>Presentation</span>
+    </a>
+    <a class="ctrl" href="https://github.com/LynkByte/ensemble" target="_blank" rel="noopener" title="GitHub">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.58 2 12.25c0 4.54 2.87 8.39 6.84 9.74.5.1.68-.22.68-.48v-1.7c-2.78.62-3.37-1.35-3.37-1.35-.45-1.17-1.1-1.48-1.1-1.48-.9-.64.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.33 1.1 2.9.84.1-.66.35-1.1.63-1.36-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.3.1-2.72 0 0 .84-.28 2.76 1.05a9.3 9.3 0 0 1 5 0c1.9-1.33 2.75-1.05 2.75-1.05.55 1.42.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.48A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+      <span>GitHub</span>
+    </a>
+  </div>
+</header>
+
+<!-- Sidebar toggle (mobile) -->
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle navigation">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <path d="M4 6h16M4 12h16M4 18h16"/>
+  </svg>
+</button>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">For Users</h4>
+    <a href="index.html" class="sidebar-link">Overview</a>
+    <a href="getting-started.html" class="sidebar-link">Getting Started</a>
+    <a href="installation.html" class="sidebar-link active">Installation</a>
+    <a href="ai-tool-compatibility.html" class="sidebar-link">AI Tool Compatibility</a>
+    <a href="cli-reference.html" class="sidebar-link">CLI Reference</a>
+    <a href="configuration.html" class="sidebar-link">Configuration</a>
+    <a href="mcp-clients.html" class="sidebar-link">MCP Client Setup</a>
+    <a href="web-dashboard.html" class="sidebar-link">Web Dashboard</a>
+    <a href="troubleshooting.html" class="sidebar-link">Troubleshooting</a>
+  </div>
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">For Developers</h4>
+    <a href="tool-reference.html" class="sidebar-link">Tool Reference</a>
+    <a href="integration-guide.html" class="sidebar-link">Integration Guide</a>
+    <a href="architecture-overview.html" class="sidebar-link">Architecture Overview</a>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <h4 class="sidebar-heading">Resources</h4>
+    <a href="../index.html" class="sidebar-link">Presentation</a>
+    <a href="https://github.com/LynkByte/ensemble" class="sidebar-link" target="_blank" rel="noopener">GitHub &nearr;</a>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="content">
+  <h1>Installation Guide</h1>
+
+  <p>Detailed installation instructions for <code class="inline">ensemble-mcp</code>, covering multiple install methods, system requirements, and upgrade procedures.</p>
+
+  <h2 id="system-requirements">System Requirements</h2>
+
+  <table>
+    <thead>
+      <tr><th>Requirement</th><th>Minimum</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Python</td><td>3.11+</td><td>3.12 and 3.13 also supported</td></tr>
+      <tr><td>OS</td><td>Linux, macOS, Windows</td><td>Any platform with Python support</td></tr>
+      <tr><td>Disk Space</td><td>~50 MB</td><td>~22 MB for ONNX model + DB + package</td></tr>
+      <tr><td>RAM</td><td>~100 MB</td><td>ONNX Runtime embedding model</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="runtime-dependencies">Runtime Dependencies</h3>
+
+  <p>These are installed automatically via pip:</p>
+
+  <table>
+    <thead>
+      <tr><th>Package</th><th>Version</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="inline">mcp</code></td><td>&ge;1.0</td><td>MCP protocol implementation</td></tr>
+      <tr><td><code class="inline">onnxruntime</code></td><td>&ge;1.17</td><td>Local embedding model inference</td></tr>
+      <tr><td><code class="inline">numpy</code></td><td>&ge;2.4.4</td><td>Vector operations and cosine similarity</td></tr>
+      <tr><td><code class="inline">tokenizers</code></td><td>&ge;0.15</td><td>Tokenizer for the embedding model</td></tr>
+      <tr><td><code class="inline">rich</code></td><td>&ge;15.0.0</td><td>Terminal output formatting</td></tr>
+      <tr><td><code class="inline">aiohttp</code></td><td>&ge;3.9</td><td>Web dashboard HTTP server</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="install-from-pypi">Install from PyPI</h2>
+
+  <p>The recommended installation method:</p>
+
+  <pre class="code" data-lang="bash"><code>pip install ensemble-mcp</code></pre>
+
+  <h3 id="using-uvx">Using uvx (No Install)</h3>
+
+  <p>With <a href="https://docs.astral.sh/uv/">uv</a>, you can run without installing:</p>
+
+  <pre class="code" data-lang="bash"><code>uvx ensemble-mcp</code></pre>
+
+  <h3 id="using-pipx">Using pipx (Isolated Install)</h3>
+
+  <p>For a globally available, isolated installation:</p>
+
+  <pre class="code" data-lang="bash"><code>pipx install ensemble-mcp</code></pre>
+
+  <h3 id="command-detection-during-registration">Command Detection During Registration</h3>
+
+  <p>When you run <code class="inline">ensemble-mcp install</code>, the installer automatically detects how <code class="inline">ensemble-mcp</code> is available and registers the appropriate command in each AI tool's config:</p>
+
+  <table>
+    <thead>
+      <tr><th>Priority</th><th>Detection</th><th>Registered Command</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1st</td><td><code class="inline">ensemble-mcp</code> on PATH (pip/pipx)</td><td><code class="inline">ensemble-mcp</code></td></tr>
+      <tr><td>2nd</td><td><code class="inline">uvx</code> on PATH</td><td><code class="inline">uvx ensemble-mcp</code></td></tr>
+      <tr><td>3rd</td><td>Neither found</td><td><code class="inline">/path/to/python -m ensemble_mcp</code> (full <code class="inline">sys.executable</code> path)</td></tr>
+    </tbody>
+  </table>
+
+  <p>The installer prefers a direct <code class="inline">ensemble-mcp</code> binary first because it's the most specific and reliable &mdash; it confirms the package is actually installed locally. The <code class="inline">uvx</code> fallback can auto-fetch from PyPI but may fail on private networks or if the package hasn't been published yet. The final fallback uses the current Python interpreter's absolute path (e.g. <code class="inline">/home/user/.venv/bin/python</code>), not the bare <code class="inline">python</code> command, to ensure the correct environment is used.</p>
+
+  <h2 id="install-from-source">Install from Source</h2>
+
+  <p>Clone the repository and install in editable mode:</p>
+
+  <pre class="code" data-lang="bash"><code>git clone https://github.com/LynkByte/ensemble.git
+cd ensemble
+pip install -e .</code></pre>
+
+  <h3 id="with-development-dependencies">With Development Dependencies</h3>
+
+  <p>To also install testing and linting tools:</p>
+
+  <pre class="code" data-lang="bash"><code>pip install -e ".[dev]"</code></pre>
+
+  <p>This adds: <code class="inline">pytest</code>, <code class="inline">pytest-asyncio</code>, <code class="inline">pytest-aiohttp</code>, <code class="inline">pytest-cov</code>, <code class="inline">ruff</code>, <code class="inline">mypy</code>, and <code class="inline">build</code>.</p>
+
+  <h2 id="docker">Docker</h2>
+
+  <p>Build and run the server in a container:</p>
+
+  <pre class="code" data-lang="bash"><code># Build the image
+docker build -t ensemble-mcp .
+
+# Run the server (stdio mode)
+docker run -i ensemble-mcp
+
+# Run with a persistent data volume
+docker run -i -v ensemble-data:/root/.cache/ensemble-mcp ensemble-mcp</code></pre>
+
+  <div class="panel panel-blue">
+    <h5>Note</h5>
+    <p>When running in Docker, the MCP server communicates over stdio. Your AI tool must be configured to launch the container instead of a local command.</p>
+  </div>
+
+  <h2 id="verifying-installation">Verifying Installation</h2>
+
+  <p>After installing, verify the CLI is available:</p>
+
+  <pre class="code" data-lang="bash"><code># Check the command exists
+ensemble-mcp --help
+
+# Run the server (Ctrl+C to stop)
+ensemble-mcp
+
+# Check server health via the web dashboard
+ensemble-mcp web</code></pre>
+
+  <p>The first run will automatically:</p>
+
+  <ol>
+    <li>Create <code class="inline">~/.cache/ensemble-mcp/</code> directory</li>
+    <li>Download the ONNX embedding model (~22 MB) to <code class="inline">~/.cache/ensemble-mcp/models/</code></li>
+    <li>Create the SQLite database at <code class="inline">~/.cache/ensemble-mcp/data.db</code></li>
+  </ol>
+
+  <h2 id="upgrading">Upgrading</h2>
+
+  <h3 id="from-pypi">From PyPI</h3>
+
+  <pre class="code" data-lang="bash"><code>pip install --upgrade ensemble-mcp</code></pre>
+
+  <h3 id="from-source">From Source</h3>
+
+  <pre class="code" data-lang="bash"><code>cd ensemble
+git pull
+pip install -e .</code></pre>
+
+  <h3 id="database-migrations">Database Migrations</h3>
+
+  <p>Schema migrations are applied automatically on startup. The server uses <code class="inline">ensure_schema()</code> to create or update tables as needed. Your existing data is preserved across upgrades.</p>
+
+  <h2 id="data-locations">Data Locations</h2>
+
+  <table>
+    <thead>
+      <tr><th>Path</th><th>Contents</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="inline">~/.cache/ensemble-mcp/data.db</code></td><td>SQLite database (WAL mode) &mdash; patterns, sessions, indexes</td></tr>
+      <tr><td><code class="inline">~/.cache/ensemble-mcp/models/</code></td><td>ONNX MiniLM-L6-v2 model files (~22 MB)</td></tr>
+      <tr><td><code class="inline">~/.config/ensemble-mcp/config.toml</code></td><td>Global configuration file (optional)</td></tr>
+      <tr><td><code class="inline">.ensemble-mcp.toml</code></td><td>Per-project configuration (optional, in project root)</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="uninstalling">Uninstalling</h2>
+
+  <p>Remove ensemble-mcp registration from all AI tools:</p>
+
+  <pre class="code" data-lang="bash"><code>ensemble-mcp uninstall</code></pre>
+
+  <p>To also remove agent/skill files and cached data:</p>
+
+  <pre class="code" data-lang="bash"><code>ensemble-mcp uninstall --remove-agents --clean-data</code></pre>
+
+  <p>Then remove the package:</p>
+
+  <pre class="code" data-lang="bash"><code>pip uninstall ensemble-mcp</code></pre>
+
+  <h2 id="next-steps">Next Steps</h2>
+
+  <ul>
+    <li><a href="cli-reference.html">CLI Reference</a> &mdash; all commands and options</li>
+    <li><a href="configuration.html">Configuration</a> &mdash; customize behavior</li>
+    <li><a href="mcp-clients.html">MCP Client Setup</a> &mdash; register with your AI tool</li>
+  </ul>
+</main>
+
+<script>
+  /* ── Theme Toggle ── */
+  (function(){
+    const html = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    const label = document.getElementById('themeLabel');
+    const stored = localStorage.getItem('ensemble-theme');
+    if (stored) html.setAttribute('data-theme', stored);
+    function updateLabel(){
+      label.textContent = html.getAttribute('data-theme') === 'dark' ? 'Light' : 'Dark';
+    }
+    updateLabel();
+    btn.addEventListener('click', function(){
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('ensemble-theme', next);
+      updateLabel();
+    });
+  })();
+
+  /* ── Sidebar Toggle (Mobile) ── */
+  (function(){
+    const toggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    function close(){ sidebar.classList.remove('open'); overlay.classList.remove('open'); }
+    toggle.addEventListener('click', function(){
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('open');
+    });
+    overlay.addEventListener('click', close);
+  })();
+
+  /* ── Active Page Highlight ── */
+  (function(){
+    var page = location.pathname.split('/').pop() || 'index.html';
+    var links = document.querySelectorAll('.sidebar-link');
+    links.forEach(function(a){
+      a.classList.remove('active');
+      var href = a.getAttribute('href');
+      if (href === page) a.classList.add('active');
+    });
+  })();
+</script>
+</body>
+</html>
