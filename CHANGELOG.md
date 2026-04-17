@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0b7] - 2026-04-17
+
+### Fixed
+- **Claude Code MCP config path** — installer now writes to `.mcp.json` (which Claude Code CLI actually reads) instead of `.claude.json` (which was ignored)
+
 ## [0.1.0b6] - 2026-04-17
 
 ### Added
@@ -287,7 +292,8 @@ Initial release with all 15 MCP tools across 3 implementation phases.
 - Shared fixtures: `tmp_db`, `test_conn`, `test_store`, `MockEmbeddingModel`
 - Full lint (ruff) and format compliance
 
-[Unreleased]: https://github.com/LynkByte/ensemble/compare/v0.1.0b6...HEAD
+[Unreleased]: https://github.com/LynkByte/ensemble/compare/v0.1.0b7...HEAD
+[0.1.0b7]: https://github.com/LynkByte/ensemble/compare/v0.1.0b6...v0.1.0b7
 [0.1.0b6]: https://github.com/LynkByte/ensemble/compare/v0.1.0b5...v0.1.0b6
 [0.1.0b5]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0b5
 [0.1.0b4]: https://github.com/LynkByte/ensemble/releases/tag/v0.1.0b4

@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "ensemble": {
+      "command": "ensemble-mcp"
+    }
+  }
+}
