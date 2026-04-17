@@ -883,8 +883,12 @@ class TestIndexMutations:
         assert resp.status == 404
 
     @pytest.mark.asyncio
-    async def test_reindex_project(self, seeded_db, aiohttp_client, tmp_path):
+    async def test_reindex_project(self, seeded_db, aiohttp_client, tmp_path, monkeypatch):
         """Test re-index with a real directory on the filesystem."""
+        monkeypatch.setattr(
+            "ensemble_mcp.dashboard.api._ALLOWED_ROOTS",
+            ("/home", "/tmp", "/opt", "/workspace", "/var/www", "/srv"),
+        )
         # Create a minimal project directory
         project_dir = tmp_path / "test_project"
         project_dir.mkdir()
@@ -904,7 +908,9 @@ class TestIndexMutations:
 
     @pytest.mark.asyncio
     async def test_reindex_project_not_found(self, client):
-        resp = await client.post("/api/projects/%2Ftmp%2Fnonexistent_project_path/reindex")
+        resp = await client.post(
+            "/api/projects/%2Fhome%2Fnonexistent_user_path%2Fnonexistent_project/reindex"
+        )
         assert resp.status == 404
         body = await resp.json()
         assert body["ok"] is False

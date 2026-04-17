@@ -88,7 +88,7 @@ def _json_mutated(data: dict[str, Any], *, duration_ms: int = 0, status: int = 2
     return web.json_response(_envelope(data, duration_ms=duration_ms), status=status)
 
 
-_ALLOWED_ROOTS = ("/home", "/tmp", "/opt", "/workspace", "/var/www", "/srv")
+_ALLOWED_ROOTS = ("/home", "/opt", "/workspace", "/var/www", "/srv")
 
 
 def _is_path_under_allowed_root(resolved: Path) -> bool:
@@ -1478,13 +1478,26 @@ async def handle_project_health(request: web.Request) -> web.Response:
 
         missing_files: list[str] = []
         project_dir = Path(project_path).resolve()
-        if _is_path_under_allowed_root(project_dir):
+        path_restricted = False
+        path_str = str(project_dir)
+
+        # Inline guard: check path is under an allowed root
+        _is_allowed = False
+        for _root in _ALLOWED_ROOTS:
+            _root_resolved = str(Path(_root).resolve())
+            if path_str == _root_resolved or path_str.startswith(_root_resolved + "/"):
+                _is_allowed = True
+                break
+
+        if _is_allowed:
             for r in rows:
                 full_path = (project_dir / r["file_path"]).resolve()
-                if not (str(full_path) + "/").startswith(str(project_dir) + "/"):
+                if not (str(full_path) + "/").startswith(path_str + "/"):
                     continue  # file_path escapes project directory
                 if not full_path.exists():
                     missing_files.append(r["file_path"])
+        else:
+            path_restricted = True
 
         elapsed = int((time.monotonic() - start) * 1000)
         return _json_ok(
@@ -1495,6 +1508,7 @@ async def handle_project_health(request: web.Request) -> web.Response:
                 "newest_indexed_at": newest_indexed_at,
                 "missing_files_count": len(missing_files),
                 "missing_files": missing_files[:50],  # limit to avoid huge responses
+                "path_restricted": path_restricted,
             },
             duration_ms=elapsed,
         )
