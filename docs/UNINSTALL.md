@@ -65,7 +65,7 @@ Remove the `"ensemble"` key from `"mcp"`:
 
 #### Claude Code
 
-**Global:** `~/.claude/claude_desktop_config.json`
+**Global:** `~/.claude.json`
 **Local:** `.claude.json` (in project root)
 
 Remove the `"ensemble"` key from `"mcpServers"`:
@@ -287,7 +287,7 @@ The installer creates `.bak` backup files before modifying any config. If you ne
 cp ~/.config/opencode/config.json.bak ~/.config/opencode/config.json
 
 # Example for Claude Code
-cp ~/.claude/claude_desktop_config.json.bak ~/.claude/claude_desktop_config.json
+cp ~/.claude.json.bak ~/.claude.json
 ```
 
 Backup files are created at the same location as the config with a `.bak` extension.

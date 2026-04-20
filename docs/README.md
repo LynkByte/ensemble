@@ -190,7 +190,7 @@ Zero-hassle: `uvx` auto-downloads Python if not installed. Works on Mac, Linux, 
 }
 ```
 
-**Claude Code** (`~/.claude/claude_desktop_config.json`):
+**Claude Code** (`~/.claude.json`):
 ```json
 {
   "mcpServers": {
@@ -282,7 +282,7 @@ mindmap
 | AI Tool | MCP Config Location | Config Format |
 |---------|---------------------|---------------|
 | OpenCode | `~/.config/opencode/config.json` or project `config.json` | JSON |
-| Claude Code | `~/.claude/claude_desktop_config.json` | JSON |
+| Claude Code | `~/.claude.json` | JSON |
 | GitHub Copilot (VS Code) | `.vscode/mcp.json` | JSON |
 | Cursor | `~/.cursor/mcp.json` | JSON |
 | Windsurf | `~/.windsurf/mcp.json` | JSON |

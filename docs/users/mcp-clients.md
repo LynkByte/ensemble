@@ -82,7 +82,7 @@ Skills use **directory** format: each skill is placed as `<skill-name>/SKILL.md`
 
 ### Global Registration
 
-Config file: `~/.claude/claude_desktop_config.json`
+Config file: `~/.claude.json`
 
 ```json
 {

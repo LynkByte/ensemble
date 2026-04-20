@@ -210,7 +210,7 @@ Or for a local development install:
 
 ### Claude Code
 
-Add to `~/.claude/claude_desktop_config.json`:
+Add to `~/.claude.json`:
 
 ```json
 {

@@ -88,8 +88,8 @@ def _claude_def(tmp_path: Path) -> ToolDefinition:
         name="claude_code",
         display_name="Claude Code",
         config_format=ConfigFormat.JSON,
-        global_config_path=tmp_path / "global" / ".claude" / "claude_desktop_config.json",
-        local_config_filename=".claude.json",
+        global_config_path=tmp_path / "global" / ".claude.json",
+        local_config_filename=".mcp.json",
         mcp_section_path=["mcpServers"],
         detection_paths=[tmp_path / "global" / ".claude"],
         server_entry={"command": "uvx", "args": ["ensemble-mcp"]},
@@ -1046,12 +1046,12 @@ class TestFullFlow:
 
         plan = plan_install(project, InstallScope.LOCAL)
         assert len(plan.tools_to_register) == 1
-        assert plan.tools_to_register[0].config_path == project / ".claude.json"
+        assert plan.tools_to_register[0].config_path == project / ".mcp.json"
 
         result = execute_plan(plan)
         assert len(result.registered) == 1
 
-        local_config = json.loads((project / ".claude.json").read_text())
+        local_config = json.loads((project / ".mcp.json").read_text())
         assert local_config["mcpServers"]["ensemble"]["command"] == "uvx"
 
     def test_second_install_skips_registered(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
