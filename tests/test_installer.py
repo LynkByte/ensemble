@@ -31,7 +31,10 @@ from ensemble_mcp.installer import (
     detect_server_command,
     get_tool_definition,
 )
-from ensemble_mcp.installer.agents import discover_agents, discover_skills
+from ensemble_mcp.installer.agents import (
+    discover_agents,
+    discover_skills,
+)
 from ensemble_mcp.installer.registry import (
     _serialize_toml,
     _toml_value,
@@ -88,8 +91,8 @@ def _claude_def(tmp_path: Path) -> ToolDefinition:
         name="claude_code",
         display_name="Claude Code",
         config_format=ConfigFormat.JSON,
-        global_config_path=tmp_path / "global" / ".claude" / "claude_desktop_config.json",
-        local_config_filename=".claude.json",
+        global_config_path=tmp_path / "global" / ".claude.json",
+        local_config_filename=".mcp.json",
         mcp_section_path=["mcpServers"],
         detection_paths=[tmp_path / "global" / ".claude"],
         server_entry={"command": "uvx", "args": ["ensemble-mcp"]},
@@ -958,6 +961,10 @@ class TestAgentDiscovery:
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
             bundled,
         )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_CLAUDE_DIR",
+            bundled,
+        )
         project = tmp_path / "project"
         project.mkdir()
 
@@ -982,6 +989,10 @@ class TestAgentDiscovery:
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
             bundled,
         )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_CLAUDE_DIR",
+            bundled,
+        )
         project = tmp_path / "project"
         project.mkdir()
 
@@ -990,6 +1001,122 @@ class TestAgentDiscovery:
         assert len(pairs) == 1
         _, dst = pairs[0]
         assert str(dst).startswith(str(project / ".claude" / "agents"))
+
+    def test_claude_code_uses_claude_agents_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Claude Code tool picks agents from agents-claude/ source directory."""
+        bundled_default = tmp_path / "bundled_default"
+        bundled_default.mkdir()
+        (bundled_default / "team-ensemble.md").write_text("# Default Captain")
+
+        bundled_claude = tmp_path / "bundled_claude"
+        bundled_claude.mkdir()
+        (bundled_claude / "team-ensemble.md").write_text("# Claude Captain")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled_default,
+        )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_CLAUDE_DIR",
+            bundled_claude,
+        )
+        project = tmp_path / "project"
+        project.mkdir()
+
+        defn = _claude_def(tmp_path)
+        pairs = discover_agents(project, tools=[defn], scope=InstallScope.GLOBAL)
+        assert len(pairs) == 1
+        # Source should be from the claude-specific directory
+        assert pairs[0][0].parent == bundled_claude
+
+    def test_opencode_uses_default_agents_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Non-Claude tools pick agents from the default agents/ source directory."""
+        bundled_default = tmp_path / "bundled_default"
+        bundled_default.mkdir()
+        (bundled_default / "team-ensemble.md").write_text("# Default Captain")
+
+        bundled_claude = tmp_path / "bundled_claude"
+        bundled_claude.mkdir()
+        (bundled_claude / "team-ensemble.md").write_text("# Claude Captain")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled_default,
+        )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_CLAUDE_DIR",
+            bundled_claude,
+        )
+        project = tmp_path / "project"
+        project.mkdir()
+
+        defn = _opencode_def(tmp_path)
+        pairs = discover_agents(project, tools=[defn], scope=InstallScope.GLOBAL)
+        assert len(pairs) == 1
+        # Source should be from the default directory
+        assert pairs[0][0].parent == bundled_default
+
+    def test_claude_code_falls_back_when_claude_dir_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Claude Code falls back to default agents/ when agents-claude/ doesn't exist."""
+        bundled_default = tmp_path / "bundled_default"
+        bundled_default.mkdir()
+        (bundled_default / "team-ensemble.md").write_text("# Default Captain")
+
+        # Point to a non-existent claude dir
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled_default,
+        )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_CLAUDE_DIR",
+            tmp_path / "nonexistent_claude",
+        )
+        project = tmp_path / "project"
+        project.mkdir()
+
+        defn = _claude_def(tmp_path)
+        pairs = discover_agents(project, tools=[defn], scope=InstallScope.GLOBAL)
+        assert len(pairs) == 1
+        # Should fall back to default directory
+        assert pairs[0][0].parent == bundled_default
+
+    def test_mixed_tools_use_correct_source_dirs(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """When both Claude and OpenCode tools are present, each uses its own source dir."""
+        bundled_default = tmp_path / "bundled_default"
+        bundled_default.mkdir()
+        (bundled_default / "team-ensemble.md").write_text("# Default Captain")
+
+        bundled_claude = tmp_path / "bundled_claude"
+        bundled_claude.mkdir()
+        (bundled_claude / "team-ensemble.md").write_text("# Claude Captain")
+
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled_default,
+        )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_CLAUDE_DIR",
+            bundled_claude,
+        )
+        project = tmp_path / "project"
+        project.mkdir()
+
+        oc_def = _opencode_def(tmp_path)
+        cl_def = _claude_def(tmp_path)
+        pairs = discover_agents(project, tools=[oc_def, cl_def], scope=InstallScope.GLOBAL)
+        # Different dest dirs, so both should appear
+        assert len(pairs) == 2
+        sources_by_dest = {p[1].parent: p[0].parent for p in pairs}
+        assert sources_by_dest[oc_def.global_agents_dir] == bundled_default
+        assert sources_by_dest[cl_def.global_agents_dir] == bundled_claude
 
 
 # ── Full Flow (Orchestrator) ─────────────────────────────────────
@@ -1046,12 +1173,12 @@ class TestFullFlow:
 
         plan = plan_install(project, InstallScope.LOCAL)
         assert len(plan.tools_to_register) == 1
-        assert plan.tools_to_register[0].config_path == project / ".claude.json"
+        assert plan.tools_to_register[0].config_path == project / ".mcp.json"
 
         result = execute_plan(plan)
         assert len(result.registered) == 1
 
-        local_config = json.loads((project / ".claude.json").read_text())
+        local_config = json.loads((project / ".mcp.json").read_text())
         assert local_config["mcpServers"]["ensemble"]["command"] == "uvx"
 
     def test_second_install_skips_registered(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -2111,6 +2238,10 @@ class TestAddAgents:
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
             bundled,
         )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_CLAUDE_DIR",
+            bundled,
+        )
 
         defn = _claude_def(tmp_path)
         monkeypatch.setattr(
@@ -2142,6 +2273,10 @@ class TestAddAgents:
 
         monkeypatch.setattr(
             "ensemble_mcp.installer.agents._BUNDLED_AGENTS_DIR",
+            bundled,
+        )
+        monkeypatch.setattr(
+            "ensemble_mcp.installer.agents._BUNDLED_AGENTS_CLAUDE_DIR",
             bundled,
         )
 

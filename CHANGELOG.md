@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Claude Code global MCP config path** — installer now writes user-scope config to `~/.claude.json` (where Claude Code actually stores MCP servers) instead of `~/.claude/claude_desktop_config.json` (which is a Claude Desktop path that Claude Code ignores)
+
 ## [0.1.0b7] - 2026-04-17
 
 ### Fixed

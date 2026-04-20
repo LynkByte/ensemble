@@ -826,7 +826,7 @@ graph TB
     subgraph "Developer Machine"
         subgraph "AI Tools (any one active)"
             OC[OpenCode<br/>config.json]
-            CC[Claude Code<br/>claude_desktop_config.json]
+            CC[Claude Code<br/>.claude.json]
             CP[GitHub Copilot<br/>.vscode/mcp.json]
             CU[Cursor<br/>~/.cursor/mcp.json]
             WS[Windsurf<br/>~/.windsurf/mcp.json]
@@ -859,7 +859,7 @@ graph TB
 | AI Tool | MCP Config Location | Config Format |
 |---------|-------------------|---------------|
 | OpenCode | `~/.config/opencode/config.json` or project `config.json` | JSON |
-| Claude Code | `~/.claude/claude_desktop_config.json` | JSON |
+| Claude Code | `~/.claude.json` | JSON |
 | GitHub Copilot (VS Code) | `.vscode/mcp.json` or VS Code settings | JSON |
 | Cursor | `~/.cursor/mcp.json` | JSON |
 | Windsurf | `~/.windsurf/mcp.json` | JSON |
@@ -880,7 +880,7 @@ graph TB
 }
 ```
 
-**Claude Code (`~/.claude/claude_desktop_config.json`):**
+**Claude Code (`~/.claude.json`):**
 ```json
 {
   "mcpServers": {
@@ -1611,8 +1611,8 @@ AI_TOOLS = {
         "mcp_config": '[mcp.ensemble]\ntype = "stdio"\ncommand = "uvx"\nargs = ["ensemble-mcp"]\n',
     },
     "claude_code": {
-        "config_path": Path.home() / ".claude",
-        "config_file": "claude_desktop_config.json",
+        "config_path": Path.home(),
+        "config_file": ".claude.json",
         "detect_files": [Path.home() / ".claude"],
         "mcp_config": {
             "mcpServers": {

@@ -27,7 +27,19 @@ from . import InstallScope, SkillFormat, ToolDefinition
 # Bundled skills would live at: src/ensemble_mcp/data/skills/
 _PACKAGE_DIR = Path(__file__).resolve().parent.parent
 _BUNDLED_AGENTS_DIR = _PACKAGE_DIR / "data" / "agents"
+_BUNDLED_AGENTS_CLAUDE_DIR = _PACKAGE_DIR / "data" / "agents-claude"
 _BUNDLED_SKILLS_DIR = _PACKAGE_DIR / "data" / "skills"
+
+
+def _get_agents_source_dir(tool: ToolDefinition) -> Path:
+    """Return the bundled agents directory for the given tool.
+
+    Claude Code uses its own agent format (``agents-claude/``),
+    while all other tools use the default format (``agents/``).
+    """
+    if tool.name == "claude_code" and _BUNDLED_AGENTS_CLAUDE_DIR.is_dir():
+        return _BUNDLED_AGENTS_CLAUDE_DIR
+    return _BUNDLED_AGENTS_DIR
 
 
 def _resolve_agents_dir(
@@ -84,35 +96,28 @@ def discover_agents(
         agents are available or all already exist at the destination.
         Destinations are de-duplicated across tools.
     """
-    if not _BUNDLED_AGENTS_DIR.is_dir():
-        return []
-
     if not tools:
-        return []
-
-    # Collect unique destination roots across tools
-    dest_roots: list[Path] = []
-    seen: set[Path] = set()
-    for tool in tools:
-        dest_root = _resolve_agents_dir(tool, project_path, scope)
-        if dest_root is not None and dest_root not in seen:
-            dest_roots.append(dest_root)
-            seen.add(dest_root)
-
-    if not dest_roots:
         return []
 
     pairs: list[tuple[Path, Path]] = []
     # Track destinations we've already added to avoid duplicates
     added_destinations: set[Path] = set()
 
-    for dest_root in dest_roots:
-        for source in sorted(_BUNDLED_AGENTS_DIR.rglob("*")):
+    for tool in tools:
+        dest_root = _resolve_agents_dir(tool, project_path, scope)
+        if dest_root is None:
+            continue
+
+        source_dir = _get_agents_source_dir(tool)
+        if not source_dir.is_dir():
+            continue
+
+        for source in sorted(source_dir.rglob("*")):
             if not source.is_file():
                 continue
 
             # Preserve directory structure relative to the agents dir
-            relative = source.relative_to(_BUNDLED_AGENTS_DIR)
+            relative = source.relative_to(source_dir)
             destination = dest_root / relative
 
             # Skip if already exists at destination or already in plan

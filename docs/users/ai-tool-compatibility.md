@@ -29,7 +29,7 @@ The core integration — registers `ensemble-mcp` as an MCP server so the AI too
 | Tool | Global Config File | Local Config File | Config Key |
 |------|---|---|---|
 | OpenCode | `~/.config/opencode/config.json` | `config.json` | `mcp.ensemble` |
-| Claude Code | `~/.claude/claude_desktop_config.json` | `.claude.json` | `mcpServers.ensemble` |
+| Claude Code | `~/.claude.json` | `.claude.json` | `mcpServers.ensemble` |
 | GitHub Copilot | `~/.vscode/mcp.json` | `.vscode/mcp.json` | `servers.ensemble` |
 | Cursor | `~/.cursor/mcp.json` | `.cursor/mcp.json` | `mcpServers.ensemble` |
 | Windsurf | `~/.windsurf/mcp.json` | `.windsurf/mcp.json` | `mcpServers.ensemble` |
