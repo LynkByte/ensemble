@@ -97,7 +97,7 @@ Config file: `~/.claude.json`
 
 ### Project-Local Registration
 
-Config file: `.claude.json` in project root
+Config file: `.mcp.json` in project root
 
 ```json
 {

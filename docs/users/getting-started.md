@@ -62,7 +62,7 @@ ensemble-mcp
 You should see a startup banner on stderr:
 
 ```
-ensemble-mcp v0.1.0b4
+ensemble-mcp v0.1.0b7
   Config:   ~/.config/ensemble-mcp/config.toml
   Database: ~/.cache/ensemble-mcp/data.db
   Models:   ~/.cache/ensemble-mcp/models

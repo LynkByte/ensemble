@@ -614,7 +614,7 @@ Server health check — returns status, version, database size, and pattern coun
 ```json
 {
   "status": "ok",
-  "version": "0.1.0b4",
+  "version": "0.1.0b7",
   "db_size_bytes": 524288,
   "pattern_count": 42,
   "server_name": "ensemble-mcp"

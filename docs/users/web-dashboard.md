@@ -29,7 +29,7 @@ http://127.0.0.1:8787
 The startup output shows the URL, database path, and version:
 
 ```
-  ensemble-mcp dashboard v0.1.0b4
+  ensemble-mcp dashboard v0.1.0b7
   URL: http://127.0.0.1:8787
   Database: ~/.cache/ensemble-mcp/data.db
   Press Ctrl+C to stop
