@@ -109,18 +109,6 @@
       </tbody>
     </table>
 
-    <h4>Priority Tiers</h4>
-    <table>
-      <thead>
-        <tr><th>Tier</th><th>Cacheability</th><th>Placement</th><th>Examples</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><code class="inline">static</code></td><td>Most cacheable</td><td>First in output</td><td>System prompts, tool definitions, rules</td></tr>
-        <tr><td><code class="inline">project</code></td><td>Medium</td><td>Middle</td><td>Project conventions, file structure</td></tr>
-        <tr><td><code class="inline">task</code></td><td>Least cacheable</td><td>Last in output</td><td>Current task details, user input, diffs</td></tr>
-      </tbody>
-    </table>
-
     <p><strong>Response data:</strong></p>
     <pre class="code" data-lang="json"><code>{
   "id": 42,
@@ -411,7 +399,7 @@
         <tr><th>Error Code</th><th>Cause</th></tr>
       </thead>
       <tbody>
-        <tr><td><code class="inline">NOT_FOUND_SUGGESTION</code></td><td><code class="inline">suggestion_id</code> does not exist</td></tr>
+        <tr><td><code class="inline">NOT_FOUND_SKILL_SUGGESTION</code></td><td><code class="inline">suggestion_id</code> does not exist</td></tr>
         <tr><td><code class="inline">CONFLICT_ALREADY_RESOLVED</code></td><td>Suggestion was already accepted or dismissed</td></tr>
         <tr><td><code class="inline">VALIDATION_INVALID_VALUE</code></td><td><code class="inline">action</code> is not one of <code class="inline">accept</code>, <code class="inline">dismiss</code>, or <code class="inline">defer</code></td></tr>
       </tbody>
@@ -721,6 +709,18 @@
       </tbody>
     </table>
 
+    <h4>Priority Tiers</h4>
+    <table>
+      <thead>
+        <tr><th>Tier</th><th>Cacheability</th><th>Placement</th><th>Examples</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">static</code></td><td>Most cacheable</td><td>First in output</td><td>System prompts, tool definitions, rules</td></tr>
+        <tr><td><code class="inline">project</code></td><td>Medium</td><td>Middle</td><td>Project conventions, file structure</td></tr>
+        <tr><td><code class="inline">task</code></td><td>Least cacheable</td><td>Last in output</td><td>Current task details, user input, diffs</td></tr>
+      </tbody>
+    </table>
+
     <p><strong>Response data:</strong></p>
     <pre class="code" data-lang="json"><code>{
   "prepared_text": "Combined ordered text...",
@@ -769,7 +769,7 @@
     <p><strong>Response data:</strong></p>
     <pre class="code" data-lang="json"><code>{
   "status": "ok",
-  "version": "0.1.0b4",
+  "version": "0.1.0b7",
   "db_size_bytes": 524288,
   "pattern_count": 42,
   "server_name": "ensemble-mcp"
@@ -849,7 +849,7 @@
         <tr><td><code class="inline">NOT_FOUND_STEP</code></td><td>Step ID does not exist</td></tr>
         <tr><td><code class="inline">NOT_FOUND_PROJECT</code></td><td>Project directory does not exist or has not been indexed</td></tr>
         <tr><td><code class="inline">NOT_FOUND_FILE</code></td><td>File not found in the codebase index</td></tr>
-        <tr><td><code class="inline">NOT_FOUND_SUGGESTION</code></td><td>Skill suggestion ID does not exist</td></tr>
+        <tr><td><code class="inline">NOT_FOUND_SKILL_SUGGESTION</code></td><td>Skill suggestion ID does not exist</td></tr>
         <tr><td><code class="inline">NOT_FOUND_CHECKPOINT</code></td><td>Session checkpoint not found</td></tr>
       </tbody>
     </table>

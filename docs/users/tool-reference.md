@@ -449,7 +449,7 @@ Accept, dismiss, or defer a skill suggestion.
 
 | Error Code | Cause |
 |------------|-------|
-| `NOT_FOUND_SUGGESTION` | `suggestion_id` does not exist |
+| `NOT_FOUND_SKILL_SUGGESTION` | `suggestion_id` does not exist |
 | `CONFLICT_ALREADY_RESOLVED` | Suggestion was already accepted or dismissed |
 | `VALIDATION_INVALID_VALUE` | `action` is not one of `accept`, `dismiss`, or `defer` |
 
@@ -837,7 +837,7 @@ The requested resource does not exist. Create or index the resource first.
 | `NOT_FOUND_STEP` | Step ID does not exist |
 | `NOT_FOUND_PROJECT` | Project directory does not exist or has not been indexed |
 | `NOT_FOUND_FILE` | File not found in the codebase index |
-| `NOT_FOUND_SUGGESTION` | Skill suggestion ID does not exist |
+| `NOT_FOUND_SKILL_SUGGESTION` | Skill suggestion ID does not exist |
 | `NOT_FOUND_CHECKPOINT` | Session checkpoint not found |
 
 ### CONFLICT — Retry After Refresh

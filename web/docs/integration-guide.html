@@ -362,7 +362,7 @@ flowchart TB
   }
 }</code></pre>
       </li>
-      <li><strong>Read the resume context</strong> from the loaded session's <code class="inline">context_for_resume</code> field (a top-level field alongside <code class="inline">remaining_steps</code>, <code class="inline">decisions</code>, etc.)</li>
+      <li><strong>Read the resume context</strong> from the loaded session's <code class="inline">state.resume.context_for_resume</code> field, alongside <code class="inline">state.resume.remaining_steps</code>, <code class="inline">state.resume.decisions</code>, etc.</li>
       <li><strong>Continue from the last completed step</strong> without re-deriving context</li>
     </ol>
 
@@ -452,6 +452,7 @@ flowchart TB
       <tbody>
         <tr><td><code class="inline">skills_discover</code></td><td>Finds existing skill files relevant to the current task</td></tr>
         <tr><td><code class="inline">skills_suggest</code></td><td>Detects a cluster of 6 patterns around &ldquo;Laravel service class architecture&rdquo; and proposes a reusable skill</td></tr>
+        <tr><td><code class="inline">skills_generate</code></td><td>Writes the accepted suggestion as a reusable skill file to <code class="inline">.ai/skills/</code></td></tr>
       </tbody>
     </table>
     <p>The developer accepts the suggestion, and a skill file is written to <code class="inline">.ai/skills/</code>. From this point forward, every new Laravel project automatically loads this skill.</p>

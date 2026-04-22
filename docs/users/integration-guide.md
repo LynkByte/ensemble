@@ -368,7 +368,7 @@ When a pipeline is interrupted and needs to resume:
    }
    ```
 
-2. **Read the resume context** from the loaded session's `context_for_resume` field (a top-level field alongside `remaining_steps`, `decisions`, etc.)
+2. **Read the resume context** from the loaded session's `state.resume.context_for_resume` field, alongside `state.resume.remaining_steps`, `state.resume.decisions`, etc.
 
 3. **Continue from the last completed step** without re-deriving context
 
@@ -453,6 +453,7 @@ After several projects, the developer has accumulated 20+ patterns.
 |---|---|
 | `skills_discover` | Finds existing skill files relevant to the current task |
 | `skills_suggest` | Detects a cluster of 6 patterns around "Laravel service class architecture" and proposes a reusable skill |
+| `skills_generate` | Writes the accepted suggestion as a reusable skill file to `.ai/skills/` |
 
 The developer accepts the suggestion, and a skill file is written to `.ai/skills/`. From this point forward, every new Laravel project automatically loads this skill.
 

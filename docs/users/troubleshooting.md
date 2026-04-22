@@ -28,7 +28,7 @@ Common issues and solutions for `ensemble-mcp`.
 **Solutions:**
 - Ensure your virtual environment is activated: `source .venv/bin/activate`
 - Verify the package is installed in the active environment: `pip show ensemble-mcp`
-- Reinstall: `pip install -e .`
+- Reinstall: `pip install --force-reinstall ensemble-mcp` (or `pip install -e .` if developing from source)
 
 ---
 
