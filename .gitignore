@@ -74,3 +74,6 @@ docs-web/storage/pail/
 
 # ── Docs ───────────────────────────────────
 docs/reference/
+
+# ── Playwright MCP temp data ─────────────────────────
+.playwright-mcp/

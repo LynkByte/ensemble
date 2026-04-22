@@ -1,38 +1,9 @@
 [
   {
-    "date": "2026-04-15 12:00:00",
-    "health": 68,
-    "bugs": 14,
-    "smells": 12,
-    "critical": 0,
-    "high": 6,
-    "medium": 8,
-    "low_info": 4,
-    "tests_passed": 487,
-    "tests_errors": 54
-  },
-  {
-    "date": "2026-04-15 18:30:00",
+    "date": "2026-04-22 10:00:00",
     "health": 82,
-    "bugs": 11,
+    "bugs": 7,
     "smells": 9,
-    "critical": 0,
-    "high": 0,
-    "medium": 6,
-    "low_info": 5,
-    "tests_passed": 543,
-    "tests_errors": 0
-  },
-  {
-    "date": "2026-04-15 21:15:00",
-    "health": 84,
-    "bugs": 8,
-    "smells": 7,
-    "critical": 0,
-    "high": 0,
-    "medium": 4,
-    "low_info": 4,
-    "tests_passed": 549,
-    "tests_errors": 0
+    "critical": 0
   }
 ]

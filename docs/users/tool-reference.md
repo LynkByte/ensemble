@@ -35,6 +35,18 @@ On error:
 }
 ```
 
+## Response Meta Fields
+
+Every response includes a `meta` object with three fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `duration_ms` | integer | Processing time in milliseconds |
+| `source` | string | Where the data came from. Values: `"local"`, `"sqlite"` |
+| `confidence` | string | Result quality indicator. Values: `"exact"`, `"partial"`, `"estimated"` |
+
+A `confidence` of `"partial"` typically means a scan or index operation encountered non-fatal errors and returned incomplete results. `"estimated"` indicates the result is based on heuristics rather than precise computation.
+
 ## Tool Categories
 
 ```mermaid
@@ -146,11 +158,19 @@ Supports **progressive disclosure** via `detail_level` and **category filtering*
 }
 ```
 
+#### Possible Errors
+
+| Error Code | Cause |
+|------------|-------|
+| `VALIDATION_INVALID_VALUE` | `top_k` out of range (1–100) or invalid `detail_level` value |
+
 ---
 
 ### `patterns_store`
 
 Store a new pattern from a successful pipeline for future semantic search. The pattern text is embedded using the ONNX model and stored in SQLite.
+
+Text fields are redacted for secrets before persistence (common secret patterns like API keys, tokens, and passwords are automatically stripped).
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
@@ -172,6 +192,13 @@ Store a new pattern from a successful pipeline for future semantic search. The p
 }
 ```
 
+#### Possible Errors
+
+| Error Code | Cause |
+|------------|-------|
+| `VALIDATION_MISSING_FIELD` | A required field (`name`, `context`, `approach`, or `outcome`) is empty |
+| `VALIDATION_INVALID_VALUE` | Invalid `category` value |
+
 ---
 
 ### `patterns_prune`
@@ -191,6 +218,10 @@ Remove old/unused patterns (zero `match_count`, older than `max_age_days`).
   "remaining": 42
 }
 ```
+
+#### Possible Errors
+
+None — this tool always succeeds.
 
 ---
 
@@ -225,7 +256,13 @@ Also flags suspicious file changes (migrations, configs, etc.) that don't match 
 - `minor_drift` — score < 0.6 (configurable via `drift_threshold_minor`)
 - `significant_drift` — score ≥ 0.6
 
+**Suspicious file detection:** Files matching patterns like `migration`, `schema`, `config`, `.env`, `package.json`, `composer.json` are flagged if their path has low similarity (< 0.3) to the task description.
+
 Results are persisted to the `drift_history` table for dashboard viewing.
+
+#### Possible Errors
+
+None — this tool always succeeds.
 
 ---
 
@@ -253,6 +290,14 @@ Recommend a model tier (best/mid/cheapest) for an agent and task. Uses a rule-ba
 }
 ```
 
+**Tier meanings:**
+
+| Tier | Meaning | Example Models |
+|------|---------|----------------|
+| `best` | Use the most capable model | claude-opus-4, o1 |
+| `mid` | Balanced cost/quality | claude-sonnet-4, gpt-4o |
+| `cheapest` | Minimize cost | claude-haiku-3.5, gpt-4o-mini |
+
 **Routing table (built-in agents):**
 
 | Agent | trivial | simple | standard | complex |
@@ -266,6 +311,10 @@ Recommend a model tier (best/mid/cheapest) for an agent and task. Uses a rule-ba
 | trace | mid | best | best | best |
 
 Unknown agents default to `mid` tier.
+
+#### Possible Errors
+
+None — unknown classification values default to `mid` tier.
 
 ---
 
@@ -282,6 +331,8 @@ Scan tool-native skill locations and return relevant skills via semantic search.
 - `.opencode/skills/`
 
 Uses mtime-based caching — file reads and embedding computation are skipped for unchanged files.
+
+**Caching behavior:** The first call indexes skill files and computes embeddings (slower). Subsequent calls reuse cached data from SQLite and only re-process files that have changed on disk. Deleted files are automatically cleaned up from the cache.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
@@ -309,6 +360,14 @@ Uses mtime-based caching — file reads and embedding computation are skipped fo
   ]
 }
 ```
+
+> **Note:** The `snippets` field is only present when a `query` parameter is provided. Without a query, only `detected` is returned.
+
+#### Possible Errors
+
+| Error Code | Cause |
+|------------|-------|
+| `NOT_FOUND_PROJECT` | `project_path` directory does not exist |
 
 ---
 
@@ -347,6 +406,12 @@ Detect recurring patterns and suggest them as reusable skills. Clusters patterns
 }
 ```
 
+#### Possible Errors
+
+| Error Code | Cause |
+|------------|-------|
+| `NOT_FOUND_PROJECT` | `project_path` directory does not exist |
+
 ---
 
 ### `skills_generate`
@@ -380,13 +445,21 @@ Accept, dismiss, or defer a skill suggestion.
 }
 ```
 
+#### Possible Errors
+
+| Error Code | Cause |
+|------------|-------|
+| `NOT_FOUND_SUGGESTION` | `suggestion_id` does not exist |
+| `CONFLICT_ALREADY_RESOLVED` | Suggestion was already accepted or dismissed |
+| `VALIDATION_INVALID_VALUE` | `action` is not one of `accept`, `dismiss`, or `defer` |
+
 ---
 
 ## Session Management (3 tools)
 
 ### `session_save`
 
-Save pipeline checkpoint state with optimistic versioning. If `version` is provided, it must match the current database version (otherwise `CONFLICT_VERSION_MISMATCH` is raised). When `original_request` is provided, an embedding is generated for semantic search via `session_search`.
+Save pipeline checkpoint state with optimistic versioning. When `original_request` is provided, an embedding is generated for semantic search via `session_search`.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
@@ -405,6 +478,12 @@ Save pipeline checkpoint state with optimistic versioning. If `version` is provi
 | `project` | string | no | — | Project path for scoped search |
 | `idempotency_key` | string | no | — | Optional idempotency key |
 
+#### Version Behavior
+
+- **First save:** version starts at 1
+- **Without `version` param:** auto-increments from the current version
+- **With `version` param:** must match the current version in the database, otherwise `CONFLICT_VERSION_MISMATCH` is returned
+
 **Response data:**
 
 ```json
@@ -413,6 +492,13 @@ Save pipeline checkpoint state with optimistic versioning. If `version` is provi
   "version": 3
 }
 ```
+
+#### Possible Errors
+
+| Error Code | Cause |
+|------------|-------|
+| `CONFLICT_VERSION_MISMATCH` | Provided `version` does not match the current version in the database |
+| `VALIDATION_MISSING_FIELD` | A required field (`session_id` or `state`) is missing |
 
 ---
 
@@ -447,11 +533,17 @@ Load latest or specific pipeline checkpoint.
 }
 ```
 
+#### Possible Errors
+
+None — returns `found: false` if session does not exist.
+
 ---
 
 ### `session_search`
 
 Search sessions by semantic similarity. Embeds the query and compares against stored session embeddings using cosine similarity.
+
+> **Note:** Only sessions saved with an `original_request` (which generates an embedding) are searchable. Sessions without embeddings are excluded from search results.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
@@ -480,6 +572,10 @@ Search sessions by semantic similarity. Embeds the query and compares against st
 }
 ```
 
+#### Possible Errors
+
+None — returns empty matches if no results found.
+
 ---
 
 ## Codebase Indexer (4 tools)
@@ -494,9 +590,18 @@ Build or refresh the codebase index. Scans the filesystem, extracts language, ro
 | `force` | boolean | no | `false` | Force full re-index |
 | `idempotency_key` | string | no | — | Optional idempotency key |
 
+**Supported languages (28):** Python, TypeScript, JavaScript, PHP, Go, Rust, Ruby, Java, Kotlin, Swift, C, C++, C#, Vue, Svelte, HTML, CSS, SCSS, LESS, JSON, YAML, TOML, XML, Markdown, SQL, Shell, Dockerfile, Terraform
+
 **Ignored directories:** `node_modules`, `vendor`, `.git`, `__pycache__`, `.mypy_cache`, `.ruff_cache`, `.pytest_cache`, `dist`, `build`, `.next`, `.nuxt`, `target`, `.tox`, `.venv`, `venv`, `env`, `.env`
 
 **Ignored extensions:** `.pyc`, `.pyo`, `.so`, `.dylib`, `.dll`, `.exe`, `.bin`, `.wasm`, `.jpg`, `.jpeg`, `.png`, `.gif`, `.svg`, `.ico`, `.woff`, `.woff2`, `.ttf`, `.eot`, `.mp3`, `.mp4`, `.avi`, `.mov`, `.zip`, `.tar`, `.gz`, `.lock`
+
+#### Possible Errors
+
+| Error Code | Cause |
+|------------|-------|
+| `NOT_FOUND_PROJECT` | `project_path` directory does not exist |
+| `TIMEOUT_INDEX` | Indexing operation timed out |
 
 ---
 
@@ -511,6 +616,10 @@ Query the project index — find files by type, path pattern, or semantic query.
 | `file_types` | array[string] | no | — | Filter by file types (e.g., `["python", "typescript"]`) |
 | `path_pattern` | string | no | — | Glob pattern for file paths |
 
+#### Possible Errors
+
+None — returns empty `files` array if project not found or not indexed.
+
 ---
 
 ### `project_dependencies`
@@ -521,6 +630,13 @@ Get the import/dependency graph for a specific file.
 |-----------|------|----------|---------|-------------|
 | `project_path` | string | **yes** | — | Absolute path to the project |
 | `file_path` | string | **yes** | — | Relative path to the file |
+
+#### Possible Errors
+
+| Error Code | Cause |
+|------------|-------|
+| `NOT_FOUND_PROJECT` | `project_path` directory does not exist or has not been indexed |
+| `NOT_FOUND_FILE` | File not found in the index (run `project_index` first) |
 
 ---
 
@@ -534,6 +650,12 @@ Generate a compact project baseline summary from the codebase index. Returns lan
 | `force` | boolean | no | `false` | Force regeneration even if cached |
 | `idempotency_key` | string | no | — | Optional idempotency key |
 
+#### Possible Errors
+
+| Error Code | Cause |
+|------------|-------|
+| `NOT_FOUND_PROJECT` | Project not indexed (run `project_index` first) |
+
 ---
 
 ## Context Optimization (2 tools)
@@ -541,6 +663,8 @@ Generate a compact project baseline summary from the codebase index. Returns lan
 ### `context_compress`
 
 Compress verbose natural language text into terse, token-efficient form while preserving all technical content (code blocks, URLs, file paths, headings, tables). Rule-based, zero LLM calls.
+
+Typical savings are **~30–40% token reduction** on natural language text.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
@@ -558,6 +682,15 @@ Compress verbose natural language text into terse, token-efficient form while pr
   "preserved_count": 15
 }
 ```
+
+The `preserved_count` field indicates how many technical content blocks (code blocks, inline code, URLs, file paths, etc.) were detected and preserved verbatim during compression.
+
+#### Possible Errors
+
+| Error Code | Cause |
+|------------|-------|
+| `VALIDATION_MISSING_FIELD` | `text` is empty |
+| `VALIDATION_CONSTRAINT` | `text` is too long (>100,000 chars) or too short (<10 chars) |
 
 ---
 
@@ -579,6 +712,14 @@ Each section object:
 | `content` | string | **yes** | Section content |
 | `priority` | string | **yes** | `static`, `project`, or `task` |
 
+#### Priority Tiers
+
+| Tier | Cacheability | Placement | Examples |
+|------|-------------|-----------|----------|
+| `static` | Most cacheable | First in output | System prompts, tool definitions, rules |
+| `project` | Medium | Middle | Project conventions, file structure |
+| `task` | Least cacheable | Last in output | Current task details, user input, diffs |
+
 **Response data:**
 
 ```json
@@ -596,6 +737,15 @@ Each section object:
   ]
 }
 ```
+
+The `prefix_stable_bytes` field estimates how many bytes at the start of the prepared prompt are stable across calls (the combined size of `static` and `project` sections). LLM providers can cache this prefix, reducing costs on repeated calls.
+
+#### Possible Errors
+
+| Error Code | Cause |
+|------------|-------|
+| `VALIDATION_MISSING_FIELD` | `sections` list is empty |
+| `VALIDATION_INVALID_VALUE` | Section missing required keys or invalid `priority` value |
 
 ---
 
@@ -621,6 +771,10 @@ Server health check — returns status, version, database size, and pattern coun
 }
 ```
 
+#### Possible Errors
+
+None — this tool always succeeds.
+
 ---
 
 ### `reset`
@@ -640,6 +794,12 @@ Reset all stored data. **Destructive** — deletes all patterns, sessions, proje
 }
 ```
 
+#### Possible Errors
+
+| Error Code | Cause |
+|------------|-------|
+| `VALIDATION_CONSTRAINT` | `confirm` is not `true` |
+
 ---
 
 ## Idempotency
@@ -648,6 +808,79 @@ All mutating tools accept an optional `idempotency_key` parameter. When provided
 - The first call executes normally and stores the result keyed by the idempotency key
 - Subsequent calls with the same key return the previously stored result without re-executing
 - Keys expire after 24 hours (configurable via `idempotency_key_ttl_hours`)
+
+---
+
+## Error Code Reference
+
+All errors include a `code`, `message`, `retryable` flag, and optional `details` object. Errors are grouped by category with consistent retry guidance.
+
+### VALIDATION — Never Retry
+
+Client input errors. Fix the input and retry with corrected values.
+
+| Code | Meaning |
+|------|---------|
+| `VALIDATION_MISSING_FIELD` | Required field is empty or missing |
+| `VALIDATION_INVALID_VALUE` | Value is not in the allowed set |
+| `VALIDATION_INVALID_TYPE` | Wrong type (e.g., string where integer expected) |
+| `VALIDATION_CONSTRAINT` | Value violates a constraint (e.g., too long, confirmation required) |
+
+### NOT_FOUND — Never Retry
+
+The requested resource does not exist. Create or index the resource first.
+
+| Code | Meaning |
+|------|---------|
+| `NOT_FOUND_SESSION` | Session ID does not exist |
+| `NOT_FOUND_PATTERN` | Pattern ID does not exist |
+| `NOT_FOUND_STEP` | Step ID does not exist |
+| `NOT_FOUND_PROJECT` | Project directory does not exist or has not been indexed |
+| `NOT_FOUND_FILE` | File not found in the codebase index |
+| `NOT_FOUND_SUGGESTION` | Skill suggestion ID does not exist |
+| `NOT_FOUND_CHECKPOINT` | Session checkpoint not found |
+
+### CONFLICT — Retry After Refresh
+
+Stale state or concurrent modification. Reload the current state and retry.
+
+| Code | Meaning |
+|------|---------|
+| `CONFLICT_VERSION_MISMATCH` | Optimistic lock failure — provided version doesn't match current version in `session_save` |
+| `CONFLICT_ALREADY_RESOLVED` | Skill suggestion was already accepted or dismissed |
+| `CONFLICT_INVALID_STATE_TRANSITION` | Invalid session/step state machine transition |
+| `CONFLICT_DUPLICATE` | Duplicate resource creation attempt |
+
+### TIMEOUT — Retry with Backoff
+
+Local operation took too long. Retry with exponential backoff.
+
+| Code | Meaning |
+|------|---------|
+| `TIMEOUT_EMBEDDING` | Embedding computation timed out |
+| `TIMEOUT_INDEX` | Indexing operation timed out |
+| `TIMEOUT_QUERY` | Query execution timed out |
+
+### IO — Retry with Backoff
+
+Transient I/O errors. Retry with exponential backoff.
+
+| Code | Meaning |
+|------|---------|
+| `IO_DATABASE` | SQLite read/write error |
+| `IO_FILESYSTEM` | File system access error |
+| `IO_MODEL_DOWNLOAD` | ONNX model download failure |
+
+### INTERNAL — Retryable Only If Marked
+
+Unexpected server errors. Check the `retryable` field in the error response.
+
+| Code | Meaning |
+|------|---------|
+| `INTERNAL_ERROR` | Unexpected server error |
+| `INTERNAL_SCHEMA_MIGRATION` | Database migration failure |
+
+---
 
 ## Next Steps
 

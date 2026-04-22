@@ -151,6 +151,12 @@
 
   <pre class="code" data-lang="bash"><code>git clone https://github.com/LynkByte/ensemble.git
 cd ensemble
+
+# Create a virtual environment
+python -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+.venv\Scripts\activate     # Windows
+
 pip install -e .</code></pre>
 
   <h3 id="with-development-dependencies">With Development Dependencies</h3>
@@ -198,7 +204,15 @@ ensemble-mcp web</code></pre>
     <li>Create <code class="inline">~/.cache/ensemble-mcp/</code> directory</li>
     <li>Download the ONNX embedding model (~22 MB) to <code class="inline">~/.cache/ensemble-mcp/models/</code></li>
     <li>Create the SQLite database at <code class="inline">~/.cache/ensemble-mcp/data.db</code></li>
+    <li>Initialize all 14 tables (13 data tables + 1 schema version tracker) and indexes</li>
   </ol>
+
+  <p>The model download is a one-time operation. Subsequent starts are fast (~50ms).</p>
+
+  <div class="panel panel-blue">
+    <h5>Note</h5>
+    <p>If you get <code class="inline">ModuleNotFoundError: No module named 'ensemble_mcp'</code> after install, ensure your virtual environment is activated and try <code class="inline">pip install -e .</code> again.</p>
+  </div>
 
   <h2 id="upgrading">Upgrading</h2>
 
@@ -224,6 +238,8 @@ pip install -e .</code></pre>
     </thead>
     <tbody>
       <tr><td><code class="inline">~/.cache/ensemble-mcp/data.db</code></td><td>SQLite database (WAL mode) &mdash; patterns, sessions, indexes</td></tr>
+      <tr><td><code class="inline">~/.cache/ensemble-mcp/data.db-wal</code></td><td>SQLite WAL journal file (appears alongside <code class="inline">data.db</code>)</td></tr>
+      <tr><td><code class="inline">~/.cache/ensemble-mcp/data.db-shm</code></td><td>SQLite shared memory file (appears alongside <code class="inline">data.db</code>)</td></tr>
       <tr><td><code class="inline">~/.cache/ensemble-mcp/models/</code></td><td>ONNX MiniLM-L6-v2 model files (~22 MB)</td></tr>
       <tr><td><code class="inline">~/.config/ensemble-mcp/config.toml</code></td><td>Global configuration file (optional)</td></tr>
       <tr><td><code class="inline">.ensemble-mcp.toml</code></td><td>Per-project configuration (optional, in project root)</td></tr>
@@ -243,6 +259,17 @@ pip install -e .</code></pre>
   <p>Then remove the package:</p>
 
   <pre class="code" data-lang="bash"><code>pip uninstall ensemble-mcp</code></pre>
+
+  <p>Or if installed via uvx:</p>
+
+  <pre class="code" data-lang="bash"><code>uvx uninstall ensemble-mcp</code></pre>
+
+  <h2 id="platform-notes">Platform Notes</h2>
+
+  <ul>
+    <li><strong>Linux/macOS:</strong> Fully supported. File-based advisory locks use <code class="inline">fcntl</code>.</li>
+    <li><strong>Windows:</strong> Partial support. The <code class="inline">fcntl</code> module in <code class="inline">state/locks.py</code> is Unix-only &mdash; advisory locking will not work on Windows. The core server functions work, but concurrent access safety is not guaranteed.</li>
+  </ul>
 
   <h2 id="next-steps">Next Steps</h2>
 

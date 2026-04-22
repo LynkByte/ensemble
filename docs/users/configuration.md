@@ -122,6 +122,15 @@ ensemble-mcp web
 
 When debugging which config source a setting came from, the `Settings` object tracks a `source_map` dict. The dashboard's settings API (`GET /api/settings`) returns this map showing whether each value came from `default`, `global_config`, `project_config`, or `env`.
 
+You can inspect the source map through the web dashboard to answer "why is this setting this value?":
+
+```bash
+ensemble-mcp web
+# Open http://localhost:8787 and navigate to the Settings page
+```
+
+The dashboard displays each setting alongside its current value and which configuration layer it came from (package default, user config, project config, or environment variable). This is especially useful when a setting isn't behaving as expected — you can quickly see if a project config is overriding your global config, or if an environment variable is taking precedence.
+
 ## Hard-Coded Constants
 
 Some values are not configurable through the settings system:

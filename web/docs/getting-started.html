@@ -172,11 +172,33 @@ flowchart LR
     <li><strong>Save progress</strong> &mdash; <code class="inline">session_save</code> creates checkpoints for long horizon execution</li>
   </ol>
 
+  <div class="panel panel-blue">
+    <h5>Key Point: Zero Commands</h5>
+    <p>You never type an ensemble-mcp command during development. The AI tool invokes ensemble-mcp tools automatically in the background via MCP. Your workflow doesn't change &mdash; you just talk to your AI tool naturally and get better results over time.</p>
+  </div>
+
   <p>You can also explore your data through the web dashboard:</p>
 
   <pre class="code" data-lang="bash"><code>ensemble-mcp web</code></pre>
 
   <p>This opens a browser at <code class="inline">http://127.0.0.1:8787</code> showing patterns, sessions, drift history, indexed projects, and more.</p>
+
+  <h2 id="how-memory-compounds-over-time">How Memory Compounds Over Time</h2>
+  <p>The real value of ensemble-mcp emerges over weeks and months as patterns and skills accumulate:</p>
+
+  <h3 id="week-1">Week 1: Learning from Mistakes</h3>
+  <p>Your AI makes a common mistake (e.g., forgetting to add an index on a foreign key). You fix it. The AI stores a pattern: <em>&ldquo;Always add indexes on foreign keys in migrations&rdquo;</em>.</p>
+
+  <h3 id="week-2">Week 2: Avoiding Past Mistakes</h3>
+  <p>The AI encounters a similar migration task. <code class="inline">patterns_search</code> finds the prior lesson and applies it automatically &mdash; the mistake doesn't happen again.</p>
+
+  <h3 id="month-2">Month 2: Skills Emerge</h3>
+  <p>After several projects, you've accumulated 20+ patterns around database migrations. <code class="inline">skills_suggest</code> detects the cluster and proposes a reusable &ldquo;Database Migration Best Practices&rdquo; skill. You accept it with <code class="inline">skills_generate</code>, and a skill file is written to your project.</p>
+
+  <h3 id="month-3-plus">Month 3+: Institutional Memory</h3>
+  <p>New team members' AI tools benefit from the accumulated patterns and skills immediately. They get your team's best practices from day one, without anyone explaining them. The AI gets smarter at your specific codebase with every task.</p>
+
+  <p>This is the <strong>flywheel effect</strong>: Patterns &rarr; Skills &rarr; Institutional AI Memory. Each successful task makes the next one faster and more accurate.</p>
 
   <h2 id="next-steps">Next Steps</h2>
 

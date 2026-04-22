@@ -362,7 +362,7 @@ flowchart TB
   }
 }</code></pre>
       </li>
-      <li><strong>Read the resume context</strong> from the loaded state's <code class="inline">resume</code> key (includes <code class="inline">context_for_resume</code>, <code class="inline">remaining_steps</code>, <code class="inline">decisions</code>, etc.)</li>
+      <li><strong>Read the resume context</strong> from the loaded session's <code class="inline">context_for_resume</code> field (a top-level field alongside <code class="inline">remaining_steps</code>, <code class="inline">decisions</code>, etc.)</li>
       <li><strong>Continue from the last completed step</strong> without re-deriving context</li>
     </ol>
 
@@ -408,6 +408,95 @@ flowchart TB
       <li><a href="architecture-overview.html">Architecture Overview</a> — how the system is built</li>
       <li><a href="configuration.html">Configuration</a> — tune thresholds for your workflow</li>
     </ul>
+
+    <hr>
+
+    <h2 id="realistic-end-to-end-example">Realistic End-to-End Example</h2>
+    <p>To see how these pipeline phases work in practice, here's a condensed multi-session scenario showing how ensemble-mcp tools fire behind the scenes while a developer builds a Laravel todo application.</p>
+
+    <h3 id="session-1-project-scaffolding">Session 1: Project Scaffolding</h3>
+    <p>The developer creates a new Laravel project and asks the AI to set up authentication, a todos table, and an auto-categorizer.</p>
+    <table>
+      <thead>
+        <tr><th>Tool Called</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">project_index</code></td><td>Indexes the fresh Laravel scaffold so the agent knows every file</td></tr>
+        <tr><td><code class="inline">project_snapshot</code></td><td>Generates a compact baseline summary (language, framework, structure)</td></tr>
+        <tr><td><code class="inline">patterns_search</code></td><td>Searches for past patterns matching &ldquo;laravel project setup&rdquo; &mdash; empty on first project</td></tr>
+        <tr><td><code class="inline">session_save</code></td><td>Checkpoints progress after scaffolding is complete</td></tr>
+      </tbody>
+    </table>
+    <p>After completion, <code class="inline">patterns_store</code> saves the approach: <em>&ldquo;Breeze for auth, service class for business logic&rdquo;</em>.</p>
+
+    <h3 id="session-2-adding-a-feature">Session 2: Adding a Feature (CRUD + Soft Deletes)</h3>
+    <p>Next day, the developer asks for full CRUD with Blade views.</p>
+    <table>
+      <thead>
+        <tr><th>Tool Called</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">session_load</code></td><td>Restores context from Session 1</td></tr>
+        <tr><td><code class="inline">patterns_search</code></td><td>Finds the Session 1 pattern &mdash; agent learns the developer prefers service classes</td></tr>
+        <tr><td><code class="inline">drift_check</code></td><td>When the developer adds &ldquo;also add soft deletes&rdquo;, drift score is 0.25 (aligned). If they'd asked for &ldquo;also add a blog system&rdquo;, drift would be 0.72 (significant drift) and the agent would suggest finishing CRUD first</td></tr>
+        <tr><td><code class="inline">patterns_store</code></td><td>Saves the CRUD approach for future reference</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="session-3-refactoring-and-skills">Session 3: Refactoring and Skills</h3>
+    <p>After several projects, the developer has accumulated 20+ patterns.</p>
+    <table>
+      <thead>
+        <tr><th>Tool Called</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">skills_discover</code></td><td>Finds existing skill files relevant to the current task</td></tr>
+        <tr><td><code class="inline">skills_suggest</code></td><td>Detects a cluster of 6 patterns around &ldquo;Laravel service class architecture&rdquo; and proposes a reusable skill</td></tr>
+      </tbody>
+    </table>
+    <p>The developer accepts the suggestion, and a skill file is written to <code class="inline">.ai/skills/</code>. From this point forward, every new Laravel project automatically loads this skill.</p>
+
+    <h3 id="session-4-different-project-reuses-patterns">Session 4: Different Project Reuses Patterns</h3>
+    <p>The developer starts a completely different Laravel project (e.g., an e-commerce app).</p>
+    <table>
+      <thead>
+        <tr><th>Tool Called</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">patterns_search</code></td><td>Finds prior approaches from the todo app &mdash; service class architecture, duplicate detection, dashboard aggregation</td></tr>
+      </tbody>
+    </table>
+    <p>The agent applies the developer's preferred patterns from day one, without re-explaining anything. <strong>This is the compounding effect</strong> &mdash; each project makes the next one faster.</p>
+
+    <hr>
+
+    <h2 id="what-the-developer-sees">What the Developer Sees vs. What ensemble-mcp Provides</h2>
+    <table>
+      <thead>
+        <tr><th>What the developer sees</th><th>What ensemble-mcp provides behind the scenes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>&ldquo;It remembered my project structure&rdquo;</td><td><code class="inline">project_snapshot</code> cached baseline summary</td></tr>
+        <tr><td>&ldquo;It avoided the same mistake&rdquo;</td><td><code class="inline">patterns_search</code> found a prior gotcha pattern</td></tr>
+        <tr><td>&ldquo;It knew our coding style&rdquo;</td><td><code class="inline">skills_discover</code> loaded project convention skills</td></tr>
+        <tr><td>&ldquo;It caught my scope creep&rdquo;</td><td><code class="inline">drift_check</code> flagged unrelated changes</td></tr>
+        <tr><td>&ldquo;It picked up where it left off&rdquo;</td><td><code class="inline">session_load</code> restored checkpoint state</td></tr>
+        <tr><td>&ldquo;It used a cheaper model for simple tasks&rdquo;</td><td><code class="inline">model_recommend</code> selected the right tier</td></tr>
+        <tr><td>&ldquo;It got smarter over time&rdquo;</td><td>Patterns &rarr; Skills &rarr; Institutional AI memory</td></tr>
+      </tbody>
+    </table>
+
+    <hr>
+
+    <h2 id="the-flywheel-effect">The Flywheel Effect</h2>
+    <p>ensemble-mcp creates a compounding improvement cycle:</p>
+    <pre class="code" data-lang="text"><code>Patterns → Skills → Institutional AI Memory</code></pre>
+    <ol>
+      <li><strong>Patterns accumulate</strong>: Each successful task generates stored patterns (<code class="inline">patterns_store</code>) capturing what worked, what didn't, and why</li>
+      <li><strong>Skills emerge</strong>: Recurring patterns are detected via clustering (<code class="inline">skills_suggest</code>) and crystallized into reusable skill files (<code class="inline">skills_generate</code>)</li>
+      <li><strong>Memory compounds</strong>: Skills make future tasks faster and more accurate. New patterns build on existing skills. The AI gets better at your specific project, team, and codebase over time</li>
+    </ol>
+    <p>This is <strong>institutional AI memory</strong> &mdash; knowledge that persists across sessions, projects, and even team members. Unlike chat history that disappears, patterns and skills are durable and searchable.</p>
   </main>
 
 <script>

@@ -368,7 +368,7 @@ When a pipeline is interrupted and needs to resume:
    }
    ```
 
-2. **Read the resume context** from the loaded state's `resume` key (includes `context_for_resume`, `remaining_steps`, `decisions`, etc.)
+2. **Read the resume context** from the loaded session's `context_for_resume` field (a top-level field alongside `remaining_steps`, `decisions`, etc.)
 
 3. **Continue from the last completed step** without re-deriving context
 
@@ -414,3 +414,84 @@ In a multi-agent orchestration (e.g., the 7-agent ensemble pipeline):
 - [Tool Reference](./tool-reference.md) — detailed parameter docs for every tool
 - [Architecture Overview](./architecture-overview.md) — how the system is built
 - [Configuration](./configuration.md) — tune thresholds for your workflow
+
+---
+
+## Realistic End-to-End Example
+
+To see how these pipeline phases work in practice, here's a condensed multi-session scenario showing how ensemble-mcp tools fire behind the scenes while a developer builds a Laravel todo application.
+
+### Session 1: Project Scaffolding
+
+The developer creates a new Laravel project and asks the AI to set up authentication, a todos table, and an auto-categorizer.
+
+| Tool Called | Purpose |
+|---|---|
+| `project_index` | Indexes the fresh Laravel scaffold so the agent knows every file |
+| `project_snapshot` | Generates a compact baseline summary (language, framework, structure) |
+| `patterns_search` | Searches for past patterns matching "laravel project setup" — empty on first project |
+| `session_save` | Checkpoints progress after scaffolding is complete |
+
+After completion, `patterns_store` saves the approach: *"Breeze for auth, service class for business logic"*.
+
+### Session 2: Adding a Feature (CRUD + Soft Deletes)
+
+Next day, the developer asks for full CRUD with Blade views.
+
+| Tool Called | Purpose |
+|---|---|
+| `session_load` | Restores context from Session 1 |
+| `patterns_search` | Finds the Session 1 pattern — agent learns the developer prefers service classes |
+| `drift_check` | When the developer adds "also add soft deletes", drift score is 0.25 (aligned). If they'd asked for "also add a blog system", drift would be 0.72 (significant drift) and the agent would suggest finishing CRUD first |
+| `patterns_store` | Saves the CRUD approach for future reference |
+
+### Session 3: Refactoring and Skills
+
+After several projects, the developer has accumulated 20+ patterns.
+
+| Tool Called | Purpose |
+|---|---|
+| `skills_discover` | Finds existing skill files relevant to the current task |
+| `skills_suggest` | Detects a cluster of 6 patterns around "Laravel service class architecture" and proposes a reusable skill |
+
+The developer accepts the suggestion, and a skill file is written to `.ai/skills/`. From this point forward, every new Laravel project automatically loads this skill.
+
+### Session 4: Different Project Reuses Patterns
+
+The developer starts a completely different Laravel project (e.g., an e-commerce app).
+
+| Tool Called | Purpose |
+|---|---|
+| `patterns_search` | Finds prior approaches from the todo app — service class architecture, duplicate detection, dashboard aggregation |
+
+The agent applies the developer's preferred patterns from day one, without re-explaining anything. **This is the compounding effect** — each project makes the next one faster.
+
+---
+
+## What the Developer Sees vs. What ensemble-mcp Provides
+
+| What the developer sees | What ensemble-mcp provides behind the scenes |
+|---|---|
+| "It remembered my project structure" | `project_snapshot` cached baseline summary |
+| "It avoided the same mistake" | `patterns_search` found a prior gotcha pattern |
+| "It knew our coding style" | `skills_discover` loaded project convention skills |
+| "It caught my scope creep" | `drift_check` flagged unrelated changes |
+| "It picked up where it left off" | `session_load` restored checkpoint state |
+| "It used a cheaper model for simple tasks" | `model_recommend` selected the right tier |
+| "It got smarter over time" | Patterns → Skills → Institutional AI memory |
+
+---
+
+## The Flywheel Effect
+
+ensemble-mcp creates a compounding improvement cycle:
+
+```
+Patterns → Skills → Institutional AI Memory
+```
+
+1. **Patterns accumulate**: Each successful task generates stored patterns (`patterns_store`) capturing what worked, what didn't, and why
+2. **Skills emerge**: Recurring patterns are detected via clustering (`skills_suggest`) and crystallized into reusable skill files (`skills_generate`)
+3. **Memory compounds**: Skills make future tasks faster and more accurate. New patterns build on existing skills. The AI gets better at your specific project, team, and codebase over time
+
+This is **institutional AI memory** — knowledge that persists across sessions, projects, and even team members. Unlike chat history that disappears, patterns and skills are durable and searchable.
