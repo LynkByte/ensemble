@@ -336,6 +336,75 @@ ensemble-mcp add-agents --local  # project-local scope</code></pre>
     <pre class="code" data-lang="bash"><code>ensemble-mcp add-skills          # project-local scope (default)
 ensemble-mcp add-skills --global # global scope</code></pre>
 
+    <h2 id="stopping-the-server">Stopping the Server</h2>
+
+    <p>The MCP server is <strong>not a daemon</strong> &mdash; it starts when your AI tool launches it and stops when the AI tool closes. You can also stop it manually:</p>
+
+    <table>
+      <thead>
+        <tr><th>Situation</th><th>How to Stop</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>AI tool spawned it (normal usage)</td><td>Close the AI tool &mdash; the server exits automatically</td></tr>
+        <tr><td>Running manually in a terminal</td><td>Press <code class="inline">Ctrl+C</code></td></tr>
+        <tr><td>Process is stuck or orphaned</td><td><code class="inline">pkill -f ensemble-mcp</code></td></tr>
+      </tbody>
+    </table>
+
+    <p>To verify no ensemble-mcp processes are running:</p>
+
+    <pre class="code" data-lang="bash"><code>pgrep -fa ensemble-mcp</code></pre>
+
+    <hr>
+
+    <h2 id="removing-registration">Removing Registration</h2>
+
+    <h3 id="using-the-cli">Using the CLI</h3>
+
+    <pre class="code" data-lang="bash"><code>ensemble-mcp uninstall</code></pre>
+
+    <p>See <a href="cli-reference.html">CLI Reference</a> for flags like <code class="inline">--tools</code>, <code class="inline">--local</code>, <code class="inline">--dry-run</code>.</p>
+
+    <h3 id="manual-removal-per-tool">Manual Removal Per Tool</h3>
+
+    <p>If you prefer to edit config files manually, remove the <code class="inline">ensemble</code> entry from the relevant file:</p>
+
+    <table>
+      <thead>
+        <tr><th>Tool</th><th>Config File</th><th>Key to Remove</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>OpenCode</td><td><code class="inline">~/.config/opencode/config.json</code></td><td><code class="inline">"ensemble"</code> from <code class="inline">"mcp"</code></td></tr>
+        <tr><td>Claude Code</td><td><code class="inline">~/.claude.json</code></td><td><code class="inline">"ensemble"</code> from <code class="inline">"mcpServers"</code></td></tr>
+        <tr><td>GitHub Copilot</td><td><code class="inline">~/.vscode/mcp.json</code></td><td><code class="inline">"ensemble"</code> from <code class="inline">"servers"</code></td></tr>
+        <tr><td>Cursor</td><td><code class="inline">~/.cursor/mcp.json</code></td><td><code class="inline">"ensemble"</code> from <code class="inline">"mcpServers"</code></td></tr>
+        <tr><td>Windsurf</td><td><code class="inline">~/.windsurf/mcp.json</code></td><td><code class="inline">"ensemble"</code> from <code class="inline">"mcpServers"</code></td></tr>
+        <tr><td>Devin CLI</td><td><code class="inline">~/.devin/mcp.json</code></td><td><code class="inline">"ensemble"</code> from <code class="inline">"mcpServers"</code></td></tr>
+      </tbody>
+    </table>
+
+    <p>After removing the config entry, restart the AI tool for the change to take effect.</p>
+
+    <h3 id="verification">Verification</h3>
+
+    <p>After removal, verify by checking that your AI tool no longer lists ensemble-mcp as a connected server. You can also confirm the config file no longer contains the <code class="inline">ensemble</code> entry.</p>
+
+    <hr>
+
+    <h2 id="restoring-from-backup">Restoring from Backup</h2>
+
+    <p>The installer creates <code class="inline">.bak</code> backup files before modifying any config. If something goes wrong, restore from the backup:</p>
+
+    <pre class="code" data-lang="bash"><code># Example: restore OpenCode config
+cp ~/.config/opencode/config.json.bak ~/.config/opencode/config.json
+
+# Example: restore Claude Code config
+cp ~/.claude.json.bak ~/.claude.json</code></pre>
+
+    <p>Backup files are created at the same location as the config with a <code class="inline">.bak</code> extension.</p>
+
+    <hr>
+
     <h2 id="next-steps">Next Steps</h2>
     <ul>
       <li><a href="cli-reference.html">CLI Reference</a> — all install/uninstall flags</li>

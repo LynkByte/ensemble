@@ -62,7 +62,7 @@ ensemble-mcp
 You should see a startup banner on stderr:
 
 ```
-ensemble-mcp v0.1.0b4
+ensemble-mcp v0.1.0b7
   Config:   ~/.config/ensemble-mcp/config.toml
   Database: ~/.cache/ensemble-mcp/data.db
   Models:   ~/.cache/ensemble-mcp/models
@@ -100,6 +100,8 @@ Once registered, your AI tool can invoke ensemble-mcp's harness tools automatica
 4. **Check drift** — during implementation, `drift_check` ensures changes stay on task (self-verification)
 5. **Save progress** — `session_save` creates checkpoints for long horizon execution
 
+> **Key point:** You never type an ensemble-mcp command during development. The AI tool invokes ensemble-mcp tools automatically in the background via MCP. Your workflow doesn't change — you just talk to your AI tool naturally and get better results over time.
+
 You can also explore your data through the web dashboard:
 
 ```bash
@@ -107,6 +109,24 @@ ensemble-mcp web
 ```
 
 This opens a browser at `http://127.0.0.1:8787` showing patterns, sessions, drift history, indexed projects, and more.
+
+## How Memory Compounds Over Time
+
+The real value of ensemble-mcp emerges over weeks and months as patterns and skills accumulate:
+
+### Week 1: Learning from Mistakes
+Your AI makes a common mistake (e.g., forgetting to add an index on a foreign key). You fix it. The AI stores a pattern: *"Always add indexes on foreign keys in migrations"*.
+
+### Week 2: Avoiding Past Mistakes
+The AI encounters a similar migration task. `patterns_search` finds the prior lesson and applies it automatically — the mistake doesn't happen again.
+
+### Month 2: Skills Emerge
+After several projects, you've accumulated 20+ patterns around database migrations. `skills_suggest` detects the cluster and proposes a reusable "Database Migration Best Practices" skill. You accept it with `skills_generate`, and a skill file is written to your project.
+
+### Month 3+: Institutional Memory
+New team members' AI tools benefit from the accumulated patterns and skills immediately. They get your team's best practices from day one, without anyone explaining them. The AI gets smarter at your specific codebase with every task.
+
+This is the **flywheel effect**: Patterns → Skills → Institutional AI Memory. Each successful task makes the next one faster and more accurate.
 
 ## Next Steps
 

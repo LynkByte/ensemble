@@ -67,6 +67,12 @@ Clone the repository and install in editable mode:
 ```bash
 git clone https://github.com/LynkByte/ensemble.git
 cd ensemble
+
+# Create a virtual environment
+python -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+.venv\Scripts\activate     # Windows
+
 pip install -e .
 ```
 
@@ -117,6 +123,11 @@ The first run will automatically:
 1. Create `~/.cache/ensemble-mcp/` directory
 2. Download the ONNX embedding model (~22 MB) to `~/.cache/ensemble-mcp/models/`
 3. Create the SQLite database at `~/.cache/ensemble-mcp/data.db`
+4. Initialize all 14 tables (13 data tables + 1 schema version tracker) and indexes
+
+The model download is a one-time operation. Subsequent starts are fast (~50ms).
+
+> **Note:** If you get `ModuleNotFoundError: No module named 'ensemble_mcp'` after install, ensure your virtual environment is activated and try `pip install -e .` again.
 
 ## Upgrading
 
@@ -143,6 +154,8 @@ Schema migrations are applied automatically on startup. The server uses `ensure_
 | Path | Contents |
 |------|----------|
 | `~/.cache/ensemble-mcp/data.db` | SQLite database (WAL mode) — patterns, sessions, indexes |
+| `~/.cache/ensemble-mcp/data.db-wal` | SQLite WAL journal file (appears alongside `data.db`) |
+| `~/.cache/ensemble-mcp/data.db-shm` | SQLite shared memory file (appears alongside `data.db`) |
 | `~/.cache/ensemble-mcp/models/` | ONNX MiniLM-L6-v2 model files (~22 MB) |
 | `~/.config/ensemble-mcp/config.toml` | Global configuration file (optional) |
 | `.ensemble-mcp.toml` | Per-project configuration (optional, in project root) |
@@ -166,6 +179,17 @@ Then remove the package:
 ```bash
 pip uninstall ensemble-mcp
 ```
+
+Or if installed via uvx:
+
+```bash
+uvx uninstall ensemble-mcp
+```
+
+## Platform Notes
+
+- **Linux/macOS**: Fully supported. File-based advisory locks use `fcntl`.
+- **Windows**: Partial support. The `fcntl` module in `state/locks.py` is Unix-only — advisory locking will not work on Windows. The core server functions work, but concurrent access safety is not guaranteed.
 
 ## Next Steps
 

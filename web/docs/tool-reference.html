@@ -96,131 +96,16 @@
   "meta": { ... }
 }</code></pre>
 
-    <h2 id="tool-categories">Tool Categories</h2>
-    <div class="mermaid-wrap"><div class="mermaid">
-graph TD
-    subgraph Memory["Pattern Memory"]
-        PS[patterns_search]
-        PT[patterns_store]
-        PP[patterns_prune]
-    end
-
-    subgraph Drift["Drift Detection"]
-        DC[drift_check]
-    end
-
-    subgraph Routing["Model Routing"]
-        MR[model_recommend]
-    end
-
-    subgraph Skills["Skill Intelligence"]
-        SD[skills_discover]
-        SS[skills_suggest]
-        SG[skills_generate]
-    end
-
-    subgraph Session["Session Management"]
-        SV[session_save]
-        SL[session_load]
-        SR[session_search]
-    end
-
-    subgraph Indexer["Codebase Indexer"]
-        PI[project_index]
-        PQ[project_query]
-        PD[project_dependencies]
-        PX[project_snapshot]
-    end
-
-    subgraph Compress["Context Optimization"]
-        CC[context_compress]
-        CP[context_prepare]
-    end
-
-    subgraph Utility["Utility"]
-        H[health]
-        R[reset]
-    end
-
-    style Memory fill:#2563eb,color:#fff
-    style Drift fill:#dc2626,color:#fff
-    style Routing fill:#7c3aed,color:#fff
-    style Skills fill:#059669,color:#fff
-    style Session fill:#d97706,color:#fff
-    style Indexer fill:#0891b2,color:#fff
-    style Compress fill:#4f46e5,color:#fff
-    style Utility fill:#64748b,color:#fff
-    </div></div>
-
-    <hr>
-
-    <!-- ===== PATTERN MEMORY ===== -->
-    <h2 id="pattern-memory">Pattern Memory (3 tools)</h2>
-
-    <h3 id="patterns_search"><code class="inline">patterns_search</code></h3>
-    <p>Search stored patterns by semantic similarity. Returns top-K matches above the minimum score threshold. Increments <code class="inline">match_count</code> and updates <code class="inline">last_matched_at</code> on returned patterns (used by <code class="inline">patterns_prune</code> to identify unused patterns).</p>
-    <p>Supports <strong>progressive disclosure</strong> via <code class="inline">detail_level</code> and <strong>category filtering</strong> via <code class="inline">category</code>. Results include <code class="inline">token_count</code> metadata (approximate token cost of the pattern text).</p>
-
+    <h2 id="response-meta-fields">Response Meta Fields</h2>
+    <p>Every response includes a <code class="inline">meta</code> object with three fields:</p>
     <table>
       <thead>
-        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+        <tr><th>Field</th><th>Type</th><th>Description</th></tr>
       </thead>
       <tbody>
-        <tr><td><code class="inline">query</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Semantic search query</td></tr>
-        <tr><td><code class="inline">top_k</code></td><td>integer</td><td>no</td><td><code class="inline">3</code></td><td>Max results (1–100)</td></tr>
-        <tr><td><code class="inline">project</code></td><td>string</td><td>no</td><td>—</td><td>Optional project scope</td></tr>
-        <tr><td><code class="inline">detail_level</code></td><td>string</td><td>no</td><td><code class="inline">"full"</code></td><td><code class="inline">"index"</code> for compact metadata only; <code class="inline">"full"</code> for complete pattern text</td></tr>
-        <tr><td><code class="inline">category</code></td><td>string</td><td>no</td><td>—</td><td>Filter by category: <code class="inline">gotcha</code>, <code class="inline">problem-solution</code>, <code class="inline">how-it-works</code>, <code class="inline">what-changed</code>, <code class="inline">discovery</code>, <code class="inline">decision</code>, <code class="inline">trade-off</code>, <code class="inline">general</code></td></tr>
-        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
-      </tbody>
-    </table>
-
-    <p><strong>Response data (detail_level="full"):</strong></p>
-    <pre class="code" data-lang="json"><code>{
-  "matches": [
-    {
-      "id": 1,
-      "name": "pattern-name",
-      "context": "when this applies",
-      "approach": "what was done",
-      "outcome": "what happened",
-      "category": "problem-solution",
-      "score": 0.85,
-      "token_count": 42
-    }
-  ]
-}</code></pre>
-
-    <p><strong>Response data (detail_level="index"):</strong></p>
-    <pre class="code" data-lang="json"><code>{
-  "matches": [
-    {
-      "id": 1,
-      "name": "pattern-name",
-      "category": "problem-solution",
-      "score": 0.85,
-      "token_count": 42
-    }
-  ]
-}</code></pre>
-
-    <hr>
-
-    <h3 id="patterns_store"><code class="inline">patterns_store</code></h3>
-    <p>Store a new pattern from a successful pipeline for future semantic search. The pattern text is embedded using the ONNX model and stored in SQLite.</p>
-
-    <table>
-      <thead>
-        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><code class="inline">name</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Short pattern name</td></tr>
-        <tr><td><code class="inline">context</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>When this pattern applies</td></tr>
-        <tr><td><code class="inline">approach</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>What approach was used</td></tr>
-        <tr><td><code class="inline">outcome</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>What happened (success/failure)</td></tr>
-        <tr><td><code class="inline">project</code></td><td>string</td><td>no</td><td>—</td><td>Optional project scope</td></tr>
-        <tr><td><code class="inline">category</code></td><td>string</td><td>no</td><td><code class="inline">"general"</code></td><td>Pattern category: <code class="inline">gotcha</code>, <code class="inline">problem-solution</code>, <code class="inline">how-it-works</code>, <code class="inline">what-changed</code>, <code class="inline">discovery</code>, <code class="inline">decision</code>, <code class="inline">trade-off</code>, <code class="inline">general</code></td></tr>
-        <tr><td><code class="inline">idempotency_key</code></td><td>string</td><td>no</td><td>—</td><td>Optional idempotency key</td></tr>
+        <tr><td><code class="inline">duration_ms</code></td><td>integer</td><td>Processing time in milliseconds</td></tr>
+        <tr><td><code class="inline">source</code></td><td>string</td><td>Where the data came from. Values: <code class="inline">"local"</code>, <code class="inline">"sqlite"</code></td></tr>
+        <tr><td><code class="inline">confidence</code></td><td>string</td><td>Result quality indicator. Values: <code class="inline">"exact"</code>, <code class="inline">"partial"</code>, <code class="inline">"estimated"</code></td></tr>
       </tbody>
     </table>
 
@@ -230,6 +115,17 @@ graph TD
   "stored": true,
   "category": "problem-solution"
 }</code></pre>
+
+    <h4>Possible Errors</h4>
+    <table>
+      <thead>
+        <tr><th>Error Code</th><th>Cause</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">VALIDATION_MISSING_FIELD</code></td><td>A required field (<code class="inline">name</code>, <code class="inline">context</code>, <code class="inline">approach</code>, or <code class="inline">outcome</code>) is empty</td></tr>
+        <tr><td><code class="inline">VALIDATION_INVALID_VALUE</code></td><td>Invalid <code class="inline">category</code> value</td></tr>
+      </tbody>
+    </table>
 
     <hr>
 
@@ -251,6 +147,9 @@ graph TD
   "pruned": 5,
   "remaining": 42
 }</code></pre>
+
+    <h4>Possible Errors</h4>
+    <p>None &mdash; this tool always succeeds.</p>
 
     <hr>
 
@@ -288,7 +187,12 @@ graph TD
       <li><code class="inline">significant_drift</code> — score ≥ 0.6</li>
     </ul>
 
+    <p><strong>Suspicious file detection:</strong> Files matching patterns like <code class="inline">migration</code>, <code class="inline">schema</code>, <code class="inline">config</code>, <code class="inline">.env</code>, <code class="inline">package.json</code>, <code class="inline">composer.json</code> are flagged if their path has low similarity (&lt; 0.3) to the task description.</p>
+
     <p>Results are persisted to the <code class="inline">drift_history</code> table for dashboard viewing.</p>
+
+    <h4>Possible Errors</h4>
+    <p>None &mdash; this tool always succeeds.</p>
 
     <hr>
 
@@ -318,6 +222,18 @@ graph TD
   "classification": "complex"
 }</code></pre>
 
+    <p><strong>Tier meanings:</strong></p>
+    <table>
+      <thead>
+        <tr><th>Tier</th><th>Meaning</th><th>Example Models</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">best</code></td><td>Use the most capable model</td><td>claude-opus-4, o1</td></tr>
+        <tr><td><code class="inline">mid</code></td><td>Balanced cost/quality</td><td>claude-sonnet-4, gpt-4o</td></tr>
+        <tr><td><code class="inline">cheapest</code></td><td>Minimize cost</td><td>claude-haiku-3.5, gpt-4o-mini</td></tr>
+      </tbody>
+    </table>
+
     <p><strong>Routing table (built-in agents):</strong></p>
     <table>
       <thead>
@@ -336,6 +252,9 @@ graph TD
 
     <p>Unknown agents default to <code class="inline">mid</code> tier.</p>
 
+    <h4>Possible Errors</h4>
+    <p>None &mdash; unknown classification values default to <code class="inline">mid</code> tier.</p>
+
     <hr>
 
     <!-- ===== SKILL INTELLIGENCE ===== -->
@@ -351,6 +270,8 @@ graph TD
       <li><code class="inline">.opencode/skills/</code></li>
     </ul>
     <p>Uses mtime-based caching — file reads and embedding computation are skipped for unchanged files.</p>
+
+    <div class="panel panel-blue"><h5>Note</h5><p><strong>Caching behavior:</strong> The first call indexes skill files and computes embeddings (slower). Subsequent calls reuse cached data from SQLite and only re-process files that have changed on disk. Deleted files are automatically cleaned up from the cache.</p></div>
 
     <table>
       <thead>
@@ -380,6 +301,18 @@ graph TD
     }
   ]
 }</code></pre>
+
+    <div class="panel panel-blue"><h5>Note</h5><p>The <code class="inline">snippets</code> field is only present when a <code class="inline">query</code> parameter is provided. Without a query, only <code class="inline">detected</code> is returned.</p></div>
+
+    <h4>Possible Errors</h4>
+    <table>
+      <thead>
+        <tr><th>Error Code</th><th>Cause</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">NOT_FOUND_PROJECT</code></td><td><code class="inline">project_path</code> directory does not exist</td></tr>
+      </tbody>
+    </table>
 
     <hr>
 
@@ -419,6 +352,16 @@ graph TD
   ]
 }</code></pre>
 
+    <h4>Possible Errors</h4>
+    <table>
+      <thead>
+        <tr><th>Error Code</th><th>Cause</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">NOT_FOUND_PROJECT</code></td><td><code class="inline">project_path</code> directory does not exist</td></tr>
+      </tbody>
+    </table>
+
     <hr>
 
     <h3 id="skills_generate"><code class="inline">skills_generate</code></h3>
@@ -450,6 +393,18 @@ graph TD
   "status": "dismissed"
 }</code></pre>
 
+    <h4>Possible Errors</h4>
+    <table>
+      <thead>
+        <tr><th>Error Code</th><th>Cause</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">NOT_FOUND_SKILL_SUGGESTION</code></td><td><code class="inline">suggestion_id</code> does not exist</td></tr>
+        <tr><td><code class="inline">CONFLICT_ALREADY_RESOLVED</code></td><td>Suggestion was already accepted or dismissed</td></tr>
+        <tr><td><code class="inline">VALIDATION_INVALID_VALUE</code></td><td><code class="inline">action</code> is not one of <code class="inline">accept</code>, <code class="inline">dismiss</code>, or <code class="inline">defer</code></td></tr>
+      </tbody>
+    </table>
+
     <hr>
 
     <!-- ===== SESSION MANAGEMENT ===== -->
@@ -480,11 +435,29 @@ graph TD
       </tbody>
     </table>
 
+    <h4>Version Behavior</h4>
+    <ul>
+      <li><strong>First save:</strong> version starts at 1</li>
+      <li><strong>Without <code class="inline">version</code> param:</strong> auto-increments from the current version</li>
+      <li><strong>With <code class="inline">version</code> param:</strong> must match the current version in the database, otherwise <code class="inline">CONFLICT_VERSION_MISMATCH</code> is returned</li>
+    </ul>
+
     <p><strong>Response data:</strong></p>
     <pre class="code" data-lang="json"><code>{
   "saved": true,
   "version": 3
 }</code></pre>
+
+    <h4>Possible Errors</h4>
+    <table>
+      <thead>
+        <tr><th>Error Code</th><th>Cause</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">CONFLICT_VERSION_MISMATCH</code></td><td>Provided <code class="inline">version</code> does not match the current version in the database</td></tr>
+        <tr><td><code class="inline">VALIDATION_MISSING_FIELD</code></td><td>A required field (<code class="inline">session_id</code> or <code class="inline">state</code>) is missing</td></tr>
+      </tbody>
+    </table>
 
     <hr>
 
@@ -517,10 +490,15 @@ graph TD
   "found": false
 }</code></pre>
 
+    <h4>Possible Errors</h4>
+    <p>None &mdash; returns <code class="inline">found: false</code> if session does not exist.</p>
+
     <hr>
 
     <h3 id="session_search"><code class="inline">session_search</code></h3>
     <p>Search sessions by semantic similarity. Embeds the query and compares against stored session embeddings using cosine similarity.</p>
+
+    <div class="panel panel-blue"><h5>Note</h5><p>Only sessions saved with an <code class="inline">original_request</code> (which generates an embedding) are searchable. Sessions without embeddings are excluded from search results.</p></div>
 
     <table>
       <thead>
@@ -551,6 +529,9 @@ graph TD
   ]
 }</code></pre>
 
+    <h4>Possible Errors</h4>
+    <p>None &mdash; returns empty matches if no results found.</p>
+
     <hr>
 
     <!-- ===== CODEBASE INDEXER ===== -->
@@ -570,9 +551,22 @@ graph TD
       </tbody>
     </table>
 
+    <p><strong>Supported languages (28):</strong> Python, TypeScript, JavaScript, PHP, Go, Rust, Ruby, Java, Kotlin, Swift, C, C++, C#, Vue, Svelte, HTML, CSS, SCSS, LESS, JSON, YAML, TOML, XML, Markdown, SQL, Shell, Dockerfile, Terraform</p>
+
     <p><strong>Ignored directories:</strong> <code class="inline">node_modules</code>, <code class="inline">vendor</code>, <code class="inline">.git</code>, <code class="inline">__pycache__</code>, <code class="inline">.mypy_cache</code>, <code class="inline">.ruff_cache</code>, <code class="inline">.pytest_cache</code>, <code class="inline">dist</code>, <code class="inline">build</code>, <code class="inline">.next</code>, <code class="inline">.nuxt</code>, <code class="inline">target</code>, <code class="inline">.tox</code>, <code class="inline">.venv</code>, <code class="inline">venv</code>, <code class="inline">env</code>, <code class="inline">.env</code></p>
 
     <p><strong>Ignored extensions:</strong> <code class="inline">.pyc</code>, <code class="inline">.pyo</code>, <code class="inline">.so</code>, <code class="inline">.dylib</code>, <code class="inline">.dll</code>, <code class="inline">.exe</code>, <code class="inline">.bin</code>, <code class="inline">.wasm</code>, <code class="inline">.jpg</code>, <code class="inline">.jpeg</code>, <code class="inline">.png</code>, <code class="inline">.gif</code>, <code class="inline">.svg</code>, <code class="inline">.ico</code>, <code class="inline">.woff</code>, <code class="inline">.woff2</code>, <code class="inline">.ttf</code>, <code class="inline">.eot</code>, <code class="inline">.mp3</code>, <code class="inline">.mp4</code>, <code class="inline">.avi</code>, <code class="inline">.mov</code>, <code class="inline">.zip</code>, <code class="inline">.tar</code>, <code class="inline">.gz</code>, <code class="inline">.lock</code></p>
+
+    <h4>Possible Errors</h4>
+    <table>
+      <thead>
+        <tr><th>Error Code</th><th>Cause</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">NOT_FOUND_PROJECT</code></td><td><code class="inline">project_path</code> directory does not exist</td></tr>
+        <tr><td><code class="inline">TIMEOUT_INDEX</code></td><td>Indexing operation timed out</td></tr>
+      </tbody>
+    </table>
 
     <hr>
 
@@ -591,6 +585,9 @@ graph TD
       </tbody>
     </table>
 
+    <h4>Possible Errors</h4>
+    <p>None &mdash; returns empty <code class="inline">files</code> array if project not found or not indexed.</p>
+
     <hr>
 
     <h3 id="project_dependencies"><code class="inline">project_dependencies</code></h3>
@@ -603,6 +600,17 @@ graph TD
       <tbody>
         <tr><td><code class="inline">project_path</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Absolute path to the project</td></tr>
         <tr><td><code class="inline">file_path</code></td><td>string</td><td><strong>yes</strong></td><td>—</td><td>Relative path to the file</td></tr>
+      </tbody>
+    </table>
+
+    <h4>Possible Errors</h4>
+    <table>
+      <thead>
+        <tr><th>Error Code</th><th>Cause</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">NOT_FOUND_PROJECT</code></td><td><code class="inline">project_path</code> directory does not exist or has not been indexed</td></tr>
+        <tr><td><code class="inline">NOT_FOUND_FILE</code></td><td>File not found in the index (run <code class="inline">project_index</code> first)</td></tr>
       </tbody>
     </table>
 
@@ -622,6 +630,16 @@ graph TD
       </tbody>
     </table>
 
+    <h4>Possible Errors</h4>
+    <table>
+      <thead>
+        <tr><th>Error Code</th><th>Cause</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">NOT_FOUND_PROJECT</code></td><td>Project not indexed (run <code class="inline">project_index</code> first)</td></tr>
+      </tbody>
+    </table>
+
     <hr>
 
     <!-- ===== CONTEXT OPTIMIZATION ===== -->
@@ -629,6 +647,7 @@ graph TD
 
     <h3 id="context_compress"><code class="inline">context_compress</code></h3>
     <p>Compress verbose natural language text into terse, token-efficient form while preserving all technical content (code blocks, URLs, file paths, headings, tables). Rule-based, zero LLM calls.</p>
+    <p>Typical savings are <strong>~30–40% token reduction</strong> on natural language text.</p>
 
     <table>
       <thead>
@@ -648,6 +667,19 @@ graph TD
   "savings_pct": 36.0,
   "preserved_count": 15
 }</code></pre>
+
+    <p>The <code class="inline">preserved_count</code> field indicates how many technical content blocks (code blocks, inline code, URLs, file paths, etc.) were detected and preserved verbatim during compression.</p>
+
+    <h4>Possible Errors</h4>
+    <table>
+      <thead>
+        <tr><th>Error Code</th><th>Cause</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">VALIDATION_MISSING_FIELD</code></td><td><code class="inline">text</code> is empty</td></tr>
+        <tr><td><code class="inline">VALIDATION_CONSTRAINT</code></td><td><code class="inline">text</code> is too long (&gt;100,000 chars) or too short (&lt;10 chars)</td></tr>
+      </tbody>
+    </table>
 
     <hr>
 
@@ -677,6 +709,18 @@ graph TD
       </tbody>
     </table>
 
+    <h4>Priority Tiers</h4>
+    <table>
+      <thead>
+        <tr><th>Tier</th><th>Cacheability</th><th>Placement</th><th>Examples</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">static</code></td><td>Most cacheable</td><td>First in output</td><td>System prompts, tool definitions, rules</td></tr>
+        <tr><td><code class="inline">project</code></td><td>Medium</td><td>Middle</td><td>Project conventions, file structure</td></tr>
+        <tr><td><code class="inline">task</code></td><td>Least cacheable</td><td>Last in output</td><td>Current task details, user input, diffs</td></tr>
+      </tbody>
+    </table>
+
     <p><strong>Response data:</strong></p>
     <pre class="code" data-lang="json"><code>{
   "prepared_text": "Combined ordered text...",
@@ -691,6 +735,19 @@ graph TD
     }
   ]
 }</code></pre>
+
+    <p>The <code class="inline">prefix_stable_bytes</code> field estimates how many bytes at the start of the prepared prompt are stable across calls (the combined size of <code class="inline">static</code> and <code class="inline">project</code> sections). LLM providers can cache this prefix, reducing costs on repeated calls.</p>
+
+    <h4>Possible Errors</h4>
+    <table>
+      <thead>
+        <tr><th>Error Code</th><th>Cause</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">VALIDATION_MISSING_FIELD</code></td><td><code class="inline">sections</code> list is empty</td></tr>
+        <tr><td><code class="inline">VALIDATION_INVALID_VALUE</code></td><td>Section missing required keys or invalid <code class="inline">priority</code> value</td></tr>
+      </tbody>
+    </table>
 
     <hr>
 
@@ -712,11 +769,14 @@ graph TD
     <p><strong>Response data:</strong></p>
     <pre class="code" data-lang="json"><code>{
   "status": "ok",
-  "version": "0.1.0b4",
+  "version": "0.1.0b7",
   "db_size_bytes": 524288,
   "pattern_count": 42,
   "server_name": "ensemble-mcp"
 }</code></pre>
+
+    <h4>Possible Errors</h4>
+    <p>None &mdash; this tool always succeeds.</p>
 
     <hr>
 
@@ -738,6 +798,16 @@ graph TD
   "reset": true
 }</code></pre>
 
+    <h4>Possible Errors</h4>
+    <table>
+      <thead>
+        <tr><th>Error Code</th><th>Cause</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">VALIDATION_CONSTRAINT</code></td><td><code class="inline">confirm</code> is not <code class="inline">true</code></td></tr>
+      </tbody>
+    </table>
+
     <hr>
 
     <h2 id="idempotency">Idempotency</h2>
@@ -747,6 +817,96 @@ graph TD
       <li>Subsequent calls with the same key return the previously stored result without re-executing</li>
       <li>Keys expire after 24 hours (configurable via <code class="inline">idempotency_key_ttl_hours</code>)</li>
     </ul>
+
+    <hr>
+
+    <h2 id="error-code-reference">Error Code Reference</h2>
+    <p>All errors include a <code class="inline">code</code>, <code class="inline">message</code>, <code class="inline">retryable</code> flag, and optional <code class="inline">details</code> object. Errors are grouped by category with consistent retry guidance.</p>
+
+    <h3 id="validation-errors">VALIDATION &mdash; Never Retry</h3>
+    <p>Client input errors. Fix the input and retry with corrected values.</p>
+    <table>
+      <thead>
+        <tr><th>Code</th><th>Meaning</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">VALIDATION_MISSING_FIELD</code></td><td>Required field is empty or missing</td></tr>
+        <tr><td><code class="inline">VALIDATION_INVALID_VALUE</code></td><td>Value is not in the allowed set</td></tr>
+        <tr><td><code class="inline">VALIDATION_INVALID_TYPE</code></td><td>Wrong type (e.g., string where integer expected)</td></tr>
+        <tr><td><code class="inline">VALIDATION_CONSTRAINT</code></td><td>Value violates a constraint (e.g., too long, confirmation required)</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="not-found-errors">NOT_FOUND &mdash; Never Retry</h3>
+    <p>The requested resource does not exist. Create or index the resource first.</p>
+    <table>
+      <thead>
+        <tr><th>Code</th><th>Meaning</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">NOT_FOUND_SESSION</code></td><td>Session ID does not exist</td></tr>
+        <tr><td><code class="inline">NOT_FOUND_PATTERN</code></td><td>Pattern ID does not exist</td></tr>
+        <tr><td><code class="inline">NOT_FOUND_STEP</code></td><td>Step ID does not exist</td></tr>
+        <tr><td><code class="inline">NOT_FOUND_PROJECT</code></td><td>Project directory does not exist or has not been indexed</td></tr>
+        <tr><td><code class="inline">NOT_FOUND_FILE</code></td><td>File not found in the codebase index</td></tr>
+        <tr><td><code class="inline">NOT_FOUND_SKILL_SUGGESTION</code></td><td>Skill suggestion ID does not exist</td></tr>
+        <tr><td><code class="inline">NOT_FOUND_CHECKPOINT</code></td><td>Session checkpoint not found</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="conflict-errors">CONFLICT &mdash; Retry After Refresh</h3>
+    <p>Stale state or concurrent modification. Reload the current state and retry.</p>
+    <table>
+      <thead>
+        <tr><th>Code</th><th>Meaning</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">CONFLICT_VERSION_MISMATCH</code></td><td>Optimistic lock failure &mdash; provided version doesn't match current version in <code class="inline">session_save</code></td></tr>
+        <tr><td><code class="inline">CONFLICT_ALREADY_RESOLVED</code></td><td>Skill suggestion was already accepted or dismissed</td></tr>
+        <tr><td><code class="inline">CONFLICT_INVALID_STATE_TRANSITION</code></td><td>Invalid session/step state machine transition</td></tr>
+        <tr><td><code class="inline">CONFLICT_DUPLICATE</code></td><td>Duplicate resource creation attempt</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="timeout-errors">TIMEOUT &mdash; Retry with Backoff</h3>
+    <p>Local operation took too long. Retry with exponential backoff.</p>
+    <table>
+      <thead>
+        <tr><th>Code</th><th>Meaning</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">TIMEOUT_EMBEDDING</code></td><td>Embedding computation timed out</td></tr>
+        <tr><td><code class="inline">TIMEOUT_INDEX</code></td><td>Indexing operation timed out</td></tr>
+        <tr><td><code class="inline">TIMEOUT_QUERY</code></td><td>Query execution timed out</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="io-errors">IO &mdash; Retry with Backoff</h3>
+    <p>Transient I/O errors. Retry with exponential backoff.</p>
+    <table>
+      <thead>
+        <tr><th>Code</th><th>Meaning</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">IO_DATABASE</code></td><td>SQLite read/write error</td></tr>
+        <tr><td><code class="inline">IO_FILESYSTEM</code></td><td>File system access error</td></tr>
+        <tr><td><code class="inline">IO_MODEL_DOWNLOAD</code></td><td>ONNX model download failure</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="internal-errors">INTERNAL &mdash; Retryable Only If Marked</h3>
+    <p>Unexpected server errors. Check the <code class="inline">retryable</code> field in the error response.</p>
+    <table>
+      <thead>
+        <tr><th>Code</th><th>Meaning</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">INTERNAL_ERROR</code></td><td>Unexpected server error</td></tr>
+        <tr><td><code class="inline">INTERNAL_SCHEMA_MIGRATION</code></td><td>Database migration failure</td></tr>
+      </tbody>
+    </table>
+
+    <hr>
 
     <h2 id="next-steps">Next Steps</h2>
     <ul>

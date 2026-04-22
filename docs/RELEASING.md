@@ -9,11 +9,11 @@ This project follows [PEP 440](https://peps.python.org/pep-0440/) and [Semantic 
 | Stage | Version format | Example | `pip install ensemble-mcp` installs it? |
 |---|---|---|---|
 | Alpha | `X.Y.ZaN` | `0.1.0a1` | No (requires `--pre` or explicit version) |
-| Beta | `X.Y.ZbN` | `0.1.0b4` | No (requires `--pre` or explicit version) |
+| Beta | `X.Y.ZbN` | `0.1.0b7` | No (requires `--pre` or explicit version) |
 | Release Candidate | `X.Y.ZrcN` | `0.1.0rc1` | No |
 | Stable | `X.Y.Z` | `0.1.0` | Yes |
 
-**Current version:** `0.1.0b4` (Beta 4)
+**Current version:** `0.1.0b7` (Beta 7)
 
 ## Beta Release (via GitHub Releases)
 

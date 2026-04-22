@@ -97,7 +97,7 @@ Config file: `~/.claude.json`
 
 ### Project-Local Registration
 
-Config file: `.claude.json` in project root
+Config file: `.mcp.json` in project root
 
 ```json
 {
@@ -316,6 +316,71 @@ Bundled skill file: `ensemble-mcp-workflow.md` — teaches AI agents when and ho
 ensemble-mcp add-skills          # project-local scope (default)
 ensemble-mcp add-skills --global # global scope
 ```
+
+## Stopping the Server
+
+The MCP server is **not a daemon** — it starts when your AI tool launches it and stops when the AI tool closes. You can also stop it manually:
+
+| Situation | How to Stop |
+|-----------|-------------|
+| AI tool spawned it (normal usage) | Close the AI tool — the server exits automatically |
+| Running manually in a terminal | Press `Ctrl+C` |
+| Process is stuck or orphaned | `pkill -f ensemble-mcp` |
+
+To verify no ensemble-mcp processes are running:
+
+```bash
+pgrep -fa ensemble-mcp
+```
+
+---
+
+## Removing Registration
+
+### Using the CLI
+
+```bash
+ensemble-mcp uninstall
+```
+
+See [CLI Reference](./cli-reference.md) for flags like `--tools`, `--local`, `--dry-run`.
+
+### Manual Removal Per Tool
+
+If you prefer to edit config files manually, remove the `ensemble` entry from the relevant file:
+
+| Tool | Config File | Key to Remove |
+|------|-------------|---------------|
+| OpenCode | `~/.config/opencode/config.json` | `"ensemble"` from `"mcp"` |
+| Claude Code | `~/.claude.json` | `"ensemble"` from `"mcpServers"` |
+| GitHub Copilot | `~/.vscode/mcp.json` | `"ensemble"` from `"servers"` |
+| Cursor | `~/.cursor/mcp.json` | `"ensemble"` from `"mcpServers"` |
+| Windsurf | `~/.windsurf/mcp.json` | `"ensemble"` from `"mcpServers"` |
+| Devin CLI | `~/.devin/mcp.json` | `"ensemble"` from `"mcpServers"` |
+
+After removing the config entry, restart the AI tool for the change to take effect.
+
+### Verification
+
+After removal, verify by checking that your AI tool no longer lists ensemble-mcp as a connected server. You can also confirm the config file no longer contains the `ensemble` entry.
+
+---
+
+## Restoring from Backup
+
+The installer creates `.bak` backup files before modifying any config. If something goes wrong, restore from the backup:
+
+```bash
+# Example: restore OpenCode config
+cp ~/.config/opencode/config.json.bak ~/.config/opencode/config.json
+
+# Example: restore Claude Code config
+cp ~/.claude.json.bak ~/.claude.json
+```
+
+Backup files are created at the same location as the config with a `.bak` extension.
+
+---
 
 ## Next Steps
 

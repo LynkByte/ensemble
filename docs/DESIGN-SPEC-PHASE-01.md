@@ -1612,7 +1612,7 @@ AI_TOOLS = {
     },
     "claude_code": {
         "config_path": Path.home(),
-        "config_file": ".claude.json",
+        "config_file": ".mcp.json",
         "detect_files": [Path.home() / ".claude"],
         "mcp_config": {
             "mcpServers": {

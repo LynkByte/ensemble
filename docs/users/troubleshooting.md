@@ -21,6 +21,15 @@ Common issues and solutions for `ensemble-mcp`.
 - Ensure your Python scripts directory is in `$PATH`
 - Try running as a module: `python -m ensemble_mcp`
 
+### Import Errors After Install
+
+**Symptoms:** `ModuleNotFoundError: No module named 'ensemble_mcp'`
+
+**Solutions:**
+- Ensure your virtual environment is activated: `source .venv/bin/activate`
+- Verify the package is installed in the active environment: `pip show ensemble-mcp`
+- Reinstall: `pip install --force-reinstall ensemble-mcp` (or `pip install -e .` if developing from source)
+
 ---
 
 ## ONNX Model Download Issues
@@ -93,7 +102,7 @@ Common issues and solutions for `ensemble-mcp`.
 
 **Symptoms:** `sqlite3.OperationalError: database is locked`
 
-**Cause:** Multiple processes writing to the same database simultaneously. The database uses WAL (Write-Ahead Logging) mode for better concurrency, but heavy concurrent writes can still cause contention.
+**Cause:** Multiple processes writing to the same database simultaneously. The database uses WAL (Write-Ahead Logging) mode with a 5-second busy timeout (`PRAGMA busy_timeout=5000`). Heavy concurrent writes can still cause contention, or another process may be holding a write lock.
 
 **Solutions:**
 1. Ensure only one MCP server instance is running per database
@@ -268,6 +277,22 @@ ENSEMBLE_MCP_DRIFT_THRESHOLD_MINOR=0.4 ensemble-mcp
 # Via dashboard API — shows where each setting came from
 curl http://127.0.0.1:8787/api/settings | python -m json.tool
 ```
+
+## Platform-Specific Notes
+
+### Windows
+
+See [Known Limitations](#known-limitations) for Windows-specific `fcntl` constraints.
+
+---
+
+## Known Limitations
+
+- **Windows**: Advisory locking via `fcntl` is Unix-only; concurrent access on Windows is not safely guarded
+- **No ANN index**: Vector search uses brute-force cosine similarity — works well for <10K patterns but will slow down beyond that
+- **Single-process design**: The server is designed for single-process use; running multiple instances against the same database is not recommended
+
+---
 
 ## Next Steps
 

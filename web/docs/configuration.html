@@ -207,6 +207,13 @@ export ENSEMBLE_MCP_MAX_PATTERNS=50000</code></pre>
 
   <p>When debugging which config source a setting came from, the <code class="inline">Settings</code> object tracks a <code class="inline">source_map</code> dict. The dashboard's settings API (<code class="inline">GET /api/settings</code>) returns this map showing whether each value came from <code class="inline">default</code>, <code class="inline">global_config</code>, <code class="inline">project_config</code>, or <code class="inline">env</code>.</p>
 
+  <p>You can inspect the source map through the web dashboard to answer &ldquo;why is this setting this value?&rdquo;:</p>
+
+  <pre class="code" data-lang="bash"><code>ensemble-mcp web
+# Open http://localhost:8787 and navigate to the Settings page</code></pre>
+
+  <p>The dashboard displays each setting alongside its current value and which configuration layer it came from (package default, user config, project config, or environment variable). This is especially useful when a setting isn't behaving as expected &mdash; you can quickly see if a project config is overriding your global config, or if an environment variable is taking precedence.</p>
+
   <h2 id="hard-coded-constants">Hard-Coded Constants</h2>
 
   <p>Some values are not configurable through the settings system:</p>

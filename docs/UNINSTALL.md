@@ -66,7 +66,7 @@ Remove the `"ensemble"` key from `"mcp"`:
 #### Claude Code
 
 **Global:** `~/.claude.json`
-**Local:** `.claude.json` (in project root)
+**Local:** `.mcp.json` (in project root)
 
 Remove the `"ensemble"` key from `"mcpServers"`:
 

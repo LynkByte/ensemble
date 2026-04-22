@@ -1,6 +1,6 @@
 # ensemble-mcp User Documentation
 
-**ensemble-mcp** is a Python MCP server (v0.1.0b4) providing vector memory, drift detection, model routing, skills discovery, session management, codebase indexing, context compression, and a local web dashboard for AI-assisted development pipelines.
+**ensemble-mcp** is a Python MCP server (v0.1.0b7) providing vector memory, drift detection, model routing, skills discovery, session management, codebase indexing, context compression, and a local web dashboard for AI-assisted development pipelines.
 
 All processing is **100% local** — ONNX Runtime embeddings (~5ms), numpy cosine similarity, SQLite storage. Zero LLM or cloud API calls.
 

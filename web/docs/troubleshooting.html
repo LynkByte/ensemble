@@ -101,6 +101,17 @@
     <li>Try running as a module: <code class="inline">python -m ensemble_mcp</code></li>
   </ul>
 
+  <h3 id="import-errors-after-install">Import Errors After Install</h3>
+
+  <p><strong>Symptoms:</strong> <code class="inline">ModuleNotFoundError: No module named 'ensemble_mcp'</code></p>
+
+  <p><strong>Solutions:</strong></p>
+  <ul>
+    <li>Ensure your virtual environment is activated: <code class="inline">source .venv/bin/activate</code></li>
+    <li>Verify the package is installed in the active environment: <code class="inline">pip show ensemble-mcp</code></li>
+    <li>Reinstall: <code class="inline">pip install --force-reinstall ensemble-mcp</code> (or <code class="inline">pip install -e .</code> if developing from source)</li>
+  </ul>
+
   <hr>
 
   <h2 id="onnx-model-download-issues">ONNX Model Download Issues</h2>
@@ -184,7 +195,7 @@ curl -L -o ~/.cache/ensemble-mcp/models/tokenizer.json \
 
   <p><strong>Symptoms:</strong> <code class="inline">sqlite3.OperationalError: database is locked</code></p>
 
-  <p><strong>Cause:</strong> Multiple processes writing to the same database simultaneously. The database uses WAL (Write-Ahead Logging) mode for better concurrency, but heavy concurrent writes can still cause contention.</p>
+  <p><strong>Cause:</strong> Multiple processes writing to the same database simultaneously. The database uses WAL (Write-Ahead Logging) mode with a 5-second busy timeout (<code class="inline">PRAGMA busy_timeout=5000</code>). Heavy concurrent writes can still cause contention, or another process may be holding a write lock.</p>
 
   <p><strong>Solutions:</strong></p>
   <ol>
@@ -372,6 +383,24 @@ ENSEMBLE_MCP_DRIFT_THRESHOLD_MINOR=0.4 ensemble-mcp</code></pre>
 
   <pre class="code" data-lang="bash"><code># Via dashboard API — shows where each setting came from
 curl http://127.0.0.1:8787/api/settings | python -m json.tool</code></pre>
+
+  <h2 id="platform-specific-notes">Platform-Specific Notes</h2>
+
+  <h3 id="windows">Windows</h3>
+
+  <p>See <a href="#known-limitations">Known Limitations</a> for Windows-specific <code class="inline">fcntl</code> constraints.</p>
+
+  <hr>
+
+  <h2 id="known-limitations">Known Limitations</h2>
+
+  <ul>
+    <li><strong>Windows:</strong> Advisory locking via <code class="inline">fcntl</code> is Unix-only; concurrent access on Windows is not safely guarded</li>
+    <li><strong>No ANN index:</strong> Vector search uses brute-force cosine similarity &mdash; works well for &lt;10K patterns but will slow down beyond that</li>
+    <li><strong>Single-process design:</strong> The server is designed for single-process use; running multiple instances against the same database is not recommended</li>
+  </ul>
+
+  <hr>
 
   <h2 id="next-steps">Next Steps</h2>
 
