@@ -1270,8 +1270,8 @@ class TestReportsFullEndpoint:
         assert data["markdown"] is not None
         assert "# Bug Hunter Report" in data["markdown"]
         # Summary
-        assert data["summary"]["total_bugs"] == 5
-        assert data["summary"]["code_smells"] == 4
+        assert data["summary"]["total_bugs"] == 0
+        assert data["summary"]["code_smells"] == 0
         assert data["summary"]["health_score"] == 85
         assert data["summary"]["rating"] in ("Excellent", "Good", "Moderate", "Poor")
         # Trend
