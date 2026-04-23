@@ -1,5 +1,26 @@
 [
   {
+    "date": "2026-04-16 10:00:00",
+    "health": 64,
+    "bugs": 15,
+    "smells": 18,
+    "critical": 2
+  },
+  {
+    "date": "2026-04-18 10:00:00",
+    "health": 71,
+    "bugs": 11,
+    "smells": 14,
+    "critical": 1
+  },
+  {
+    "date": "2026-04-20 10:00:00",
+    "health": 76,
+    "bugs": 9,
+    "smells": 11,
+    "critical": 0
+  },
+  {
     "date": "2026-04-22 10:00:00",
     "health": 82,
     "bugs": 7,
