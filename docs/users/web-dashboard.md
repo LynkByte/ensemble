@@ -39,8 +39,8 @@ The startup output shows the URL, database path, and version:
 
 The dashboard is built with:
 - **Backend:** [aiohttp](https://docs.aiohttp.org/) HTTP server
-- **Frontend:** [Alpine.js](https://alpinejs.dev/) single-page application
-- **Static files:** `index.html`, `app.js`, `style.css`
+- **Frontend:** React 18 single-page application (JSX compiled in-browser via Babel)
+- **Static files:** `index.html`, `dashboard/*.jsx`, `dashboard/data.js`, `dashboard/styles.css`
 
 The dashboard opens its own SQLite connections (separate from the MCP server) to avoid blocking. Read endpoints use `PRAGMA query_only = ON` for safety.
 
@@ -166,6 +166,7 @@ The dashboard exposes a REST API under `/api/`. All responses use the standard e
 | GET | `/api/reports/markdown` | Bug Hunter report in markdown |
 | GET | `/api/reports/history` | Report history |
 | GET | `/api/reports/summary` | Report summary |
+| GET | `/api/reports/full` | Structured bug report data (summary, trend, markdown) |
 
 ## Port Conflicts
 

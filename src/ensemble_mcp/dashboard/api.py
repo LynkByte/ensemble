@@ -261,6 +261,7 @@ def register_api_routes(app: web.Application) -> None:
     app.router.add_get("/api/reports/markdown", handle_reports_markdown)
     app.router.add_get("/api/reports/history", handle_reports_history)
     app.router.add_get("/api/reports/summary", handle_reports_summary)
+    app.router.add_get("/api/reports/full", handle_reports_full)
 
 
 # ── Endpoint handlers ─────────────────────────────────────────────
@@ -329,6 +330,67 @@ async def handle_summary(request: web.Request) -> web.Response:
             for r in recent_rows
         ]
 
+        # Session counts by status (single query instead of two)
+        sessions_running = 0
+        sessions_completed = 0
+        for row in conn.execute(
+            "SELECT status, COUNT(*) as cnt FROM session_checkpoints "
+            "WHERE status IN ('running', 'completed') GROUP BY status"
+        ).fetchall():
+            if row["status"] == "running":
+                sessions_running = row["cnt"]
+            elif row["status"] == "completed":
+                sessions_completed = row["cnt"]
+
+        # MCP call counts — uses called_at column (TEXT, datetime format)
+        calls_today = conn.execute(
+            "SELECT COUNT(*) FROM mcp_calls WHERE called_at >= datetime('now', '-24 hours')"
+        ).fetchone()[0]
+
+        # Calls by hour (last 24h): single GROUP BY query, fill 24-slot array
+        # Index 0 = 23h ago (oldest), index 23 = current hour (newest)
+        calls_by_hour: list[int] = [0] * 24
+        now_hour = int(conn.execute("SELECT strftime('%H', 'now')").fetchone()[0])
+        for row in conn.execute(
+            "SELECT strftime('%H', called_at) as hour, COUNT(*) as cnt "
+            "FROM mcp_calls WHERE called_at >= datetime('now', '-24 hours') "
+            "GROUP BY hour"
+        ).fetchall():
+            hour_idx = int(row["hour"])
+            hours_ago = (now_hour - hour_idx + 24) % 24
+            calls_by_hour[23 - hours_ago] = row["cnt"]
+
+        # Calls per day for last 7 days: single GROUP BY query, fill 7-slot array
+        calls_7d: list[int] = [0] * 7
+        today_rows = conn.execute(
+            "SELECT strftime('%Y-%m-%d', called_at) as day, COUNT(*) as cnt "
+            "FROM mcp_calls WHERE called_at >= datetime('now', '-7 days') "
+            "GROUP BY day"
+        ).fetchall()
+        # Build a lookup of date string → count
+        day_counts: dict[str, int] = {r["day"]: r["cnt"] for r in today_rows}
+        for i in range(6, -1, -1):
+            day_str = conn.execute(
+                "SELECT strftime('%Y-%m-%d', datetime('now', ? || ' days'))",
+                (f"-{i}",),
+            ).fetchone()[0]
+            calls_7d[6 - i] = day_counts.get(day_str, 0)
+
+        # Pattern growth over last 30 days: single GROUP BY query, fill 30-slot array
+        pattern_growth_30d: list[int] = [0] * 30
+        growth_rows = conn.execute(
+            "SELECT strftime('%Y-%m-%d', created_at) as day, COUNT(*) as cnt "
+            "FROM patterns WHERE created_at >= datetime('now', '-30 days') "
+            "GROUP BY day"
+        ).fetchall()
+        growth_counts: dict[str, int] = {r["day"]: r["cnt"] for r in growth_rows}
+        for i in range(29, -1, -1):
+            day_str = conn.execute(
+                "SELECT strftime('%Y-%m-%d', datetime('now', ? || ' days'))",
+                (f"-{i}",),
+            ).fetchone()[0]
+            pattern_growth_30d[29 - i] = growth_counts.get(day_str, 0)
+
         elapsed = int((time.monotonic() - start) * 1000)
         return _json_ok(
             {
@@ -339,6 +401,12 @@ async def handle_summary(request: web.Request) -> web.Response:
                 "drift_checks_30d": drift_count,
                 "session_count": session_count,
                 "recent_activity": recent_activity,
+                "sessions_running": sessions_running,
+                "sessions_completed": sessions_completed,
+                "calls_today": calls_today,
+                "calls_7d": calls_7d,
+                "calls_by_hour": calls_by_hour,
+                "pattern_growth_30d": pattern_growth_30d,
             },
             duration_ms=elapsed,
         )
@@ -1747,3 +1815,103 @@ async def handle_reports_summary(request: web.Request) -> web.Response:
         },
         duration_ms=elapsed,
     )
+
+
+async def handle_reports_full(request: web.Request) -> web.Response:
+    """Return a full structured bug report combining markdown and history data.
+
+    Reads ``bug-hunter-report.md`` and ``history.json`` from the reports
+    directory and returns a structured response matching the BUG_REPORT
+    shape expected by the React frontend.
+
+    When the reports directory is not configured, returns
+    ``{"available": false, "message": "Reports directory not configured"}``.
+    """
+    start = time.monotonic()
+    reports_dir: Path | None = request.app.get("reports_dir")
+
+    if reports_dir is None or not reports_dir.is_dir():
+        elapsed = int((time.monotonic() - start) * 1000)
+        return _json_ok(
+            {"available": False, "message": "Reports directory not configured"},
+            duration_ms=elapsed,
+        )
+
+    # Read markdown report
+    report_path = reports_dir / "bug-hunter-report.md"
+    markdown: str | None = None
+    markdown_modified_at: str | None = None
+    if report_path.is_file():
+        try:
+            markdown, _, markdown_modified_at = await asyncio.to_thread(
+                _sync_read_text, report_path
+            )
+        except OSError:
+            markdown = None
+
+    # Read history
+    history_path = reports_dir / "history.json"
+    history: list[dict[str, Any]] = []
+    if history_path.is_file():
+        try:
+            raw, _, _ = await asyncio.to_thread(_sync_read_text, history_path, max_size=50_000_000)
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                history = parsed
+        except (OSError, json.JSONDecodeError, ValueError):
+            history = []
+
+    # Compute summary fields from history
+    latest = history[-1] if history else {}
+    health_score = latest.get("health")
+    total_bugs = latest.get("bugs", 0)
+    code_smells = latest.get("smells", 0)
+
+    # Determine trend
+    trend_direction = "stable"
+    previous_score: int | None = None
+    current_score = health_score
+    change = 0
+    if len(history) >= 2:
+        previous_score = history[-2].get("health", 0)
+        if current_score is not None and previous_score is not None:
+            change = current_score - previous_score
+            if current_score > previous_score:
+                trend_direction = "improving"
+            elif current_score < previous_score:
+                trend_direction = "declining"
+
+    # Determine rating from health score
+    if health_score is not None:
+        if health_score >= 90:
+            rating = "Excellent"
+        elif health_score >= 80:
+            rating = "Good"
+        elif health_score >= 60:
+            rating = "Moderate"
+        else:
+            rating = "Poor"
+    else:
+        rating = "Unknown"
+
+    result: dict[str, Any] = {
+        "available": True,
+        "generated_at": markdown_modified_at,
+        "summary": {
+            "total_bugs": total_bugs,
+            "code_smells": code_smells,
+            "health_score": health_score,
+            "rating": rating,
+        },
+        "trend": {
+            "previous_score": previous_score,
+            "current_score": current_score,
+            "change": change,
+            "direction": trend_direction,
+            "history": history,
+        },
+        "markdown": markdown,
+    }
+
+    elapsed = int((time.monotonic() - start) * 1000)
+    return _json_ok(result, duration_ms=elapsed)

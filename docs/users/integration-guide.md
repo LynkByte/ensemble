@@ -487,7 +487,7 @@ The agent applies the developer's preferred patterns from day one, without re-ex
 
 ensemble-mcp creates a compounding improvement cycle:
 
-```
+```text
 Patterns → Skills → Institutional AI Memory
 ```
 

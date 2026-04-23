@@ -109,8 +109,10 @@ Common issues and solutions for `ensemble-mcp`.
 2. The dashboard opens separate connections — this is normal and handled correctly
 3. If the database is corrupted, reset it:
    ```bash
-   rm ~/.cache/ensemble-mcp/data.db
-   # The database is recreated automatically on next start
+   rm -f ~/.cache/ensemble-mcp/data.db \
+         ~/.cache/ensemble-mcp/data.db-wal \
+         ~/.cache/ensemble-mcp/data.db-shm
+   # The database and WAL sidecars are recreated automatically on next start
    ```
 
 ### Database file not found
