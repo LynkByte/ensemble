@@ -24,13 +24,8 @@ const SummaryPage = ({ onNavigate }) => {
     return () => { cancelled = true; };
   }, []);
 
-  if (loading) return <div style={{ padding: 40, textAlign: "center", color: "var(--ink-3)" }}>Loading summary…</div>;
-  if (error) return <div style={{ padding: 40, textAlign: "center", color: "var(--danger)" }}>Error: {error}</div>;
-
-  const s = summary;
-  const h = health;
-
   // Transform recent_activity from API shape to display shape
+  // (must be above early returns so usePagination hook is always called)
   const displayActivity = activity.map(a => ({
     tool: a.tool_name,
     project: "—",
@@ -38,8 +33,14 @@ const SummaryPage = ({ onNavigate }) => {
     ts: a.called_at ? a.called_at.split(" ").pop() || a.called_at.split("T").pop()?.slice(0,8) || a.called_at : "—",
     ok: true,
   }));
-
   const act = usePagination(displayActivity, 20, "recent");
+
+  if (loading) return <div style={{ padding: 40, textAlign: "center", color: "var(--ink-3)" }}>Loading summary…</div>;
+  if (error) return <div style={{ padding: 40, textAlign: "center", color: "var(--danger)" }}>Error: {error}</div>;
+
+  const s = summary;
+  const h = health;
+
   const patternDelta = (() => {
     const g = s.pattern_growth_30d;
     if (!g || g.length < 7) return null;
