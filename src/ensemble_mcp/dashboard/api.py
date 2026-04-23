@@ -348,6 +348,7 @@ async def handle_summary(request: web.Request) -> web.Response:
         ).fetchone()[0]
 
         # Calls by hour (last 24h): single GROUP BY query, fill 24-slot array
+        # Index 0 = 23h ago (oldest), index 23 = current hour (newest)
         calls_by_hour: list[int] = [0] * 24
         now_hour = int(conn.execute("SELECT strftime('%H', 'now')").fetchone()[0])
         for row in conn.execute(
@@ -356,10 +357,8 @@ async def handle_summary(request: web.Request) -> web.Response:
             "GROUP BY hour"
         ).fetchall():
             hour_idx = int(row["hour"])
-            # Map absolute hour to relative position (index 0 = 23h ago)
-            offset = (hour_idx - now_hour + 24) % 24
-            # offset 0 = current hour → index 23, offset 23 = 23h ago → index 0
-            calls_by_hour[offset] = row["cnt"]
+            hours_ago = (now_hour - hour_idx + 24) % 24
+            calls_by_hour[23 - hours_ago] = row["cnt"]
 
         # Calls per day for last 7 days: single GROUP BY query, fill 7-slot array
         calls_7d: list[int] = [0] * 7

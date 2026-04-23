@@ -11,9 +11,7 @@ const BugReportPage = () => {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [sevFilter, setSevFilter] = useState("all");
-  const [selected, setSelected] = useState(null);
-  const [tab, setTab] = useState("bugs");
+
 
   useEffect(() => {
     let cancelled = false;
