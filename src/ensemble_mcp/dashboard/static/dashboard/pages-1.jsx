@@ -515,6 +515,26 @@ const BugHunterCard = ({ onOpen, bugSummary }) => {
   }
 
   const r = bugSummary;
+  const hasGeneratedReport =
+    Boolean(r.markdown || r.generated_at || r.trend?.history?.length);
+  if (!hasGeneratedReport) {
+    return (
+      <div className="card bug-hunter-card" onClick={onOpen} role="button" tabIndex={0}
+        onKeyDown={e => (e.key === "Enter" || e.key === " ") && onOpen && onOpen()}
+        style={{ cursor: "pointer" }}>
+        <div className="card-head">
+          <h3 className="card-title">
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Icon name="bug-report" size={14} /> Bug Hunter
+            </span>
+          </h3>
+        </div>
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "var(--ink-3)" }}>
+          Run the Bug Hunter agent to generate a report
+        </div>
+      </div>
+    );
+  }
   const healthScore = r.summary?.health_score || 0;
   const rating = r.summary?.rating || "unknown";
   const totalBugs = r.summary?.total_bugs || 0;
@@ -530,7 +550,8 @@ const BugHunterCard = ({ onOpen, bugSummary }) => {
                    : healthScore >= 60 ? "var(--warning)"
                    : "var(--danger)";
 
-  const bugsByS = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+  const severityLevels = ["Critical", "High", "Medium", "Low", "Info"];
+  const bugsByS = Object.fromEntries(severityLevels.map(s => [s, 0]));
   bugs.forEach(b => { if (bugsByS[b.severity] !== undefined) bugsByS[b.severity]++; });
 
   // Mini trend sparkline path
@@ -596,8 +617,8 @@ const BugHunterCard = ({ onOpen, bugSummary }) => {
         </div>
 
         {/* Severity row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginTop: 14 }}>
-          {["Critical", "High", "Medium", "Low"].map(s => {
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, marginTop: 14 }}>
+          {severityLevels.map(s => {
             const c = SEV_COLOR[s];
             return (
               <div key={s} style={{ background: c.bg, padding: "6px 8px", borderRadius: 4, textAlign: "center" }}>

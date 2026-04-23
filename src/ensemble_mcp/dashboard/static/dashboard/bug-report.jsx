@@ -55,6 +55,25 @@ const BugReportPage = () => {
     );
   }
 
+  const hasGeneratedReport =
+    Boolean(report.markdown || report.generated_at || report.trend?.history?.length);
+  if (!hasGeneratedReport) {
+    return (
+      <>
+        <div className="page-head">
+          <div>
+            <h1 className="page-title">Bug Report</h1>
+            <p className="page-desc">Reports directory is configured, but no Bug Hunter report has been generated yet.</p>
+          </div>
+        </div>
+        <div className="card" style={{ padding: 40, textAlign: "center", color: "var(--ink-3)" }}>
+          <Icon name="bug-report" size={32} />
+          <p style={{ marginTop: 12 }}>Run the Bug Hunter agent to generate a report.</p>
+        </div>
+      </>
+    );
+  }
+
   const r = report;
   const healthScore = r.summary?.health_score || 0;
   const totalBugs = r.summary?.total_bugs || 0;
@@ -78,7 +97,8 @@ const BugReportPage = () => {
                     : healthScore >= 60 ? "var(--warning)"
                     : "var(--danger)";
 
-  const bugsByS = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+  const severityLevels = ["Critical", "High", "Medium", "Low", "Info"];
+  const bugsByS = Object.fromEntries(severityLevels.map(s => [s, 0]));
   bugs.forEach(b => { if (bugsByS[b.severity] !== undefined) bugsByS[b.severity]++; });
 
   const hasTrend = history.length >= 2;
@@ -125,7 +145,7 @@ const BugReportPage = () => {
               Bugs by severity · {totalBugs} total
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {["Critical","High","Medium","Low"].map(s => {
+              {severityLevels.map(s => {
                 const pct = totalBugs > 0 ? Math.round((bugsByS[s]/totalBugs)*100) : 0;
                 const c = SEV_COLOR[s];
                 return (
@@ -231,7 +251,7 @@ const BugReportPage = () => {
       {tab === "bugs" && (
         <>
           <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-            {["all","Critical","High","Medium","Low"].map(s => (
+            {["all", ...severityLevels].map(s => (
               <button key={s} className={`filter-chip ${sevFilter===s?"active":""}`} onClick={() => setSevFilter(s)}>{s}</button>
             ))}
           </div>
@@ -429,8 +449,16 @@ const BugReportPage = () => {
           <>
             <button className="btn btn-ghost" onClick={() => setSelected(null)}>Dismiss</button>
             <div style={{ flex: 1 }} />
-            <button className="btn btn-secondary"><Icon name="copy" size={13}/> Copy fix</button>
-            <button className="btn btn-accent"><Icon name="external" size={13}/> Open file</button>
+            <button
+              className="btn btn-secondary"
+              disabled={!selected.fix}
+              onClick={() => selected.fix && navigator.clipboard?.writeText(selected.fix)}
+            >
+              <Icon name="copy" size={13}/> Copy fix
+            </button>
+            <button className="btn btn-accent" disabled title="Open file action is not wired yet">
+              <Icon name="external" size={13}/> Open file
+            </button>
           </>
         }>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
