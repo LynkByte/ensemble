@@ -13,6 +13,7 @@ import contextlib
 import dataclasses
 import json
 import logging
+import re
 import sqlite3
 import time
 from datetime import UTC, datetime
@@ -1599,6 +1600,615 @@ async def handle_project_health(request: web.Request) -> web.Response:
 # ── Reports endpoint handlers ─────────────────────────────────────
 
 
+def _parse_bug_report_markdown(text: str) -> dict[str, Any]:
+    """Extract structured data from a Bug Hunter markdown report.
+
+    Parses metadata, health breakdown, bugs, code smells, architecture,
+    project structure, refactor plan, test results, CI quality gate, and
+    security audit sections.  Each section is parsed independently so a
+    failure in one section does not prevent others from being extracted.
+
+    Args:
+        text: Raw markdown content of the bug report.
+
+    Returns:
+        Dictionary with parsed fields.  Missing sections yield empty
+        lists or ``None`` values.
+    """
+    result: dict[str, Any] = {
+        "project": None,
+        "date": None,
+        "analyzer": None,
+        "branch": None,
+        "commit": None,
+        "health_score": None,
+        "health_rating": None,
+        "health_breakdown": [],
+        "bugs": [],
+        "smells": [],
+        "architecture": None,
+        "structure": None,
+        "refactor_plan": [],
+        "tests": None,
+        "ci": None,
+        "security": [],
+    }
+
+    # ── Metadata ──────────────────────────────────────────────────
+    try:
+        m = re.search(r"\*\*Project:\*\*\s*(.+)", text)
+        if not m:
+            m = re.search(r"\*\*Codebase:\*\*\s*(.+)", text)
+        if m:
+            result["project"] = m.group(1).strip()
+        m = re.search(r"\*\*Date:\*\*\s*(.+)", text)
+        if m:
+            result["date"] = m.group(1).strip()
+        m = re.search(r"\*\*Analyzer:\*\*\s*(.+)", text)
+        if m:
+            result["analyzer"] = m.group(1).strip()
+        m = re.search(r"\*\*Branch:\*\*\s*(.+)", text)
+        if m:
+            result["branch"] = m.group(1).strip()
+        m = re.search(r"\*\*Commit:\*\*\s*(.+)", text)
+        if m:
+            result["commit"] = m.group(1).strip()
+    except Exception:  # noqa: S110
+        pass
+
+    # ── Overall Health Score ──────────────────────────────────────
+    try:
+        # Old format: ## Overall Health Score: 84/100 (Good)
+        m = re.search(
+            r"##\s+Overall Health Score:\s*(\d+)/(\d+)\s*\((\w+)\)",
+            text,
+        )
+        if m:
+            result["health_score"] = int(m.group(1))
+            result["health_rating"] = m.group(3)
+
+        # New format: ## Code Health table with **Total** row
+        if not m:
+            total_m = re.search(
+                r"\|\s*\*\*Total\*\*\s*\|\s*\*\*(\d+)/(\d+)\*\*\s*\|\s*\*\*Rating:\s*(\w+)\*\*",
+                text,
+            )
+            if not total_m:
+                # Separate columns: | **Total** | **78** | **100** | **Rating: Moderate** |
+                total_m = re.search(
+                    r"\|\s*\*\*Total\*\*\s*\|\s*\*\*(\d+)\*\*\s*\|\s*\*\*(\d+)\*\*\s*\|\s*\*\*Rating:\s*(\w+)\*\*",
+                    text,
+                )
+            if total_m:
+                result["health_score"] = int(total_m.group(1))
+                result["health_rating"] = total_m.group(3)
+
+        # Parse health table — try both section headers
+        health_section = re.search(
+            r"##\s+(?:Overall Health Score|Code Health).*?\n(.*?)(?=\n---|\n## (?!#))",
+            text,
+            re.DOTALL,
+        )
+        if health_section:
+            # New format: | Dimension | 17/20 | Notes |
+            rows = re.findall(
+                r"\|\s*([^|]+?)\s*\|\s*(\d+)/(\d+)\s*\|\s*([^|]*?)\s*\|",
+                health_section.group(1),
+            )
+            breakdown = []
+            for dim, score, mx, note in rows:
+                dim = dim.strip().replace("**", "")
+                if dim and dim != "Dimension" and "---" not in dim and dim != "Total":
+                    breakdown.append(
+                        {"pillar": dim, "score": int(score), "max": int(mx), "note": note.strip()}
+                    )
+            # Fallback: old format | dim | score_int | max_int |
+            if not breakdown:
+                # Separate columns with notes: | Category | 16 | 20 | Notes |
+                # Only match if there's actual content in the 4th column
+                rows_sep = re.findall(
+                    r"\|\s*\*?\*?([^|\n*]+?)\*?\*?\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*([^|\n]+?)\s*\|",
+                    health_section.group(1),
+                )
+                for dim, score, mx, note in rows_sep:
+                    dim = dim.strip().replace("**", "")
+                    if dim and dim not in ("Category", "Dimension", "Total") and "---" not in dim:
+                        breakdown.append(
+                            {"pillar": dim, "score": int(score), "max": int(mx), "note": note.strip()}
+                        )
+            if not breakdown:
+                rows_old = re.findall(
+                    r"\|\s*([^|]+?)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|",
+                    health_section.group(1),
+                )
+                for dim, score, mx in rows_old:
+                    dim = dim.strip()
+                    if dim and dim != "Dimension" and "---" not in dim:
+                        breakdown.append(
+                            {"pillar": dim, "score": int(score), "max": int(mx), "note": ""}
+                        )
+            if breakdown:
+                result["health_breakdown"] = breakdown
+    except Exception:  # noqa: S110
+        pass
+
+    # ── Bugs ──────────────────────────────────────────────────────
+    try:
+        bugs_section = re.search(
+            r"##\s+Bugs(?:\s+Found)?.*?\n(.*?)(?=\n## (?!#))",
+            text,
+            re.DOTALL,
+        )
+        if bugs_section:
+            bug_blocks = re.split(r"###\s+(?:BUG-|B)(\d+):\s*", bugs_section.group(1))
+            # bug_blocks: ['', '1', 'content', '2', 'content', ...]
+            bugs = []
+            i = 1
+            while i < len(bug_blocks) - 1:
+                bug_num = bug_blocks[i]
+                content = bug_blocks[i + 1]
+                bug_id = f"BH-{int(bug_num):04d}"
+
+                # Title is the first line of content
+                title_line = content.split("\n", 1)[0].strip()
+
+                sev_match = re.search(
+                    r"\*\*Severity:\*\*\s*(\w+)(?:\s*\(CVSS\s*([\d.]+)\))?", content
+                )
+                severity = sev_match.group(1).capitalize() if sev_match else "Unknown"
+                cvss = float(sev_match.group(2)) if sev_match and sev_match.group(2) else 0.0
+
+                cat_match = re.search(r"\*\*Category:\*\*\s*(.+)", content)
+                category = cat_match.group(1).strip() if cat_match else ""
+
+                loc_match = re.search(r"\*\*Location:\*\*\s*(.+)", content)
+                location = loc_match.group(1).strip() if loc_match else ""
+
+                # Description can be multi-line — capture until next bullet
+                desc_match = re.search(
+                    r"\*\*(?:Description|Detail):\*\*\s*(.*?)(?=\n-\s+\*\*|\Z)",
+                    content,
+                    re.DOTALL,
+                )
+                description = desc_match.group(1).strip() if desc_match else ""
+
+                imp_match = re.search(r"\*\*Impact:\*\*\s*(\d+)(?:/(\d+))?", content)
+                impact = int(imp_match.group(1)) if imp_match else None
+
+                exp_match = re.search(r"\*\*Exploitability:\*\*\s*(\d+)(?:/(\d+))?", content)
+                exploitability = int(exp_match.group(1)) if exp_match else None
+
+                scope_match = re.search(r"\*\*Scope:\*\*\s*(\d+)(?:/(\d+))?", content)
+                scope = int(scope_match.group(1)) if scope_match else None
+
+                conf_match = re.search(r"\*\*Confidence:\*\*\s*(\d+)(?:/(\d+))?", content)
+                confidence = int(conf_match.group(1)) if conf_match else None
+
+                fix_match = re.search(r"\*\*Fix:\*\*\s*(.+)", content)
+                fix = fix_match.group(1).strip() if fix_match else ""
+
+                bugs.append(
+                    {
+                        "id": bug_id,
+                        "title": title_line,
+                        "severity": severity,
+                        "cvss": cvss,
+                        "category": category,
+                        "location": location,
+                        "description": description,
+                        "impact": impact,
+                        "exploitability": exploitability,
+                        "scope": scope,
+                        "confidence": confidence,
+                        "fix": fix,
+                    }
+                )
+                i += 2
+            result["bugs"] = bugs
+    except Exception:  # noqa: S110
+        pass
+
+    # ── Code Smells ───────────────────────────────────────────────
+    try:
+        smells_section = re.search(
+            r"##\s+Code Smells.*?\n(.*?)(?=\n---|\n## (?!#))",
+            text,
+            re.DOTALL,
+        )
+        if smells_section:
+            smell_blocks = re.split(r"###\s+(?:SMELL-|S)\d+:\s*", smells_section.group(1))
+            smells = []
+            for block in smell_blocks[1:]:
+                lines = block.strip().split("\n", 1)
+                type_desc = lines[0].strip()
+                # Type may contain " — description"
+                if " — " in type_desc:
+                    smell_type, _ = type_desc.split(" — ", 1)
+                else:
+                    smell_type = type_desc
+
+                loc_match = re.search(r"\*\*Location:\*\*\s*(.+)", block)
+                location = loc_match.group(1).strip() if loc_match else ""
+
+                fix_match = re.search(r"\*\*Fix:\*\*\s*(.+)", block)
+                fix = fix_match.group(1).strip() if fix_match else ""
+
+                smells.append(
+                    {
+                        "type": smell_type.strip(),
+                        "count": 1,
+                        "location": location,
+                        "fix": fix,
+                    }
+                )
+            result["smells"] = smells
+            if not smells:
+                # Table format: | # | Type | Location | Description | Status |
+                table_rows = re.findall(
+                    r"\|\s*(?:CS-\d+|SMELL-\d+|S\d+)\s*\|\s*\*?\*?([^|\n*]+?)\*?\*?\s*\|\s*([^|\n]+?)\s*\|\s*([^|\n]*?)\s*\|\s*(\w+)\s*\|",
+                    smells_section.group(1),
+                )
+                for smell_type, location, desc, status in table_rows:
+                    loc = location.strip().strip("`")
+                    smells.append({
+                        "type": smell_type.strip(),
+                        "count": 1,
+                        "location": loc,
+                        "fix": desc.strip(),
+                    })
+                result["smells"] = smells
+    except Exception:  # noqa: S110
+        pass
+
+    # ── Architecture ──────────────────────────────────────────────
+    try:
+        arch_section = re.search(
+            r"##\s+Architecture\s*\n(.*?)(?=\n---|\n## (?!#))",
+            text,
+            re.DOTALL,
+        )
+        if arch_section:
+            content = arch_section.group(1)
+            detected_match = re.search(r"###\s+Detected:\s*(.+)", content)
+            if not detected_match:
+                detected_match = re.search(r"###\s+Detected Pattern\s*\n\*\*(.+?)\*\*", content)
+            detected = detected_match.group(1).strip() if detected_match else None
+
+            # Architecture Issues / Observations — numbered or bullet list
+            issues_section = re.search(
+                r"###\s+(?:Architecture Issues|(?:New )?Observations)\s*\n(.*?)(?=\n###|\Z)",
+                content,
+                re.DOTALL,
+            )
+            violations = []
+            if issues_section:
+                # Numbered list: 1. **text**
+                violations = re.findall(
+                    r"\d+\.\s+\*\*(.+?)(?:\n|$)",
+                    issues_section.group(1),
+                )
+                violations = [v.strip().rstrip("*") for v in violations]
+                # Fallback: bullet list: - text
+                if not violations:
+                    violations = re.findall(
+                        r"-\s+(.+)",
+                        issues_section.group(1),
+                    )
+                    violations = [v.strip() for v in violations]
+
+            # Recommended Improvements / Recommendations — bullet or numbered list
+            improvements_section = re.search(
+                r"###\s+(?:Recommended Improvements|Recommendations)\s*\n(.*?)(?=\n###|\Z)",
+                content,
+                re.DOTALL,
+            )
+            recommendations = []
+            if improvements_section:
+                recommendations = re.findall(
+                    r"(?:-|\d+\.)\s+(.+)",
+                    improvements_section.group(1),
+                )
+                recommendations = [r.strip() for r in recommendations]
+
+            result["architecture"] = {
+                "detected": detected,
+                "score": None,
+                "violations": violations,
+                "recommendations": recommendations,
+            }
+    except Exception:  # noqa: S110
+        pass
+
+    # ── Project Structure ─────────────────────────────────────────
+    try:
+        struct_section = re.search(
+            r"##\s+Project Structure\s*\n(.*?)(?=\n---|\n## (?!#))",
+            text,
+            re.DOTALL,
+        )
+        if struct_section:
+            content = struct_section.group(1)
+
+            issues_part = re.search(
+                r"###\s+Issues\s*\n(.*?)(?=\n###|\Z)",
+                content,
+                re.DOTALL,
+            )
+            issues = []
+            if issues_part:
+                issues = [m.strip() for m in re.findall(r"-\s+(.+)", issues_part.group(1))]
+
+            suggestions_part = re.search(
+                r"###\s+Suggestions\s*\n(.*?)(?=\n###|\Z)",
+                content,
+                re.DOTALL,
+            )
+            suggestions = []
+            if suggestions_part:
+                suggestions = [
+                    m.strip() for m in re.findall(r"-\s+(.+)", suggestions_part.group(1))
+                ]
+
+            result["structure"] = {
+                "issues": issues,
+                "suggestions": suggestions,
+            }
+    except Exception:  # noqa: S110
+        pass
+
+    # ── Refactor Plan ─────────────────────────────────────────────
+    try:
+        refactor_section = re.search(
+            r"##\s+Refactor Plan.*?\n(.*?)(?=\n---|\n## (?!#))",
+            text,
+            re.DOTALL,
+        )
+        if refactor_section:
+            content = refactor_section.group(1)
+            # Old format: table rows | step | title | complexity | impact |
+            rows = re.findall(
+                r"\|\s*(\d+)\s*\|\s*(.+?)\s*\|\s*(\w+)\s*\|\s*(.+?)\s*\|",
+                content,
+            )
+            plan = []
+            if rows:
+                for priority, item, complexity, impact in rows:
+                    # Item: **bold title** — description
+                    item_match = re.match(r"\*\*(.+?)\*\*\s*[—–-]\s*(.*)", item.strip())
+                    if item_match:
+                        title = item_match.group(1).strip()
+                        desc = item_match.group(2).strip()
+                    else:
+                        title = item.strip()
+                        desc = ""
+                    plan.append(
+                        {
+                            "step": int(priority),
+                            "title": title,
+                            "effort": complexity.strip(),
+                            "impact": impact.strip(),
+                            "desc": desc,
+                        }
+                    )
+            else:
+                # New format: ### Priority N: Title (Complexity, Impact)
+                priority_blocks = re.split(
+                    r"###\s+Priority\s+(\d+)\s*[:\u2014\u2013-]\s*",
+                    content,
+                )
+                # priority_blocks: ['', '1', 'content', '2', 'content', ...]
+                i = 1
+                while i < len(priority_blocks) - 1:
+                    step_num = priority_blocks[i]
+                    block = priority_blocks[i + 1]
+                    # First line has title and optional (complexity, impact)
+                    first_line, _, rest = block.partition("\n")
+                    first_line = first_line.strip()
+
+                    # Extract effort/impact from parenthetical
+                    paren_match = re.search(r"\(([^)]+)\)", first_line)
+                    step_effort: str = ""
+                    step_impact: str = ""
+                    if paren_match:
+                        paren_text = paren_match.group(1)
+                        # e.g. "Low complexity, High impact" or "Medium complexity"
+                        effort_m = re.search(r"(\w+)\s+complexity", paren_text, re.IGNORECASE)
+                        impact_m = re.search(r"(\w+)\s+impact", paren_text, re.IGNORECASE)
+                        step_effort = effort_m.group(1) if effort_m else ""
+                        step_impact = str(impact_m.group(1)) if impact_m else ""
+                        title = first_line[: paren_match.start()].strip().rstrip(" (")
+                    else:
+                        title = first_line
+
+                    # Collect numbered list items as description
+                    desc_items = re.findall(r"\d+\.\s+(.+)", rest) if rest else []
+                    desc = "; ".join(d.strip() for d in desc_items)
+
+                    plan.append(
+                        {
+                            "step": int(step_num),
+                            "title": title,
+                            "effort": step_effort,
+                            "impact": step_impact,
+                            "desc": desc,
+                        }
+                    )
+                    i += 2
+            result["refactor_plan"] = plan
+    except Exception:  # noqa: S110
+        pass
+
+    # ── Test Results ──────────────────────────────────────────────
+    try:
+        # Old format: 611 passed, 0 failed (16.31s)
+        test_match = re.search(
+            r"(\d+)\s+passed,\s*(\d+)\s+failed(?:,\s*(\d+)\s+skipped)?"
+            r".*?\(([\d.]+)s\)",
+            text,
+        )
+        if test_match:
+            result["tests"] = {
+                "passed": int(test_match.group(1)),
+                "failed": int(test_match.group(2)),
+                "skipped": int(test_match.group(3)) if test_match.group(3) else 0,
+                "duration_sec": float(test_match.group(4)),
+            }
+        else:
+            # New format: **611 passed**, 0 failed + separate duration line
+            test_match2 = re.search(
+                r"\*\*(\d+)\s+passed\*\*,?\s*(\d+)\s+failed",
+                text,
+            )
+            if test_match2:
+                dur_match = re.search(
+                    r"(?:Test execution time|execution time):\s*([\d.]+)s",
+                    text,
+                )
+                result["tests"] = {
+                    "passed": int(test_match2.group(1)),
+                    "failed": int(test_match2.group(2)),
+                    "skipped": 0,
+                    "duration_sec": float(dur_match.group(1)) if dur_match else 0.0,
+                }
+        if not result.get("tests"):
+            # Table format: | **Passed** | 848 |
+            passed_m = re.search(r"\|\s*\*\*Passed\*\*\s*\|\s*(\d+)\s*\|", text)
+            failed_m = re.search(r"\|\s*\*\*Failed\*\*\s*\|\s*(\d+)\s*\|", text)
+            if passed_m and failed_m:
+                skipped_m = re.search(r"\|\s*\*\*Skipped\*\*\s*\|\s*(\d+)\s*\|", text)
+                dur_m = re.search(r"\|\s*\*\*Duration\*\*\s*\|\s*([\d.]+)s?\s*\|", text)
+                result["tests"] = {
+                    "passed": int(passed_m.group(1)),
+                    "failed": int(failed_m.group(1)),
+                    "skipped": int(skipped_m.group(1)) if skipped_m else 0,
+                    "duration_sec": float(dur_m.group(1)) if dur_m else 0.0,
+                }
+    except Exception:  # noqa: S110
+        pass
+
+    # ── CI/CD Quality Gate ────────────────────────────────────────
+    try:
+        ci_section = re.search(
+            r"##\s+CI/CD Quality Gate\s*\n(.*?)(?=\n---|\n## (?!#))",
+            text,
+            re.DOTALL,
+        )
+        if ci_section:
+            content = ci_section.group(1)
+
+            # Overall status
+            status_match = re.search(r"(?:\*\*)?CI Status:?\s*(?:\*\*)?\s*(\w+)", content)
+            ci_status = status_match.group(1).strip() if status_match else "UNKNOWN"
+
+            # Parse table rows
+            rows = re.findall(
+                r"\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|",
+                content,
+            )
+            checks = []
+            for gate, _threshold, value, status in rows:
+                gate = gate.strip()
+                if gate and gate != "Gate" and "---" not in gate:
+                    ok = "PASS" in status
+                    checks.append(
+                        {
+                            "name": gate,
+                            "ok": ok,
+                            "value": value.strip(),
+                        }
+                    )
+
+            result["ci"] = {
+                "status": ci_status,
+                "checks": checks,
+                "verdict_note": f"CI Status: {ci_status}",
+            }
+        else:
+            # New format: ## CI Status: **PASS** with bullet points
+            ci_status_match = re.search(
+                r"##\s+CI Status:\s*\*\*(\w+)\*\*",
+                text,
+            )
+            if ci_status_match:
+                ci_status = ci_status_match.group(1).strip()
+                # Find the bullet points after the CI Status heading
+                ci_body = re.search(
+                    r"##\s+CI Status:\s*\*\*\w+\*\*\s*\n(.*?)(?=\n---|\n## (?!#)|\Z)",
+                    text,
+                    re.DOTALL,
+                )
+                ci_passed = ci_status.upper() == "PASS"
+                checks = []
+                if ci_body:
+                    bullets = re.findall(r"-\s+(.+)", ci_body.group(1))
+                    for bullet in bullets:
+                        checks.append(
+                            {
+                                "name": bullet.strip(),
+                                "ok": ci_passed,
+                                "value": "",
+                            }
+                        )
+
+                result["ci"] = {
+                    "status": ci_status,
+                    "checks": checks,
+                    "verdict_note": f"CI Status: {ci_status}",
+                }
+    except Exception:  # noqa: S110
+        pass
+
+    # ── Security Audit ────────────────────────────────────────────
+    try:
+        sec_section = re.search(
+            r"##\s+Security Audit.*?\n(.*?)(?=\n---|\n## (?!#))",
+            text,
+            re.DOTALL,
+        )
+        if sec_section:
+            rows = re.findall(
+                r"\|\s*([^|]+?)\s*\|\s*\*\*(\w+)\*\*(?:\s*\(([^)]*)\))?\s*\|\s*([^|]*?)\s*\|",
+                sec_section.group(1),
+            )
+            # Fallback: try simpler table pattern
+            if not rows:
+                rows = re.findall(
+                    r"\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|",
+                    sec_section.group(1),
+                )
+                security = []
+                for check, status, notes in rows:
+                    check = check.strip()
+                    if check and check != "Check" and "---" not in check:
+                        security.append(
+                            {
+                                "check": check,
+                                "status": re.sub(r"\*+", "", status).strip(),
+                                "notes": notes.strip(),
+                            }
+                        )
+            else:
+                security = []
+                for check, status, caveat, notes in rows:
+                    check = check.strip()
+                    if check and check != "Check" and "---" not in check:
+                        full_status = status
+                        if caveat:
+                            full_status = f"{status} ({caveat})"
+                        security.append(
+                            {
+                                "check": check,
+                                "status": full_status,
+                                "notes": notes.strip(),
+                            }
+                        )
+            result["security"] = security
+    except Exception:  # noqa: S110
+        pass
+
+    return result
+
+
 def _sync_read_text(path: Path, *, max_size: int | None = None) -> tuple[str, int, str]:
     """Read a text file from disk (blocking) and return content with metadata.
 
@@ -1912,6 +2522,37 @@ async def handle_reports_full(request: web.Request) -> web.Response:
         },
         "markdown": markdown,
     }
+
+    # Merge structured data parsed from the markdown report
+    if markdown is not None:
+        try:
+            parsed = _parse_bug_report_markdown(markdown)
+            result["bugs"] = parsed["bugs"]
+            result["smells"] = parsed["smells"]
+            result["health_breakdown"] = parsed["health_breakdown"]
+            result["architecture"] = parsed["architecture"]
+            result["structure"] = parsed["structure"]
+            result["refactor_plan"] = parsed["refactor_plan"]
+            result["tests"] = parsed["tests"]
+            result["ci"] = parsed["ci"]
+            result["security"] = parsed["security"]
+            result["project"] = parsed["project"]
+            result["date"] = parsed["date"]
+            result["analyzer"] = parsed["analyzer"]
+            result["branch"] = parsed["branch"]
+            result["commit"] = parsed["commit"]
+
+            # Use parsed health score if more accurate than history-derived
+            if parsed["health_score"] is not None:
+                result["summary"]["health_score"] = parsed["health_score"]
+                if parsed["health_rating"]:
+                    result["summary"]["rating"] = parsed["health_rating"]
+            if parsed["ci"] and parsed["ci"].get("status"):
+                result["summary"]["ci_status"] = parsed["ci"]["status"]
+            result["summary"]["total_bugs"] = len(parsed["bugs"])
+            result["summary"]["code_smells"] = len(parsed["smells"])
+        except Exception:
+            logger.debug("Failed to parse bug report markdown", exc_info=True)
 
     elapsed = int((time.monotonic() - start) * 1000)
     return _json_ok(result, duration_ms=elapsed)

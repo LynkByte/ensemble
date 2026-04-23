@@ -12,7 +12,7 @@ const SummaryPage = ({ onNavigate }) => {
     let cancelled = false;
     (async () => {
       try {
-        const [s, h, rs] = await Promise.all([API.summary(), API.health(), API.reportsSummary().catch(() => null)]);
+        const [s, h, rs] = await Promise.all([API.summary(), API.health(), API.reportsFull().catch(() => null)]);
         if (cancelled) return;
         setSummary(s);
         setHealth(h);
@@ -514,11 +514,60 @@ const BugHunterCard = ({ onOpen, bugSummary }) => {
     );
   }
 
-  const healthScore = bugSummary.health_score || 0;
-  const trend = bugSummary.trend || "stable";
+  const r = bugSummary;
+  const hasGeneratedReport =
+    Boolean(r.markdown || r.generated_at || r.trend?.history?.length);
+  if (!hasGeneratedReport) {
+    return (
+      <div className="card bug-hunter-card" onClick={onOpen} role="button" tabIndex={0}
+        onKeyDown={e => (e.key === "Enter" || e.key === " ") && onOpen && onOpen()}
+        style={{ cursor: "pointer" }}>
+        <div className="card-head">
+          <h3 className="card-title">
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Icon name="bug-report" size={14} /> Bug Hunter
+            </span>
+          </h3>
+        </div>
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "var(--ink-3)" }}>
+          Run the Bug Hunter agent to generate a report
+        </div>
+      </div>
+    );
+  }
+  const healthScore = r.summary?.health_score || 0;
+  const rating = r.summary?.rating || "unknown";
+  const totalBugs = r.summary?.total_bugs || 0;
+  const codeSmells = r.summary?.code_smells || 0;
+  const ciStatus = r.ci?.status || null;
+  const trendData = r.trend || {};
+  const change = trendData.change || 0;
+  const direction = trendData.direction || "stable";
+  const history = trendData.history || [];
+  const bugs = r.bugs || [];
+  const tests = r.tests || null;
   const healthColor = healthScore >= 85 ? "var(--success)"
                    : healthScore >= 60 ? "var(--warning)"
                    : "var(--danger)";
+
+  const severityLevels = ["Critical", "High", "Medium", "Low", "Info"];
+  const bugsByS = Object.fromEntries(severityLevels.map(s => [s, 0]));
+  bugs.forEach(b => { if (bugsByS[b.severity] !== undefined) bugsByS[b.severity]++; });
+
+  // Mini trend sparkline path
+  const hasTrend = history.length >= 2;
+  let trendPath = "", trendFill = "";
+  const tw = 120, th = 32;
+  let trendToX, trendToY, trendScores, trendXs;
+  if (hasTrend) {
+    trendScores = history.map(h => h.health || 0);
+    const mn = Math.min(...trendScores) - 4, mx = Math.max(...trendScores) + 4;
+    trendXs = history.length;
+    trendToX = i => (i / (trendXs - 1)) * (tw - 4) + 2;
+    trendToY = v => th - 2 - ((v - mn) / (mx - mn)) * (th - 4);
+    trendPath = trendScores.map((v, i) => `${i === 0 ? "M" : "L"}${trendToX(i).toFixed(1)},${trendToY(v).toFixed(1)}`).join(" ");
+    trendFill = `${trendPath} L${trendToX(trendXs - 1).toFixed(1)},${th} L${trendToX(0).toFixed(1)},${th} Z`;
+  }
 
   return (
     <div className="card bug-hunter-card" onClick={onOpen} role="button" tabIndex={0}
@@ -530,9 +579,15 @@ const BugHunterCard = ({ onOpen, bugSummary }) => {
             <Icon name="bug-report" size={14} /> Bug Hunter
           </span>
         </h3>
+        {ciStatus && (
+          <span className={`badge ${ciStatus === "PASS" ? "badge-success" : "badge-danger"}`} style={{ fontSize: 10.5 }}>
+            {ciStatus === "PASS" ? <><Icon name="check" size={10} /> CI PASS</> : "CI FAIL"}
+          </span>
+        )}
       </div>
       <div style={{ padding: "14px 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: hasTrend ? "auto 1fr" : "auto", gap: 14, alignItems: "center" }}>
+          {/* Score */}
           <div style={{ textAlign: "center" }}>
             <div style={{
               fontSize: 34, fontWeight: 600, letterSpacing: "-0.02em",
@@ -540,11 +595,51 @@ const BugHunterCard = ({ onOpen, bugSummary }) => {
               color: healthColor, lineHeight: 1,
             }}>{healthScore}</div>
             <div style={{ fontSize: 10.5, color: "var(--ink-3)", fontFamily: "var(--font-mono)", marginTop: 2, letterSpacing: "0.04em" }}>
-              /100 · {trend}
+              /100 · {rating.toLowerCase()}
             </div>
           </div>
+          {/* Trend sparkline */}
+          {hasTrend && (
+            <div>
+              <svg width="100%" height={th} viewBox={`0 0 ${tw} ${th}`} preserveAspectRatio="none" style={{ display: "block" }}>
+                <path d={trendFill} fill={healthColor} opacity="0.12" />
+                <path d={trendPath} fill="none" stroke={healthColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                {trendScores.map((v, i) => (
+                  <circle key={i} cx={trendToX(i)} cy={trendToY(v)} r={i === trendXs - 1 ? 2.5 : 1.5} fill={healthColor} />
+                ))}
+              </svg>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontFamily: "var(--font-mono)", color: change > 0 ? "var(--success)" : change < 0 ? "var(--danger)" : "var(--ink-3)", marginTop: 2 }}>
+                {change !== 0 && <Icon name={change > 0 ? "arrow-up" : "arrow-down"} size={10} />}
+                {change > 0 ? "+" : ""}{change} vs. last scan · {direction}
+              </div>
+            </div>
+          )}
         </div>
-        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+
+        {/* Severity row */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, marginTop: 14 }}>
+          {severityLevels.map(s => {
+            const c = SEV_COLOR[s];
+            return (
+              <div key={s} style={{ background: c.bg, padding: "6px 8px", borderRadius: 4, textAlign: "center" }}>
+                <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.06em", color: c.fg, fontWeight: 600, opacity: 0.85 }}>{s}</div>
+                <div style={{ fontSize: 15, fontFamily: "var(--font-mono)", fontWeight: 600, color: c.fg, lineHeight: 1.2 }}>{bugsByS[s]}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Counts footer */}
+        <div style={{ display: "flex", gap: 12, marginTop: 12, fontSize: 11.5, color: "var(--ink-3)", fontFamily: "var(--font-mono)" }}>
+          <span><b style={{ color: "var(--ink-1)" }}>{totalBugs}</b> bugs</span>
+          <span><b style={{ color: "var(--ink-1)" }}>{codeSmells}</b> smells</span>
+          {tests && <span><b style={{ color: "var(--ink-1)" }}>{tests.passed || 0}</b>/{(tests.passed || 0) + (tests.failed || 0)} tests</span>}
+          <div style={{ flex: 1 }} />
+          {r.generated_at && <span>scanned {(r.generated_at || "").split("T")[0]}</span>}
+        </div>
+
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 11.5, color: "var(--ink-3)" }}>{[r.branch, r.commit].filter(Boolean).join("@") || ""}</span>
           <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 500, color: "var(--accent-600)" }}>
             View full report <Icon name="chevron-right" size={12} />
           </span>
