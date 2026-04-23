@@ -91,7 +91,7 @@ const BugReportPage = () => {
             <div style={{ fontSize: 13, color: healthColor, fontWeight: 600 }}>{rating}</div>
             {change !== 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontFamily: "var(--font-mono)", color: change > 0 ? "var(--success)" : "var(--danger)" }}>
-                <Icon name="arrow-up" size={11}/> {change > 0 ? "+" : ""}{change} vs. last scan
+                <Icon name={change > 0 ? "arrow-up" : "arrow-down"} size={11}/> {change > 0 ? "+" : ""}{change} vs. last scan
               </div>
             )}
           </div>

@@ -71,7 +71,7 @@ cd ensemble
 # Create a virtual environment
 python -m venv .venv
 source .venv/bin/activate  # macOS/Linux
-.venv\Scripts\activate     # Windows
+# On Windows: .venv\Scripts\activate
 
 pip install -e .
 ```
@@ -180,11 +180,13 @@ Then remove the package:
 pip uninstall ensemble-mcp
 ```
 
-Or if installed via uvx:
+Or if installed persistently via `uv tool install`:
 
 ```bash
-uvx uninstall ensemble-mcp
+uv tool uninstall ensemble-mcp
 ```
+
+If you were only running it ephemerally via `uvx ensemble-mcp`, there is nothing to uninstall — the environment lives in uv's cache and is cleared by `uv cache clean`.
 
 ## Platform Notes
 

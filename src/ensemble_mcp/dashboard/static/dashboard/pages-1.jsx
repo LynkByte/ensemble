@@ -30,7 +30,7 @@ const SummaryPage = ({ onNavigate }) => {
     tool: a.tool_name,
     project: "—",
     duration_ms: a.duration_ms,
-    ts: a.called_at ? a.called_at.split(" ").pop() || a.called_at.split("T").pop()?.slice(0,8) || a.called_at : "—",
+    ts: a.called_at ? (a.called_at.split(" ")[1] || a.called_at.split("T")[1]?.slice(0,8) || a.called_at) : "—",
     ok: true,
   }));
   const act = usePagination(displayActivity, 20, "recent");
@@ -185,8 +185,12 @@ const PatternsPage = () => {
 
   const cats = ["all", "problem-solution", "how-it-works", "gotcha", "decision", "trade-off", "what-changed", "discovery"];
   const filtered = useMemo(() => {
+    const needle = q ? q.toLowerCase() : "";
     return patterns.filter(p =>
-      (!q || (p.name && p.name.includes(q)) || (p.context && p.context.toLowerCase().includes(q.toLowerCase())))
+      !needle ||
+      (p.name && p.name.toLowerCase().includes(needle)) ||
+      (p.context && p.context.toLowerCase().includes(needle)) ||
+      (p.approach && p.approach.toLowerCase().includes(needle))
     );
   }, [patterns, q]);
   const pg = usePagination(filtered, 10, `${filter}|${q}`);
@@ -222,7 +226,6 @@ const PatternsPage = () => {
       <div className="toolbar">
         <div style={{ position: "relative", width: 280 }}>
           <input className="input" placeholder="Search name, context, approach…" value={q} onChange={e => setQ(e.target.value)} style={{ paddingLeft: 30 }} />
-          <Icon name="search" size={14} className="search-icon" />
           <span style={{ position: "absolute", left: 10, top: 9, color: "var(--ink-3)" }}><Icon name="search" size={14} /></span>
         </div>
         {cats.map(c => (
@@ -384,14 +387,9 @@ const SkillsPage = () => {
   }, [refreshKey]);
 
   const pendingSuggestions = suggestions.filter(s => s.status === "pending");
-  const activeTracked = tracked.filter(t => {
-    const staleIds = new Set(staleSkills.map(s => s.skill_path));
-    return !staleIds.has(t.skill_path);
-  });
-  const staleTracked = tracked.filter(t => {
-    const staleIds = new Set(staleSkills.map(s => s.skill_path));
-    return staleIds.has(t.skill_path);
-  });
+  const staleIds = useMemo(() => new Set(staleSkills.map(s => s.skill_path)), [staleSkills]);
+  const activeTracked = tracked.filter(t => !staleIds.has(t.skill_path));
+  const staleTracked = tracked.filter(t => staleIds.has(t.skill_path));
 
   const displayTracked = tab === "stale" ? staleTracked : activeTracked;
   const sg = usePagination(displayTracked, 10, tab);

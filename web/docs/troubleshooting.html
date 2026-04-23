@@ -202,8 +202,10 @@ curl -L -o ~/.cache/ensemble-mcp/models/tokenizer.json \
     <li>Ensure only one MCP server instance is running per database</li>
     <li>The dashboard opens separate connections &mdash; this is normal and handled correctly</li>
     <li>If the database is corrupted, reset it:
-      <pre class="code" data-lang="bash"><code>rm ~/.cache/ensemble-mcp/data.db
-# The database is recreated automatically on next start</code></pre>
+      <pre class="code" data-lang="bash"><code>rm -f ~/.cache/ensemble-mcp/data.db \
+      ~/.cache/ensemble-mcp/data.db-wal \
+      ~/.cache/ensemble-mcp/data.db-shm
+# The database and WAL sidecars are recreated automatically on next start</code></pre>
     </li>
   </ol>
 

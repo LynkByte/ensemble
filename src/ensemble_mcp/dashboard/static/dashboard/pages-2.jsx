@@ -104,7 +104,7 @@ const ProjectDrawer = ({ project, onClose, onReindex, onDelete }) => {
   return (
     <Drawer title={name} onClose={onClose} footer={
       <>
-        <button className="btn btn-danger" onClick={() => onDelete(project.project_path)}><Icon name="trash" size={13}/> Delete index</button>
+        <button className="btn btn-danger" onClick={() => { if (window.confirm(`Delete the index for ${project.project_path}?`)) onDelete(project.project_path); }}><Icon name="trash" size={13}/> Delete index</button>
         <div style={{ flex: 1 }} />
         <button className="btn btn-ghost" onClick={onClose}>Close</button>
         <button className="btn btn-accent" onClick={() => onReindex(project.project_path)}><Icon name="refresh" size={13}/> Re-index</button>
@@ -215,8 +215,8 @@ const DriftPage = () => {
                   </span>
                 </td>
                 <td><VerdictBadge v={d.verdict} /></td>
-                <td className="mono">{d.changed_files.length}</td>
-                <td>{d.flags.length > 0 ? <span className="badge badge-warning">{d.flags.length}</span> : <span style={{ color: "var(--ink-4)" }}>—</span>}</td>
+                <td className="mono">{(d.changed_files || []).length}</td>
+                <td>{(d.flags || []).length > 0 ? <span className="badge badge-warning">{(d.flags || []).length}</span> : <span style={{ color: "var(--ink-4)" }}>—</span>}</td>
                 <td className="mono dim">{(d.created_at || "").split(" ")[1] || (d.created_at || "").split("T")[1]?.slice(0,8) || "—"}</td>
               </tr>
             ))}
@@ -239,14 +239,14 @@ const DriftPage = () => {
           <div><VerdictBadge v={selected.verdict} /></div>
           <h4 style={{ fontSize: 11, textTransform: "uppercase", color: "var(--ink-3)", letterSpacing: "0.08em", margin: "20px 0 6px" }}>Changed files</h4>
           <div>
-            {selected.changed_files.map(f => (
+            {(selected.changed_files || []).map(f => (
               <div key={f} style={{ padding: "6px 10px", background: "var(--bg-sunken)", borderRadius: 4, fontFamily: "var(--font-mono)", fontSize: 12, marginBottom: 4 }}>{f}</div>
             ))}
           </div>
-          {selected.flags.length > 0 && (
+          {(selected.flags || []).length > 0 && (
             <>
               <h4 style={{ fontSize: 11, textTransform: "uppercase", color: "var(--warning)", letterSpacing: "0.08em", margin: "20px 0 6px" }}>Flags</h4>
-              {selected.flags.map((f, i) => (
+              {(selected.flags || []).map((f, i) => (
                 <div key={i} style={{ padding: "8px 10px", background: "var(--warning-bg)", color: "var(--warning)", borderRadius: 4, fontSize: 12.5, marginBottom: 4 }}>{f}</div>
               ))}
             </>

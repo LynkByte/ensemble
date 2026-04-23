@@ -14,6 +14,8 @@ const NAV_BOTTOM = [
   { id: "health",     label: "Health",     icon: "health" },
 ];
 
+const VALID_PAGES = new Set(["summary","patterns","skills","projects","drift","sessions","bug-report","settings","health"]);
+
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "theme": "light",
   "accent": "indigo",
@@ -29,7 +31,10 @@ const ACCENTS = {
 };
 
 const App = () => {
-  const [page, setPage] = useState(() => localStorage.getItem("em_page") || "summary");
+  const [page, setPage] = useState(() => {
+    const saved = localStorage.getItem("em_page");
+    return saved && VALID_PAGES.has(saved) ? saved : "summary";
+  });
   const [tweaks, setTweaks] = useState(TWEAK_DEFAULTS);
   const [tweaksOpen, setTweaksOpen] = useState(false);
   const [navData, setNavData] = useState(null);
@@ -111,7 +116,7 @@ const App = () => {
           <div className="brand-mark"><Icon name="logo" size={16} /></div>
           <div className="brand-meta">
             <div className="brand-name">ensemble-mcp <span className="brand-version">v{version}</span></div>
-            <div className="brand-sub">127.0.0.1:8787</div>
+            <div className="brand-sub">{window.location.host}</div>
           </div>
         </div>
 
@@ -167,7 +172,7 @@ const App = () => {
           </div>
 
           <div className="topbar-right">
-            <span className="endpoint-chip"><span className="dot" /> 127.0.0.1:8787</span>
+            <span className="endpoint-chip"><span className="dot" /> {window.location.host}</span>
             <button className="icon-btn" title="Toggle theme" onClick={() => setTweak("theme", tweaks.theme === "dark" ? "light" : "dark")}>
               <Icon name={tweaks.theme === "dark" ? "sun" : "moon"} size={15} />
             </button>

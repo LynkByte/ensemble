@@ -349,6 +349,7 @@ async def handle_summary(request: web.Request) -> web.Response:
 
         # Calls by hour (last 24h): single GROUP BY query, fill 24-slot array
         calls_by_hour: list[int] = [0] * 24
+        now_hour = int(conn.execute("SELECT strftime('%H', 'now')").fetchone()[0])
         for row in conn.execute(
             "SELECT strftime('%H', called_at) as hour, COUNT(*) as cnt "
             "FROM mcp_calls WHERE called_at >= datetime('now', '-24 hours') "
@@ -356,7 +357,6 @@ async def handle_summary(request: web.Request) -> web.Response:
         ).fetchall():
             hour_idx = int(row["hour"])
             # Map absolute hour to relative position (index 0 = 23h ago)
-            now_hour = int(conn.execute("SELECT strftime('%H', 'now')").fetchone()[0])
             offset = (hour_idx - now_hour + 24) % 24
             # offset 0 = current hour → index 23, offset 23 = 23h ago → index 0
             calls_by_hour[offset] = row["cnt"]

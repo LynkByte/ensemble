@@ -215,9 +215,9 @@ const HealthPage = () => {
           <div className="card-body">
             <dl style={{ margin: 0 }}>
               <div className="key-value"><dt>size</dt><dd>{fmtBytes(h.db_size_bytes)}</dd></div>
-              <div className="key-value"><dt>patterns</dt><dd>{h.pattern_count || (summary?.pattern_count ?? "—")}</dd></div>
-              <div className="key-value"><dt>sessions</dt><dd>{h.session_count || (summary?.session_count ?? "—")}</dd></div>
-              <div className="key-value"><dt>projects</dt><dd>{h.project_count || (summary?.project_count ?? "—")}</dd></div>
+              <div className="key-value"><dt>patterns</dt><dd>{h.pattern_count ?? (summary?.pattern_count ?? "—")}</dd></div>
+              <div className="key-value"><dt>sessions</dt><dd>{h.session_count ?? (summary?.session_count ?? "—")}</dd></div>
+              <div className="key-value"><dt>projects</dt><dd>{h.project_count ?? (summary?.project_count ?? "—")}</dd></div>
               <div className="key-value"><dt>journal_mode</dt><dd>WAL</dd></div>
             </dl>
           </div>
@@ -250,26 +250,26 @@ const HealthPage = () => {
 
       <div className="card" style={{ marginTop: 14 }}>
         <div className="card-head">
-          <h3 className="card-title">Endpoint reachability</h3>
+          <h3 className="card-title">Available routes</h3>
           <span className="card-sub">read + mutation paths</span>
         </div>
         <table className="table">
-          <thead><tr><th>Method</th><th>Path</th><th>Status</th></tr></thead>
+          <thead><tr><th>Method</th><th>Path</th></tr></thead>
           <tbody>
             {[
-              ["GET","/api/summary","ok"],
-              ["GET","/api/patterns","ok"],
-              ["GET","/api/skills","ok"],
-              ["GET","/api/projects","ok"],
-              ["GET","/api/drift","ok"],
-              ["GET","/api/sessions","ok"],
-              ["GET","/api/settings","ok"],
-              ["POST","/api/reset","ok"],
+              ["GET","/api/summary"],
+              ["GET","/api/patterns"],
+              ["GET","/api/skills"],
+              ["GET","/api/projects"],
+              ["GET","/api/drift"],
+              ["GET","/api/sessions"],
+              ["GET","/api/settings"],
+              ["GET","/api/health"],
+              ["GET","/api/reports/full"],
             ].map((r, i) => (
               <tr key={i}>
                 <td className="mono" style={{ color: "var(--ink-3)" }}>{r[0]}</td>
                 <td className="mono">{r[1]}</td>
-                <td><span className="badge badge-success"><Icon name="check" size={10}/> {r[2]}</span></td>
               </tr>
             ))}
           </tbody>

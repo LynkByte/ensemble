@@ -260,9 +260,11 @@ pip install -e .</code></pre>
 
   <pre class="code" data-lang="bash"><code>pip uninstall ensemble-mcp</code></pre>
 
-  <p>Or if installed via uvx:</p>
+  <p>Or if installed persistently via <code class="inline">uv tool install</code>:</p>
 
-  <pre class="code" data-lang="bash"><code>uvx uninstall ensemble-mcp</code></pre>
+  <pre class="code" data-lang="bash"><code>uv tool uninstall ensemble-mcp</code></pre>
+
+  <p>If you were only running it ephemerally via <code class="inline">uvx ensemble-mcp</code>, there is nothing to uninstall &mdash; the environment lives in uv&rsquo;s cache and is cleared by <code class="inline">uv cache clean</code>.</p>
 
   <h2 id="platform-notes">Platform Notes</h2>
 

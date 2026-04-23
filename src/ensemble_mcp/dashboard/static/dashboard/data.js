@@ -10,7 +10,10 @@ async function _apiFetch(path, opts = {}) {
   const json = await res.json();
   if (!json.ok) {
     const msg = json.error?.message || `API error: ${res.status}`;
-    throw new Error(msg);
+    const err = new Error(msg);
+    err.code = json.error?.code;
+    err.retryable = json.error?.retryable;
+    throw err;
   }
   return json.data;
 }

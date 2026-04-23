@@ -138,7 +138,7 @@ flowchart TB
     subgraph Dashboard["Dashboard Process"]
         HTTP[aiohttp Server\ndashboard/server.py]
         API[JSON API\ndashboard/api.py]
-        SPA[Alpine.js SPA\ndashboard/static/]
+        SPA[React SPA\ndashboard/static/]
     end
 
     subgraph Core["Core Engine"]
@@ -254,10 +254,18 @@ flowchart TB
 │   ├── __init__.py      # start_dashboard() export
 │   ├── server.py        # aiohttp app creation, static file serving
 │   ├── api.py           # 25+ JSON API endpoints
-│   └── static/          # SPA frontend
+│   └── static/          # React SPA frontend
 │       ├── index.html
-│       ├── app.js
-│       └── style.css
+│       └── dashboard/
+│           ├── app.jsx
+│           ├── data.js
+│           ├── primitives.jsx
+│           ├── pages-1.jsx
+│           ├── pages-2.jsx
+│           ├── pages-3.jsx
+│           ├── bug-report.jsx
+│           ├── styles.css
+│           └── vendor/   # React, ReactDOM, Babel
 │
 ├── cli/                 # Terminal UI
 │   └── banner.py        # Startup banner (Rich)
@@ -358,7 +366,7 @@ flowchart TB
     <p><strong>Auto-detection and registration of AI tools.</strong> Defines <code class="inline">ToolDefinition</code> for 6 supported tools (OpenCode, Claude Code, Copilot, Cursor, Windsurf, Devin CLI) with their config paths. Makes it easy to plug ensemble-mcp into any existing agent harness.</p>
 
     <h3 id="dashboard-subpackage"><code class="inline">dashboard/</code> — Observability</h3>
-    <p><strong>Local web dashboard.</strong> An aiohttp server serving an Alpine.js SPA. Provides visibility into harness state — patterns, skills, drift history, sessions, and codebase index. The API layer (25+ endpoints) opens its own SQLite connections to avoid blocking the MCP server.</p>
+    <p><strong>Local web dashboard.</strong> An aiohttp server serving a React 18 SPA. Provides visibility into harness state — patterns, skills, drift history, sessions, and codebase index. The API layer (25+ endpoints) opens its own SQLite connections to avoid blocking the MCP server.</p>
 
     <h3 id="cli-subpackage"><code class="inline">cli/</code> — Terminal UI</h3>
     <p><strong>Terminal UI.</strong> Currently contains only the startup banner, which uses Rich to display server version, config paths, and database location on stderr.</p>

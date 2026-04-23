@@ -8,7 +8,7 @@
 
 ## Summary
 
-The ensemble-mcp codebase is **well-engineered** with strong architectural patterns: consistent response envelopes, proper error taxonomy, parameterized SQL queries, and comprehensive test coverage (603 tests passing). No critical security vulnerabilities were found. The main concerns are: (1) a shared mutable SQLite connection used across async tool calls without serialization, (2) resource leaks from unclosed connections in the dashboard API, (3) missing commit atomicity between idempotency storage and primary operations, and (4) a stale docstring in `tools/__init__.py`. Overall code health is **Good (82/100)**.
+The ensemble-mcp codebase is **well-engineered** with strong architectural patterns: consistent response envelopes, proper error taxonomy, parameterized SQL queries, and comprehensive test coverage (611 tests passing). No critical security vulnerabilities were found. The main concerns are: (1) a shared mutable SQLite connection used across async tool calls without serialization, (2) resource leaks from unclosed connections in the dashboard API, (3) missing commit atomicity between idempotency storage and primary operations, and (4) a stale docstring in `tools/__init__.py`. Overall code health is **Good (82/100)**.
 
 ---
 

@@ -51,6 +51,7 @@ const Icon = ({ name, size = 16, className = "" }) => {
       </svg>
     );
     case "arrow-up": return P("M12 19V5M5 12l7-7 7 7");
+    case "arrow-down": return P("M12 5v14M19 12l-7 7-7-7");
     case "database": return P("M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3v12c0 1.7-3.6 3-8 3s-8-1.3-8-3zM4 6c0 1.7 3.6 3 8 3s8-1.3 8-3M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3");
     case "cpu":      return P("M5 5h14v14H5zM9 9h6v6H9zM9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2");
     case "folder":   return P("M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z");
@@ -140,20 +141,39 @@ const LangBar = ({ languages }) => {
   );
 };
 
-/* ---- Fake JSON syntax highlighter ---- */
+/* ---- JSON syntax highlighter (safe — no dangerouslySetInnerHTML) ---- */
 const JsonView = ({ value }) => {
   const json = JSON.stringify(value, null, 2);
-  const highlighted = json.replace(
-    /("[^"]+"\s*:)|(\b\d+(\.\d+)?\b)|("[^"]*")|\b(true|false|null)\b/g,
-    (m, k, n, _n2, s, b) => {
-      if (k) return `<span class="k">${k.replace(/:$/, "")}</span>:`;
-      if (n) return `<span class="n">${n}</span>`;
-      if (s) return `<span class="s">${s}</span>`;
-      if (b) return `<span class="b">${b}</span>`;
-      return m;
+  const tokenRegex = /"(?:\\.|[^"\\])*"(?=\s*:)|"(?:\\.|[^"\\])*"|\b\d+(?:\.\d+)?\b|\b(?:true|false|null)\b/g;
+  const tokens = [];
+  let lastIndex = 0;
+  let match;
+  while ((match = tokenRegex.exec(json)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push({ type: "plain", text: json.slice(lastIndex, match.index) });
     }
+    const m = match[0];
+    if (/^\d/.test(m)) {
+      tokens.push({ type: "n", text: m });
+    } else if (m === "true" || m === "false" || m === "null") {
+      tokens.push({ type: "b", text: m });
+    } else {
+      // Quoted string — check if it's a key (followed by colon)
+      const isKey = json.substring(match.index + m.length).trimStart().startsWith(":");
+      tokens.push({ type: isKey ? "k" : "s", text: m });
+    }
+    lastIndex = match.index + m.length;
+  }
+  if (lastIndex < json.length) {
+    tokens.push({ type: "plain", text: json.slice(lastIndex) });
+  }
+  return (
+    <pre className="json-view">
+      {tokens.map((t, i) =>
+        t.type === "plain" ? t.text : <span key={i} className={t.type}>{t.text}</span>
+      )}
+    </pre>
   );
-  return <pre className="json-view" dangerouslySetInnerHTML={{ __html: highlighted }} />;
 };
 
 /* ---- Drawer ---- */
