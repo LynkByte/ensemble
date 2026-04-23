@@ -7,6 +7,7 @@ Binds to 127.0.0.1 only — local access, no auth required.
 from __future__ import annotations
 
 import logging
+import mimetypes
 import webbrowser
 from pathlib import Path
 
@@ -20,6 +21,9 @@ from .api import register_api_routes
 logger = logging.getLogger(__name__)
 
 STATIC_DIR = Path(__file__).parent / "static"
+
+# Ensure .jsx files are served with a JavaScript MIME type
+mimetypes.add_type("application/javascript", ".jsx")
 
 
 def _ensure_db_ready(db_path: Path) -> None:
@@ -55,7 +59,10 @@ def _create_app(db_path: Path = DB_PATH, reports_dir: Path | None = None) -> web
     # Serve the SPA for the root path
     app.router.add_get("/", _index_handler)
 
-    # Serve static files (app.js, style.css)
+    # Serve dashboard sub-directory (CSS, JS, JSX files for the React UI)
+    app.router.add_static("/dashboard", STATIC_DIR / "dashboard", name="dashboard")
+
+    # Serve remaining static files (legacy /static path kept for compatibility)
     app.router.add_static("/static", STATIC_DIR, name="static")
 
     return app

@@ -1163,3 +1163,149 @@ class TestReportsEndpoints:
         assert body["data"]["available"] is True
         assert body["data"]["trend"] == "stable"
         assert body["data"]["health_score"] == 80
+
+
+class TestSummaryNewFields:
+    """Tests for the new summary fields: sessions_running, sessions_completed,
+    calls_today, calls_7d, calls_by_hour, pattern_growth_30d."""
+
+    @pytest.mark.asyncio
+    async def test_summary_has_new_fields(self, client):
+        resp = await client.get("/api/summary")
+        assert resp.status == 200
+        body = await resp.json()
+        data = body["data"]
+        # New fields exist
+        assert "sessions_running" in data
+        assert "sessions_completed" in data
+        assert "calls_today" in data
+        assert "calls_7d" in data
+        assert "calls_by_hour" in data
+        assert "pattern_growth_30d" in data
+
+    @pytest.mark.asyncio
+    async def test_summary_new_fields_types(self, client):
+        resp = await client.get("/api/summary")
+        body = await resp.json()
+        data = body["data"]
+        # Type checks
+        assert isinstance(data["sessions_running"], int)
+        assert isinstance(data["sessions_completed"], int)
+        assert isinstance(data["calls_today"], int)
+        assert isinstance(data["calls_7d"], list)
+        assert len(data["calls_7d"]) == 7
+        assert all(isinstance(x, int) for x in data["calls_7d"])
+        assert isinstance(data["calls_by_hour"], list)
+        assert len(data["calls_by_hour"]) == 24
+        assert all(isinstance(x, int) for x in data["calls_by_hour"])
+        assert isinstance(data["pattern_growth_30d"], list)
+        assert len(data["pattern_growth_30d"]) == 30
+        assert all(isinstance(x, int) for x in data["pattern_growth_30d"])
+
+    @pytest.mark.asyncio
+    async def test_summary_session_counts(self, client):
+        """Seeded DB has 1 completed session, 0 running."""
+        resp = await client.get("/api/summary")
+        body = await resp.json()
+        data = body["data"]
+        assert data["sessions_completed"] == 1
+        assert data["sessions_running"] == 0
+
+    @pytest.mark.asyncio
+    async def test_summary_calls_today_includes_recent(self, seeded_db, aiohttp_client):
+        """MCP calls inserted with default called_at (now) should count in calls_today."""
+        # The seeded DB has 1 mcp_call with default timestamp (now)
+        app = _create_test_app(seeded_db)
+        client = await aiohttp_client(app)
+        resp = await client.get("/api/summary")
+        body = await resp.json()
+        data = body["data"]
+        assert data["calls_today"] >= 1
+
+
+class TestReportsFullEndpoint:
+    """Tests for GET /api/reports/full endpoint."""
+
+    @pytest.fixture()
+    def reports_dir(self, tmp_path):
+        """Create a temporary reports directory with mock report files."""
+        rdir = tmp_path / "full_reports"
+        rdir.mkdir()
+
+        (rdir / "bug-hunter-report.md").write_text(
+            "# Bug Hunter Report\n\n## Summary\n\nSome content here.\n",
+            encoding="utf-8",
+        )
+
+        history = [
+            {"date": "2026-04-15 12:00:00", "health": 70, "bugs": 10, "smells": 8},
+            {"date": "2026-04-15 18:00:00", "health": 85, "bugs": 5, "smells": 4},
+        ]
+        (rdir / "history.json").write_text(json.dumps(history), encoding="utf-8")
+
+        return rdir
+
+    @pytest.mark.asyncio
+    async def test_full_not_configured(self, seeded_db, aiohttp_client):
+        """Returns available=False when reports_dir is not configured."""
+        app = _create_test_app(seeded_db, reports_dir=None)
+        client = await aiohttp_client(app)
+        resp = await client.get("/api/reports/full")
+        assert resp.status == 200
+        body = await resp.json()
+        assert body["ok"] is True
+        assert body["data"]["available"] is False
+        assert "message" in body["data"]
+
+    @pytest.mark.asyncio
+    async def test_full_with_reports(self, seeded_db, reports_dir, aiohttp_client):
+        """Returns structured report data when files exist."""
+        app = _create_test_app(seeded_db, reports_dir=reports_dir)
+        client = await aiohttp_client(app)
+        resp = await client.get("/api/reports/full")
+        assert resp.status == 200
+        body = await resp.json()
+        data = body["data"]
+        assert data["available"] is True
+        assert data["markdown"] is not None
+        assert "# Bug Hunter Report" in data["markdown"]
+        # Summary
+        assert data["summary"]["total_bugs"] == 5
+        assert data["summary"]["code_smells"] == 4
+        assert data["summary"]["health_score"] == 85
+        assert data["summary"]["rating"] in ("Excellent", "Good", "Moderate", "Poor")
+        # Trend
+        assert data["trend"]["direction"] == "improving"
+        assert data["trend"]["previous_score"] == 70
+        assert data["trend"]["current_score"] == 85
+        assert data["trend"]["change"] == 15
+        assert len(data["trend"]["history"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_full_empty_reports_dir(self, seeded_db, tmp_path, aiohttp_client):
+        """Returns available=True but markdown=None when files are missing."""
+        empty_dir = tmp_path / "empty_full_reports"
+        empty_dir.mkdir()
+        app = _create_test_app(seeded_db, reports_dir=empty_dir)
+        client = await aiohttp_client(app)
+        resp = await client.get("/api/reports/full")
+        assert resp.status == 200
+        body = await resp.json()
+        data = body["data"]
+        assert data["available"] is True
+        assert data["markdown"] is None
+        assert data["trend"]["history"] == []
+        assert data["summary"]["health_score"] is None
+
+    @pytest.mark.asyncio
+    async def test_full_rating_values(self, seeded_db, tmp_path, aiohttp_client):
+        """Rating is computed correctly from health score."""
+        rdir = tmp_path / "rating_reports"
+        rdir.mkdir()
+        history = [{"date": "2026-04-15", "health": 95, "bugs": 1, "smells": 0}]
+        (rdir / "history.json").write_text(json.dumps(history), encoding="utf-8")
+        app = _create_test_app(seeded_db, reports_dir=rdir)
+        client = await aiohttp_client(app)
+        resp = await client.get("/api/reports/full")
+        body = await resp.json()
+        assert body["data"]["summary"]["rating"] == "Excellent"

@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ensemble-mcp | Dashboard</title>
+
+    <!-- Tailwind CSS v3 with forms plugin -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <!-- Fonts: Inter + JetBrains Mono + Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Alpine.js, Chart.js, marked, DOMPurify (unchanged) -->
+    <script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
+
+    <!-- Tailwind config: Kinetic Architect design tokens -->
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-secondary-fixed-variant": "#006544",
+              "inverse-surface": "#f9f9ff",
+              "surface-container-low": "#10131a",
+              "on-tertiary": "#573500",
+              "on-background": "#ecedf6",
+              "on-primary": "#0f00a4",
+              "error-dim": "#d73357",
+              "error": "#ff6e84",
+              "tertiary-container": "#f8a010",
+              "surface-bright": "#282c36",
+              "primary-dim": "#6063ee",
+              "primary-fixed": "#9396ff",
+              "surface-container-high": "#1c2028",
+              "surface-tint": "#a3a6ff",
+              "on-secondary": "#005a3c",
+              "tertiary": "#ffb148",
+              "on-primary-fixed": "#000000",
+              "outline-variant": "#45484f",
+              "tertiary-fixed-dim": "#e79400",
+              "surface-dim": "#0b0e14",
+              "background": "#0b0e14",
+              "secondary-container": "#006c49",
+              "on-primary-container": "#0a0081",
+              "on-tertiary-fixed": "#2a1700",
+              "surface": "#0b0e14",
+              "on-surface": "#ecedf6",
+              "inverse-primary": "#494bd7",
+              "surface-container-highest": "#22262f",
+              "on-secondary-fixed": "#00452d",
+              "on-secondary-container": "#e1ffec",
+              "primary-container": "#9396ff",
+              "on-surface-variant": "#a9abb3",
+              "on-error-container": "#ffb2b9",
+              "secondary": "#69f6b8",
+              "inverse-on-surface": "#52555c",
+              "outline": "#73757d",
+              "on-tertiary-fixed-variant": "#563400",
+              "primary": "#a3a6ff",
+              "error-container": "#a70138",
+              "surface-container": "#161a21",
+              "surface-container-lowest": "#000000",
+              "primary-fixed-dim": "#8387ff",
+              "on-tertiary-container": "#4a2c00",
+              "on-error": "#490013",
+              "on-primary-fixed-variant": "#0e009d",
+              "secondary-dim": "#58e7ab",
+              "tertiary-fixed": "#f8a010",
+              "tertiary-dim": "#e79400",
+              "secondary-fixed-dim": "#58e7ab",
+              "secondary-fixed": "#69f6b8",
+              "surface-variant": "#22262f"
+            },
+            borderRadius: {
+              DEFAULT: "0.125rem",
+              lg: "0.25rem",
+              xl: "0.5rem",
+              full: "0.75rem"
+            },
+            fontFamily: {
+              headline: ["Inter"],
+              body: ["Inter"],
+              label: ["Inter"],
+              mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "monospace"]
+            }
+          },
+        },
+      }
+    </script>
+
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+
+<body class="bg-background text-on-surface selection:bg-primary/30 min-h-screen" x-data="dashboard()" x-init="init()">
+
+    <!-- ── Toast notifications ──────────────────────────────────── -->
+    <div class="toast-container">
+        <template x-for="t in toasts" :key="t.id">
+            <div class="toast" :class="'toast-' + t.type" x-text="t.message"
+                x-transition:enter="transition ease-out duration-300"
+                x-transition:leave="transition ease-in duration-200"></div>
+        </template>
+    </div>
+
+    <!-- ── Confirmation modal ───────────────────────────────────── -->
+    <div x-show="confirmVisible" x-cloak class="modal-overlay" @click.self="cancelConfirm()">
+        <div class="modal-content">
+            <h3 x-text="confirmTitle"></h3>
+            <p x-text="confirmMessage"></p>
+            <div class="modal-actions">
+                <button @click="cancelConfirm()" class="btn">Cancel</button>
+                <button @click="doConfirm()" class="btn btn-danger">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Slim Sidebar ─────────────────────────────────────────── -->
+    <aside class="fixed left-0 top-0 h-full z-50 bg-surface-container-lowest w-16 hover:w-64 transition-all duration-300 flex flex-col items-center group overflow-hidden">
+        <!-- Logo -->
+        <div class="py-6 flex flex-col items-center w-full">
+            <div class="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center mb-10 group-hover:px-4 group-hover:w-auto transition-all flex-shrink-0">
+                <span class="material-symbols-outlined text-primary font-bold" style="font-variation-settings: 'FILL' 1;">explore</span>
+                <span class="hidden group-hover:block ml-3 text-primary font-bold text-lg whitespace-nowrap tracking-tight">ensemble-mcp</span>
+            </div>
+
+            <!-- Main nav -->
+            <nav class="flex flex-col w-full space-y-2 px-3">
+                <!-- Overview -->
+                <a href="#" @click.prevent="navigate('overview')"
+                    :class="page === 'overview' ? 'text-primary bg-surface-container border-l-2 border-primary' : 'text-slate-500 hover:text-slate-200 hover:bg-surface-container-low'"
+                    class="flex items-center h-10 w-full rounded-lg transition-all duration-200">
+                    <div class="min-w-[40px] flex justify-center"><span class="material-symbols-outlined">grid_view</span></div>
+                    <span class="hidden group-hover:block text-xs ml-2 whitespace-nowrap tracking-tight">Overview</span>
+                </a>
+                <!-- Patterns -->
+                <a href="#" @click.prevent="navigate('patterns')"
+                    :class="page === 'patterns' ? 'text-primary bg-surface-container border-l-2 border-primary' : 'text-slate-500 hover:text-slate-200 hover:bg-surface-container-low'"
+                    class="flex items-center h-10 w-full rounded-lg transition-all duration-200">
+                    <div class="min-w-[40px] flex justify-center"><span class="material-symbols-outlined">hub</span></div>
+                    <span class="hidden group-hover:block text-xs ml-2 whitespace-nowrap tracking-tight">Patterns</span>
+                </a>
+                <!-- Skills -->
+                <a href="#" @click.prevent="navigate('skills')"
+                    :class="page === 'skills' ? 'text-primary bg-surface-container border-l-2 border-primary' : 'text-slate-500 hover:text-slate-200 hover:bg-surface-container-low'"
+                    class="flex items-center h-10 w-full rounded-lg transition-all duration-200">
+                    <div class="min-w-[40px] flex justify-center"><span class="material-symbols-outlined">psychology</span></div>
+                    <span class="hidden group-hover:block text-xs ml-2 whitespace-nowrap tracking-tight">Skills</span>
+                </a>
+                <!-- Projects -->
+                <a href="#" @click.prevent="navigate('projects')"
+                    :class="page === 'projects' ? 'text-primary bg-surface-container border-l-2 border-primary' : 'text-slate-500 hover:text-slate-200 hover:bg-surface-container-low'"
+                    class="flex items-center h-10 w-full rounded-lg transition-all duration-200">
+                    <div class="min-w-[40px] flex justify-center"><span class="material-symbols-outlined">folder_open</span></div>
+                    <span class="hidden group-hover:block text-xs ml-2 whitespace-nowrap tracking-tight">Projects</span>
+                </a>
+                <!-- Drift -->
+                <a href="#" @click.prevent="navigate('drift')"
+                    :class="page === 'drift' ? 'text-primary bg-surface-container border-l-2 border-primary' : 'text-slate-500 hover:text-slate-200 hover:bg-surface-container-low'"
+                    class="flex items-center h-10 w-full rounded-lg transition-all duration-200">
+                    <div class="min-w-[40px] flex justify-center"><span class="material-symbols-outlined">trending_up</span></div>
+                    <span class="hidden group-hover:block text-xs ml-2 whitespace-nowrap tracking-tight">Drift</span>
+                </a>
+                <!-- Sessions -->
+                <a href="#" @click.prevent="navigate('sessions')"
+                    :class="page === 'sessions' ? 'text-primary bg-surface-container border-l-2 border-primary' : 'text-slate-500 hover:text-slate-200 hover:bg-surface-container-low'"
+                    class="flex items-center h-10 w-full rounded-lg transition-all duration-200">
+                    <div class="min-w-[40px] flex justify-center"><span class="material-symbols-outlined">history</span></div>
+                    <span class="hidden group-hover:block text-xs ml-2 whitespace-nowrap tracking-tight">Sessions</span>
+                </a>
+                <!-- Reports -->
+                <a href="#" @click.prevent="navigate('reports')"
+                    :class="page === 'reports' ? 'text-primary bg-surface-container border-l-2 border-primary' : 'text-slate-500 hover:text-slate-200 hover:bg-surface-container-low'"
+                    class="flex items-center h-10 w-full rounded-lg transition-all duration-200">
+                    <div class="min-w-[40px] flex justify-center"><span class="material-symbols-outlined">bug_report</span></div>
+                    <span class="hidden group-hover:block text-xs ml-2 whitespace-nowrap tracking-tight">Reports</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- Bottom nav -->
+        <div class="mt-auto py-6 flex flex-col w-full space-y-2 px-3">
+            <!-- Settings -->
+            <a href="#" @click.prevent="navigate('settings')"
+                :class="page === 'settings' ? 'text-primary bg-surface-container border-l-2 border-primary' : 'text-slate-500 hover:text-slate-200 hover:bg-surface-container-low'"
+                class="flex items-center h-10 w-full rounded-lg transition-all duration-200">
+                <div class="min-w-[40px] flex justify-center"><span class="material-symbols-outlined">settings</span></div>
+                <span class="hidden group-hover:block text-xs ml-2 whitespace-nowrap tracking-tight">Settings</span>
+            </a>
+            <!-- Version badge -->
+            <div class="flex items-center h-10 w-full px-3">
+                <div class="h-7 w-7 rounded-lg bg-surface-container-high flex items-center justify-center flex-shrink-0">
+                    <span class="material-symbols-outlined text-on-surface-variant !text-[14px]">memory</span>
+                </div>
+                <div class="hidden group-hover:block ml-3">
+                    <p class="text-[10px] text-on-surface-variant font-medium">Ensemble MCP</p>
+                    <p class="text-[9px] text-outline uppercase tracking-widest font-mono" x-text="'v' + version"></p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── Main content ─────────────────────────────────────────── -->
+    <main class="ml-16 min-h-screen flex flex-col">
+
+        <!-- Glassmorphic header -->
+        <header class="flex justify-between items-center px-6 w-full sticky top-0 z-40 bg-background/80 backdrop-blur-xl h-14 shadow-2xl shadow-black/40">
+            <div class="flex items-center flex-1">
+                <!-- Cmd+K search bar -->
+                <div class="relative w-full max-w-md group focus-within:ring-1 focus-within:ring-primary/30 rounded-lg">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+                    <input class="w-full bg-surface-container-highest/40 border-none rounded-lg pl-10 pr-12 py-1.5 text-sm text-on-surface placeholder:text-outline focus:ring-0" placeholder="Search patterns, skills, or projects..." type="text" readonly tabindex="-1">
+                    <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-40">
+                        <span class="text-[10px] border border-outline rounded px-1 font-mono">⌘</span>
+                        <span class="text-[10px] border border-outline rounded px-1 font-mono">K</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-6">
+                <!-- Status indicators -->
+                <span x-show="loading" class="flex items-center gap-2 text-tertiary text-xs">
+                    <span class="status-dot status-dot-active"></span>
+                    Loading...
+                </span>
+                <span x-show="!loading && lastFetch" class="text-on-surface-variant text-[11px] font-mono" x-text="'Updated ' + timeAgo(lastFetch)"></span>
+                <!-- Icon buttons -->
+                <div class="flex items-center gap-4 text-slate-400 border-l border-outline-variant/20 pl-6">
+                    <button class="hover:text-primary transition-all"><span class="material-symbols-outlined">notifications</span></button>
+                    <button class="hover:text-primary transition-all"><span class="material-symbols-outlined">terminal</span></button>
+                    <button class="hover:text-primary transition-all"><span class="material-symbols-outlined">account_circle</span></button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content area -->
+        <div class="flex-1 px-8 py-6">
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!-- OVERVIEW PAGE                                          -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <div x-show="page === 'overview'" x-cloak>
+
+                <!-- Status bar — horizontal metrics strip -->
+                <section class="px-8 py-4 bg-surface-container-low flex items-center gap-12 overflow-x-auto -mx-8 mb-8">
+                    <div class="flex items-center gap-4 flex-shrink-0">
+                        <div>
+                            <p class="text-[10px] text-on-surface-variant font-semibold tracking-widest uppercase">Patterns</p>
+                            <span class="text-xl font-bold text-primary" x-text="summary.pattern_count || 0"></span>
+                        </div>
+                        <svg class="w-16 h-8 text-primary" fill="none" viewBox="0 0 100 40">
+                            <path d="M0 35 Q 10 30, 20 32 T 40 25 T 60 28 T 80 15 T 100 20" fill="none" stroke="currentColor" stroke-width="2"></path>
+                        </svg>
+                    </div>
+                    <div class="h-8 w-px bg-outline-variant/20 flex-shrink-0"></div>
+                    <div class="flex items-center gap-4 flex-shrink-0">
+                        <div>
+                            <p class="text-[10px] text-on-surface-variant font-semibold tracking-widest uppercase">Pending Skills</p>
+                            <span class="text-xl font-bold text-tertiary" x-text="summary.pending_skills || 0"></span>
+                        </div>
+                        <svg class="w-16 h-8 text-tertiary" fill="none" viewBox="0 0 100 40">
+                            <path d="M0 30 Q 15 20, 30 25 T 55 15 T 75 22 T 100 10" fill="none" stroke="currentColor" stroke-width="2"></path>
+                        </svg>
+                    </div>
+                    <div class="h-8 w-px bg-outline-variant/20 flex-shrink-0"></div>
+                    <div class="flex items-center gap-4 flex-shrink-0">
+                        <div>
+                            <p class="text-[10px] text-on-surface-variant font-semibold tracking-widest uppercase">Active Skills</p>
+                            <span class="text-xl font-bold text-secondary" x-text="summary.active_skills || 0"></span>
+                        </div>
+                        <svg class="w-16 h-8 text-secondary" fill="none" viewBox="0 0 100 40">
+                            <path d="M0 35 L 20 25 L 40 30 L 60 10 L 80 15 L 100 5" fill="none" stroke="currentColor" stroke-width="2"></path>
+                        </svg>
+                    </div>
+                    <div class="h-8 w-px bg-outline-variant/20 flex-shrink-0"></div>
+                    <div class="flex items-center gap-4 flex-shrink-0">
+                        <div>
+                            <p class="text-[10px] text-on-surface-variant font-semibold tracking-widest uppercase">Projects</p>
+                            <span class="text-xl font-bold text-on-surface" x-text="summary.project_count || 0"></span>
+                        </div>
+                        <svg class="w-16 h-8 text-on-surface-variant" fill="none" viewBox="0 0 100 40">
+                            <path d="M0 20 L 20 20 L 40 20 L 60 20 L 80 20 L 100 20" fill="none" stroke="currentColor" stroke-dasharray="4 4" stroke-width="2"></path>
+                        </svg>
+                    </div>
+                    <div class="h-8 w-px bg-outline-variant/20 flex-shrink-0"></div>
+                    <div class="flex items-center gap-4 flex-shrink-0">
+                        <div>
+                            <p class="text-[10px] text-on-surface-variant font-semibold tracking-widest uppercase">Drift (30d)</p>
+                            <span class="text-xl font-bold text-tertiary" x-text="summary.drift_checks_30d || 0"></span>
+                        </div>
+                        <svg class="w-16 h-8 text-tertiary" fill="none" viewBox="0 0 100 40">
+                            <path d="M0 25 Q 20 35, 40 20 T 70 30 T 100 15" fill="none" stroke="currentColor" stroke-width="2"></path>
+                        </svg>
+                    </div>
+                    <div class="h-8 w-px bg-outline-variant/20 flex-shrink-0"></div>
+                    <div class="flex items-center gap-4 flex-shrink-0">
+                        <div>
+                            <p class="text-[10px] text-on-surface-variant font-semibold tracking-widest uppercase">Sessions</p>
+                            <span class="text-xl font-bold text-primary-dim" x-text="summary.session_count || 0"></span>
+                        </div>
+                        <svg class="w-16 h-8 text-primary-dim" fill="none" viewBox="0 0 100 40">
+                            <path d="M0 20 Q 25 35, 50 20 T 100 25" fill="none" stroke="currentColor" stroke-width="2"></path>
+                        </svg>
+                    </div>
+                </section>
+
+                <!-- Bento grid: Drift chart + Bug Hunter -->
+                <div class="grid grid-cols-12 gap-6 mb-8">
+
+                    <!-- Drift Trend Chart — asymmetric focus -->
+                    <div class="col-span-12 lg:col-span-8 glass-card rounded-xl p-6" x-show="driftData.length > 0">
+                        <div class="flex items-center justify-between mb-8">
+                            <div>
+                                <h2 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                                    Drift Score Trend
+                                    <span class="material-symbols-outlined text-on-surface-variant !text-[14px]">info</span>
+                                </h2>
+                                <p class="text-xs text-on-surface-variant mt-1">Aggregated drift analysis over time.</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button class="text-[10px] px-3 py-1 bg-surface-container-highest rounded-full text-on-surface hover:bg-primary/20 transition-all">7D</button>
+                                <button class="text-[10px] px-3 py-1 bg-surface-container-highest rounded-full text-on-surface-variant">30D</button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="driftChart"></canvas>
+                        </div>
+                        <div class="mt-6 flex gap-8">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-on-surface-variant font-medium tracking-tighter uppercase">Mean Score</span>
+                                <span class="text-sm font-mono text-white" x-text="driftData.length > 0 ? (driftData.reduce((a,d) => a+d.score, 0) / driftData.length).toFixed(3) : '—'"></span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-on-surface-variant font-medium tracking-tighter uppercase">Peak Score</span>
+                                <span class="text-sm font-mono text-tertiary" x-text="driftData.length > 0 ? Math.max(...driftData.map(d => d.score)).toFixed(3) : '—'"></span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-on-surface-variant font-medium tracking-tighter uppercase">Total Checks</span>
+                                <span class="text-sm font-mono text-white" x-text="driftData.length"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bug Hunter Report — secondary anchor -->
+                    <div class="col-span-12 lg:col-span-4 glass-card rounded-xl p-6" x-show="reportSummary.available">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-bold text-white uppercase tracking-widest">Bug Hunter</h3>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                                :class="reportSummary.trend === 'improving' ? 'bg-secondary/10 text-secondary' :
+                                        reportSummary.trend === 'declining' ? 'bg-error/10 text-error' :
+                                        'bg-surface-container-highest text-on-surface-variant'"
+                                x-text="(reportSummary.trend || 'unknown').toUpperCase()"
+                                x-show="reportSummary.available"></span>
+                        </div>
+                        <div class="flex flex-col items-center py-4">
+                            <div class="relative w-32 h-32 flex items-center justify-center">
+                                <svg class="w-full h-full transform -rotate-90">
+                                    <circle class="text-surface-container-highest" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" stroke-width="4"></circle>
+                                    <circle class="text-secondary" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" stroke-dasharray="364.4" stroke-dashoffset="58.3" stroke-linecap="round" stroke-width="6"></circle>
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span class="text-3xl font-black"
+                                        :class="(reportSummary.health_score || 0) >= 80 ? 'text-secondary' :
+                                                (reportSummary.health_score || 0) >= 60 ? 'text-tertiary' : 'text-error'"
+                                        x-text="reportSummary.health_score != null ? reportSummary.health_score : 'N/A'"></span>
+                                    <span class="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest">Health</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="space-y-3 mt-2">
+                            <div class="flex justify-between items-center p-3 rounded-lg bg-surface-container-low">
+                                <div class="flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-error !text-base">bug_report</span>
+                                    <span class="text-xs font-medium text-on-surface">Bugs</span>
+                                </div>
+                                <span class="text-sm font-mono font-bold text-error"
+                                    x-text="reportSummary.latest ? reportSummary.latest.bugs : 'N/A'"></span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 rounded-lg bg-surface-container-low">
+                                <div class="flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-secondary !text-base">trending_up</span>
+                                    <span class="text-xs font-medium text-on-surface">Trend</span>
+                                </div>
+                                <span class="text-xs font-medium px-2 py-0.5 rounded"
+                                    :class="reportSummary.trend === 'improving' ? 'bg-secondary/10 text-secondary' :
+                                            reportSummary.trend === 'declining' ? 'bg-error/10 text-error' :
+                                            'bg-surface-container-highest text-on-surface-variant'"
+                                    x-text="reportSummary.trend || 'unknown'"></span>
+                            </div>
+                        </div>
+                        <button @click="navigate('reports')" class="w-full mt-6 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-lg transition-all border border-primary/20">
+                            View Full Report
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="glass-card rounded-xl p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-widest">Recent Activity</h3>
+                        <span class="text-xs text-primary hover:underline cursor-pointer">Export Logs</span>
+                    </div>
+                    <div x-show="summary.recent_activity && summary.recent_activity.length > 0">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-outline-variant/10">
+                                        <th class="text-left pb-3">Tool</th>
+                                        <th class="text-left pb-3">When</th>
+                                        <th class="text-right pb-3">Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-outline-variant/5">
+                                    <template x-for="a in summary.recent_activity" :key="a.called_at">
+                                        <tr class="hover:bg-surface-bright/20 transition-colors duration-200">
+                                            <td class="py-3">
+                                                <span class="tool-badge" x-text="a.tool_name"></span>
+                                            </td>
+                                            <td class="py-3 text-on-surface-variant text-xs" x-text="formatDate(a.called_at)"></td>
+                                            <td class="py-3 text-right text-on-surface-variant text-xs font-mono" x-text="a.duration_ms + 'ms'"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div x-show="!summary.recent_activity || summary.recent_activity.length === 0" class="text-on-surface-variant text-center py-8 text-sm">
+                        No activity recorded yet. Use ensemble-mcp tools to generate data.
+                    </div>
+                </div>
+
+                <!-- Bottom Bento: Skills + Projects -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                    <div class="glass-card rounded-xl p-6 h-64 relative overflow-hidden cursor-pointer group" @click.prevent="navigate('skills')">
+                        <div class="absolute inset-0 bg-gradient-to-br from-secondary/5 to-transparent"></div>
+                        <div class="relative z-10 flex flex-col h-full justify-between">
+                            <div>
+                                <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-1">Active Skillsets</h3>
+                                <p class="text-xs text-on-surface-variant">Optimizing <span class="text-secondary font-mono" x-text="summary.active_skills || 0"></span> concurrent modules</p>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="text-[10px] px-2 py-1 bg-black/60 rounded border border-outline-variant/30">PATTERN_MATCH</span>
+                                <span class="text-[10px] px-2 py-1 bg-black/60 rounded border border-outline-variant/30">DRIFT_DETECT</span>
+                                <span class="text-[10px] px-2 py-1 bg-black/60 rounded border border-outline-variant/30">CODE_INDEX</span>
+                                <span class="text-[10px] px-2 py-1 bg-black/60 rounded border border-primary/40 text-primary" x-show="(summary.active_skills || 0) > 3" x-text="'+' + ((summary.active_skills || 0) - 3) + ' More'"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-xl p-6 h-64 relative overflow-hidden cursor-pointer group" @click.prevent="navigate('projects')">
+                        <div class="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent"></div>
+                        <div class="relative z-10 flex flex-col h-full">
+                            <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-4">Project Map</h3>
+                            <div class="flex-1 rounded-lg bg-surface-container-lowest border border-outline-variant/10 relative overflow-hidden">
+                                <div class="absolute inset-0 flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-4xl text-outline-variant/20">map</span>
+                                </div>
+                                <div class="absolute top-1/4 left-1/4 h-2 w-2 rounded-full bg-primary shadow-[0_0_10px_#a3a6ff]"></div>
+                                <div class="absolute bottom-1/3 right-1/4 h-2 w-2 rounded-full bg-secondary shadow-[0_0_10px_#69f6b8]"></div>
+                                <div class="absolute top-1/2 right-1/2 h-2 w-2 rounded-full bg-tertiary shadow-[0_0_10px_#ffb148]"></div>
+                            </div>
+                            <div class="mt-4 flex justify-between items-center">
+                                <span class="text-xs font-medium text-white">Indexed Projects</span>
+                                <span class="text-[10px] text-on-surface-variant uppercase font-mono" x-text="(summary.project_count || 0) + ' active'"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!-- PATTERNS PAGE                                          -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <div x-show="page === 'patterns'" x-cloak>
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-lg font-bold tracking-tight text-white">Patterns</h2>
+                    <div class="text-on-surface-variant text-xs font-mono" x-text="'Total: ' + patternsTotal"></div>
+                </div>
+
+                <!-- Filters and Actions -->
+                <div class="flex items-center justify-between gap-4 mb-4">
+                    <div class="flex gap-4 items-center">
+                        <input type="text" x-model="patternFilter"
+                            @input.debounce.300ms="loadPatterns()"
+                            placeholder="Filter by project..."
+                            class="form-input max-w-xs">
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <input type="number" x-model="pruneMaxAgeDays" min="1" max="365"
+                            class="form-input w-20"
+                            title="Max age in days">
+                        <button @click="prunePatterns()" class="btn btn-warning btn-sm">
+                            Prune Stale
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Patterns Table -->
+                <div class="card overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-outline-variant/10">
+                                <th class="text-left pb-3">Name</th>
+                                <th class="text-left pb-3">Project</th>
+                                <th class="text-right pb-3">Matches</th>
+                                <th class="text-left pb-3">Last Matched</th>
+                                <th class="text-left pb-3">Created</th>
+                                <th class="text-right pb-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="p in patterns" :key="p.id">
+                                <tr>
+                                    <td colspan="6" class="p-0">
+                                        <!-- Main row -->
+                                        <div class="flex items-center border-b border-outline-variant/5 hover:bg-surface-bright/20 cursor-pointer transition-colors duration-200"
+                                            @click="expandedPattern = expandedPattern === p.id ? null : p.id; editingPattern = null">
+                                            <div class="py-3 flex-1 font-medium px-1 text-on-surface" x-text="p.name"></div>
+                                            <div class="py-3 w-32 text-on-surface-variant text-xs" x-text="p.project || 'global'"></div>
+                                            <div class="py-3 w-20 text-right">
+                                                <span class="text-secondary font-mono text-xs" x-text="p.match_count"></span>
+                                            </div>
+                                            <div class="py-3 w-40 text-on-surface-variant text-xs" x-text="p.last_matched_at ? formatDate(p.last_matched_at) : 'never'"></div>
+                                            <div class="py-3 w-40 text-on-surface-variant text-xs" x-text="formatDate(p.created_at)"></div>
+                                            <div class="py-3 w-28 text-right row-action" @click.stop>
+                                                <button @click="startEditPattern(p); expandedPattern = p.id"
+                                                    class="btn btn-sm mr-1" title="Edit">Edit</button>
+                                                <button @click="deletePattern(p.id)"
+                                                    class="btn btn-sm btn-danger" title="Delete">Del</button>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div x-show="patterns.length === 0" class="text-on-surface-variant text-center py-8 text-sm">
+                        No patterns stored yet.
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="flex justify-between items-center mt-4" x-show="patternsTotal > 50">
+                    <button @click="patternOffset = Math.max(0, patternOffset - 50); loadPatterns()"
+                        :disabled="patternOffset === 0"
+                        class="btn" :class="patternOffset === 0 ? 'opacity-50' : ''">
+                        Previous
+                    </button>
+                    <span class="text-on-surface-variant text-xs font-mono" x-text="(patternOffset + 1) + '-' + Math.min(patternOffset + 50, patternsTotal) + ' of ' + patternsTotal"></span>
+                    <button @click="patternOffset += 50; loadPatterns()"
+                        :disabled="patternOffset + 50 >= patternsTotal"
+                        class="btn" :class="patternOffset + 50 >= patternsTotal ? 'opacity-50' : ''">
+                        Next
+                    </button>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!-- SKILLS PAGE                                            -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <div x-show="page === 'skills'" x-cloak>
+                <h2 class="text-lg font-bold tracking-tight text-white mb-6">Skills</h2>
+
+                <!-- Tabs -->
+                <div class="flex space-x-1 mb-6">
+                    <button @click="skillsTab = 'suggestions'"
+                        :class="skillsTab === 'suggestions' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'"
+                        class="px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors">
+                        Suggestions
+                        <span class="ml-1 text-[10px] bg-surface-container-highest rounded-full px-2 py-0.5"
+                            x-text="skillSuggestions.length"></span>
+                    </button>
+                    <button @click="skillsTab = 'tracked'"
+                        :class="skillsTab === 'tracked' ? 'border-b-2 border-secondary text-secondary' : 'text-on-surface-variant hover:text-on-surface'"
+                        class="px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors">
+                        Active
+                        <span class="ml-1 text-[10px] bg-surface-container-highest rounded-full px-2 py-0.5"
+                            x-text="skillTracked.length"></span>
+                    </button>
+                    <button @click="skillsTab = 'stale'"
+                        :class="skillsTab === 'stale' ? 'border-b-2 border-tertiary text-tertiary' : 'text-on-surface-variant hover:text-on-surface'"
+                        class="px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors">
+                        Stale
+                        <span class="ml-1 text-[10px] bg-surface-container-highest rounded-full px-2 py-0.5"
+                            x-text="staleSkills.length"></span>
+                    </button>
+                </div>
+
+                <!-- Suggestions Tab -->
+                <div x-show="skillsTab === 'suggestions'" class="card">
+                    <template x-for="s in skillSuggestions" :key="s.id">
+                        <div class="border-b border-outline-variant/5 py-4 last:border-0">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <span class="font-medium text-on-surface" x-text="s.proposed_name"></span>
+                                    <span class="ml-2 text-[10px] px-2 py-0.5 rounded font-mono"
+                                        :class="s.status === 'pending' ? 'bg-tertiary/10 text-tertiary' :
+                                                s.status === 'accepted' ? 'bg-secondary/10 text-secondary' :
+                                                s.status === 'dismissed' ? 'bg-error/10 text-error' :
+                                                s.status === 'deferred' ? 'bg-primary/10 text-primary' :
+                                                'bg-surface-container-highest text-on-surface-variant'"
+                                        x-text="s.status"></span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xs text-on-surface-variant">
+                                        Confidence: <span class="text-on-surface font-mono" x-text="(s.confidence * 100).toFixed(0) + '%'"></span>
+                                    </span>
+                                    <template x-if="s.status === 'pending' || s.status === 'deferred'">
+                                        <div class="flex gap-1">
+                                            <button @click="handleSkillSuggestion(s.id, 'accept')"
+                                                class="btn btn-sm btn-success" title="Accept">Accept</button>
+                                            <button @click="handleSkillSuggestion(s.id, 'defer')"
+                                                class="btn btn-sm" title="Defer">Defer</button>
+                                            <button @click="handleSkillSuggestion(s.id, 'dismiss')"
+                                                class="btn btn-sm btn-danger" title="Dismiss">Dismiss</button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="text-on-surface-variant text-xs mt-1" x-text="'Theme: ' + s.theme"></div>
+                            <div class="text-outline text-[10px] mt-1 font-mono" x-text="'Project: ' + s.project + ' | Created: ' + formatDate(s.created_at)"></div>
+                            <div x-show="s.generated_path" class="text-secondary text-[10px] mt-1 font-mono" x-text="'Generated: ' + s.generated_path"></div>
+                        </div>
+                    </template>
+                    <div x-show="skillSuggestions.length === 0" class="text-on-surface-variant text-center py-8 text-sm">
+                        No skill suggestions yet.
+                    </div>
+                </div>
+
+                <!-- Tracked Tab -->
+                <div x-show="skillsTab === 'tracked'" class="card">
+                    <table class="w-full text-sm" x-show="skillTracked.length > 0">
+                        <thead>
+                            <tr class="border-b border-outline-variant/10">
+                                <th class="text-left pb-3">Skill Path</th>
+                                <th class="text-left pb-3">Project</th>
+                                <th class="text-right pb-3">Matches</th>
+                                <th class="text-left pb-3">Last Matched</th>
+                                <th class="text-right pb-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-outline-variant/5">
+                            <template x-for="t in skillTracked" :key="t.skill_path + t.project">
+                                <tr class="hover:bg-surface-bright/20 transition-colors duration-200">
+                                    <td class="py-3 font-mono text-xs text-primary" x-text="t.skill_path"></td>
+                                    <td class="py-3 text-on-surface-variant text-xs" x-text="t.project"></td>
+                                    <td class="py-3 text-right text-secondary font-mono text-xs" x-text="t.match_count"></td>
+                                    <td class="py-3 text-on-surface-variant text-xs" x-text="t.last_matched_at ? formatDate(t.last_matched_at) : 'never'"></td>
+                                    <td class="py-3 text-right">
+                                        <button @click="deleteTrackedSkill(t.id)"
+                                            class="btn btn-sm btn-danger" title="Remove from tracking">Remove</button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div x-show="skillTracked.length === 0" class="text-on-surface-variant text-center py-8 text-sm">
+                        No tracked skills yet.
+                    </div>
+                </div>
+
+                <!-- Stale Tab -->
+                <div x-show="skillsTab === 'stale'" class="card">
+                    <table class="w-full text-sm" x-show="staleSkills.length > 0">
+                        <thead>
+                            <tr class="border-b border-outline-variant/10">
+                                <th class="text-left pb-3">Skill Path</th>
+                                <th class="text-left pb-3">Project</th>
+                                <th class="text-right pb-3">Matches</th>
+                                <th class="text-left pb-3">Last Matched</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-outline-variant/5">
+                            <template x-for="s in staleSkills" :key="s.skill_path + s.project">
+                                <tr class="hover:bg-surface-bright/20 transition-colors duration-200">
+                                    <td class="py-3 font-mono text-xs text-tertiary" x-text="s.skill_path"></td>
+                                    <td class="py-3 text-on-surface-variant text-xs" x-text="s.project"></td>
+                                    <td class="py-3 text-right text-on-surface-variant font-mono text-xs" x-text="s.match_count"></td>
+                                    <td class="py-3 text-on-surface-variant text-xs" x-text="s.last_matched_at ? formatDate(s.last_matched_at) : 'never'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div x-show="staleSkills.length === 0" class="text-on-surface-variant text-center py-8 text-sm">
+                        No stale skills detected.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!-- PROJECTS PAGE                                          -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <div x-show="page === 'projects'" x-cloak>
+                <h2 class="text-lg font-bold tracking-tight text-white mb-6">Indexed Projects</h2>
+
+                <!-- Project List -->
+                <div class="card" x-show="!selectedProject">
+                    <table class="w-full text-sm" x-show="projects.length > 0">
+                        <thead>
+                            <tr class="border-b border-outline-variant/10">
+                                <th class="text-left pb-3">Project Path</th>
+                                <th class="text-right pb-3">Files</th>
+                                <th class="text-right pb-3">Languages</th>
+                                <th class="text-left pb-3">Last Indexed</th>
+                                <th class="text-right pb-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-outline-variant/5">
+                            <template x-for="p in projects" :key="p.project_path">
+                                <tr class="hover:bg-surface-bright/20 transition-colors duration-200">
+                                    <td class="py-3 font-mono text-xs text-primary cursor-pointer hover:text-primary-fixed"
+                                        @click="loadProjectDetail(p.project_path)" x-text="p.project_path"></td>
+                                    <td class="py-3 text-right text-on-surface font-mono text-xs" x-text="p.file_count"></td>
+                                    <td class="py-3 text-right text-on-surface font-mono text-xs" x-text="p.language_count"></td>
+                                    <td class="py-3 text-on-surface-variant text-xs" x-text="formatDate(p.last_indexed)"></td>
+                                    <td class="py-3 text-right">
+                                        <button @click="reindexProject(p.project_path)"
+                                            class="btn btn-sm mr-1"
+                                            :class="reindexingProject === p.project_path ? 'btn-loading' : ''"
+                                            :disabled="reindexingProject === p.project_path"
+                                            title="Re-index">Re-index</button>
+                                        <button @click="clearProjectIndex(p.project_path)"
+                                            class="btn btn-sm btn-danger" title="Clear index">Clear</button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div x-show="projects.length === 0" class="text-on-surface-variant text-center py-8 text-sm">
+                        No projects indexed yet. Use <code class="tool-badge">project_index</code> to index a project.
+                    </div>
+                </div>
+
+                <!-- Project Detail -->
+                <div x-show="selectedProject" x-cloak>
+                    <div class="flex items-center gap-3 mb-4">
+                        <button @click="selectedProject = null; projectHealth = null" class="btn">
+                            <span class="flex items-center gap-1"><span class="material-symbols-outlined !text-[14px]">arrow_back</span> Back</span>
+                        </button>
+                        <button @click="reindexProject(selectedProject)"
+                            class="btn btn-sm"
+                            :class="reindexingProject === selectedProject ? 'btn-loading' : ''"
+                            :disabled="reindexingProject === selectedProject || projectHealth?.path_restricted"
+                            :title="projectHealth?.path_restricted ? 'Re-index unavailable — path outside allowed directories' : 'Re-index'">Re-index</button>
+                        <button @click="clearProjectIndex(selectedProject)" class="btn btn-sm btn-danger">Clear Index</button>
+                    </div>
+                    <div class="card mb-4">
+                        <h2 class="text-sm font-semibold mb-2 font-mono text-primary" x-text="projectDetail.project_path"></h2>
+                        <div class="flex gap-6 text-xs text-on-surface-variant">
+                            <span>Files: <span class="text-on-surface font-mono" x-text="projectDetail.total_files"></span></span>
+                            <span>Exports: <span class="text-on-surface font-mono" x-text="projectDetail.total_exports"></span></span>
+                        </div>
+                    </div>
+
+                    <!-- Index Health Section -->
+                    <div class="card mb-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Index Health</h3>
+                            <button @click="loadProjectHealth(selectedProject)" class="btn btn-sm">Check Health</button>
+                        </div>
+                        <div x-show="projectHealth" class="space-y-2 text-sm">
+                            <div x-show="projectHealth?.path_restricted" class="rounded-lg bg-tertiary/10 border border-tertiary/20 px-3 py-2 text-xs text-tertiary flex items-center gap-2">
+                                <span class="material-symbols-outlined !text-[16px]">warning</span>
+                                <span>Filesystem checks unavailable — project path is outside allowed directories. Missing file detection is skipped.</span>
+                            </div>
+                            <div class="flex gap-6 text-on-surface-variant text-xs">
+                                <span>Indexed Files: <span class="text-on-surface font-mono" x-text="projectHealth?.file_count"></span></span>
+                                <span>Missing on Disk: <span class="font-mono"
+                                    :class="projectHealth?.missing_files_count > 0 ? 'text-tertiary' : 'text-secondary'"
+                                    x-text="projectHealth?.missing_files_count"></span></span>
+                            </div>
+                            <div class="flex gap-6 text-on-surface-variant text-xs">
+                                <span>Oldest Index: <span class="text-on-surface font-mono" x-text="formatDate(projectHealth?.oldest_indexed_at)"></span></span>
+                                <span>Newest Index: <span class="text-on-surface font-mono" x-text="formatDate(projectHealth?.newest_indexed_at)"></span></span>
+                            </div>
+                            <div x-show="projectHealth?.missing_files_count > 0" class="mt-2">
+                                <span class="text-tertiary text-[10px] uppercase font-semibold tracking-widest">Missing Files</span>
+                                <div class="mt-1 bg-surface-container-low rounded p-2 max-h-40 overflow-y-auto">
+                                    <template x-for="f in projectHealth?.missing_files" :key="f">
+                                        <div class="text-[10px] text-on-surface-variant font-mono py-0.5" x-text="f"></div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        <div x-show="!projectHealth" class="text-on-surface-variant text-xs">
+                            Click "Check Health" to scan for stale or missing files.
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="card">
+                            <h3 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-3">Language Breakdown</h3>
+                            <div class="chart-container-sm">
+                                <canvas id="langChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-3">File Roles</h3>
+                            <div class="chart-container-sm">
+                                <canvas id="roleChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card mt-4" x-show="projectDetail.exports_by_kind && projectDetail.exports_by_kind.length > 0">
+                        <h3 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-3">Exports by Kind</h3>
+                        <div class="flex flex-wrap gap-3">
+                            <template x-for="e in projectDetail.exports_by_kind" :key="e.kind">
+                                <div class="bg-surface-container-low rounded px-3 py-2">
+                                    <span class="text-on-surface font-mono font-bold text-sm" x-text="e.count"></span>
+                                    <span class="text-on-surface-variant text-xs ml-1" x-text="e.kind"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!-- DRIFT PAGE                                             -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <div x-show="page === 'drift'" x-cloak>
+                <h2 class="text-lg font-bold tracking-tight text-white mb-6">Drift History</h2>
+
+                <div class="card overflow-x-auto">
+                    <table class="w-full text-sm" x-show="driftData.length > 0">
+                        <thead>
+                            <tr class="border-b border-outline-variant/10">
+                                <th class="text-left pb-3">Task</th>
+                                <th class="text-right pb-3">Score</th>
+                                <th class="text-left pb-3">Verdict</th>
+                                <th class="text-right pb-3">Files Changed</th>
+                                <th class="text-left pb-3">Flags</th>
+                                <th class="text-left pb-3">When</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-outline-variant/5">
+                            <template x-for="d in driftData" :key="d.id">
+                                <tr class="hover:bg-surface-bright/20 transition-colors duration-200">
+                                    <td class="py-3 max-w-xs truncate text-on-surface text-xs" x-text="d.task_description"></td>
+                                    <td class="py-3 text-right font-mono text-xs">
+                                        <span :class="d.score < 0.3 ? 'text-secondary' : d.score < 0.6 ? 'text-tertiary' : 'text-error'"
+                                            x-text="d.score.toFixed(3)"></span>
+                                    </td>
+                                    <td class="py-3">
+                                        <span class="text-[10px] px-2 py-0.5 rounded font-mono"
+                                            :class="d.verdict === 'aligned' ? 'bg-secondary/10 text-secondary' :
+                                                    d.verdict === 'minor_drift' ? 'bg-tertiary/10 text-tertiary' :
+                                                    'bg-error/10 text-error'"
+                                            x-text="d.verdict"></span>
+                                    </td>
+                                    <td class="py-3 text-right text-on-surface-variant font-mono text-xs" x-text="d.changed_files.length"></td>
+                                    <td class="py-3">
+                                        <span x-show="d.flags.length > 0" class="text-tertiary text-[10px] font-mono" x-text="d.flags.length + ' flag(s)'"></span>
+                                        <span x-show="d.flags.length === 0" class="text-outline text-[10px]">none</span>
+                                    </td>
+                                    <td class="py-3 text-on-surface-variant text-xs" x-text="formatDate(d.created_at)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div x-show="driftData.length === 0" class="text-on-surface-variant text-center py-8 text-sm">
+                        No drift checks recorded yet.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!-- SESSIONS PAGE                                          -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <div x-show="page === 'sessions'" x-cloak>
+                <h2 class="text-lg font-bold tracking-tight text-white mb-6">Sessions</h2>
+
+                <!-- Session List -->
+                <div class="card" x-show="!selectedSession">
+                    <table class="w-full text-sm" x-show="sessions.length > 0">
+                        <thead>
+                            <tr class="border-b border-outline-variant/10">
+                                <th class="text-left pb-3">Session ID</th>
+                                <th class="text-left pb-3">Status</th>
+                                <th class="text-right pb-3">Version</th>
+                                <th class="text-left pb-3">Created</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-outline-variant/5">
+                            <template x-for="s in sessions" :key="s.session_id">
+                                <tr class="hover:bg-surface-bright/20 transition-colors duration-200 cursor-pointer"
+                                    @click="loadSessionDetail(s.session_id)">
+                                    <td class="py-3 font-mono text-xs text-primary" x-text="s.session_id"></td>
+                                    <td class="py-3">
+                                        <span class="text-[10px] px-2 py-0.5 rounded font-mono"
+                                            :class="s.status === 'completed' ? 'bg-secondary/10 text-secondary' :
+                                                    s.status === 'running' ? 'bg-primary/10 text-primary' :
+                                                    s.status === 'failed' ? 'bg-error/10 text-error' :
+                                                    s.status === 'pending' ? 'bg-tertiary/10 text-tertiary' :
+                                                    'bg-surface-container-highest text-on-surface-variant'"
+                                            x-text="s.status"></span>
+                                    </td>
+                                    <td class="py-3 text-right text-on-surface-variant font-mono text-xs" x-text="'v' + s.version"></td>
+                                    <td class="py-3 text-on-surface-variant text-xs" x-text="formatDate(s.created_at)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div x-show="sessions.length === 0" class="text-on-surface-variant text-center py-8 text-sm">
+                        No sessions recorded yet.
+                    </div>
+                </div>
+
+                <!-- Session Detail -->
+                <div x-show="selectedSession" x-cloak>
+                    <button @click="selectedSession = null" class="btn mb-4">
+                        <span class="flex items-center gap-1"><span class="material-symbols-outlined !text-[14px]">arrow_back</span> Back</span>
+                    </button>
+                    <div class="card">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-sm font-semibold font-mono text-primary" x-text="sessionDetail.session_id"></h2>
+                            <span class="text-xs text-on-surface-variant font-mono" x-text="'Version ' + sessionDetail.version"></span>
+                        </div>
+                        <div class="text-xs text-on-surface-variant mb-4" x-text="'Created: ' + formatDate(sessionDetail.created_at)"></div>
+                        <div>
+                            <h3 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">State</h3>
+                            <pre class="bg-surface-dim rounded-lg p-4 overflow-x-auto text-xs text-on-surface-variant" x-text="JSON.stringify(sessionDetail.state, null, 2)"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!-- REPORTS PAGE                                           -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <div x-show="page === 'reports'" x-cloak>
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-lg font-bold tracking-tight text-white">Bug Hunter Reports</h2>
+                    <div class="flex items-center gap-4" x-show="reportSummary.available">
+                        <div class="flex items-center gap-2">
+                            <span class="text-on-surface-variant text-xs">Health:</span>
+                            <span class="text-lg font-bold font-mono"
+                                :class="(reportSummary.health_score || 0) >= 80 ? 'text-secondary' :
+                                        (reportSummary.health_score || 0) >= 60 ? 'text-tertiary' : 'text-error'"
+                                x-text="reportSummary.health_score != null ? reportSummary.health_score + '/100' : 'N/A'"></span>
+                        </div>
+                        <div class="h-5 w-px bg-outline-variant/20"></div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-on-surface-variant text-xs">Bugs:</span>
+                            <span class="text-lg font-bold text-error font-mono"
+                                x-text="reportSummary.latest ? reportSummary.latest.bugs : '0'"></span>
+                        </div>
+                        <div class="h-5 w-px bg-outline-variant/20"></div>
+                        <span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded"
+                            :class="reportSummary.trend === 'improving' ? 'bg-secondary/10 text-secondary' :
+                                    reportSummary.trend === 'declining' ? 'bg-error/10 text-error' :
+                                    'bg-surface-container-highest text-on-surface-variant'"
+                            x-text="reportSummary.trend || 'unknown'"></span>
+                    </div>
+                </div>
+
+                <!-- Health Trend Chart -->
+                <div class="card mb-6" x-show="reportHistory.length > 0">
+                    <h3 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-4">Health Trend</h3>
+                    <div class="chart-container">
+                        <canvas id="healthChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Rendered Markdown Report -->
+                <div class="card" x-show="reportMarkdown">
+                    <h3 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-4">Full Report</h3>
+                    <div class="report-markdown" x-html="renderedMarkdown"></div>
+                </div>
+
+                <!-- No reports available -->
+                <div x-show="!reportSummary.available && !reportLoading" class="card">
+                    <div class="text-on-surface-variant text-center py-8">
+                        <p class="text-sm mb-2">No reports available</p>
+                        <p class="text-xs text-outline">Run Bug Hunter to generate reports, or configure <code class="tool-badge">--reports-dir</code> when starting the dashboard.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!-- SETTINGS PAGE                                          -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <div x-show="page === 'settings'" x-cloak>
+                <h2 class="text-lg font-bold tracking-tight text-white mb-6">Settings</h2>
+
+                <!-- Settings Form -->
+                <div class="card mb-6">
+                    <h3 class="text-sm font-semibold text-on-surface mb-2">Configuration</h3>
+                    <p class="text-on-surface-variant text-xs mb-6">
+                        Settings are saved to the global config file. Values can be overridden by project config or environment variables.
+                    </p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <template x-for="field in settingsSchema" :key="field.name">
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <span x-text="field.name"></span>
+                                    <span x-show="settingsSourceMap[field.name]"
+                                        class="form-source"
+                                        :class="'source-' + (settingsSourceMap[field.name] || 'default')"
+                                        x-text="settingsSourceMap[field.name] || 'default'"></span>
+                                </label>
+                                <input
+                                    :type="field.type === 'integer' || field.type === 'float' ? 'number' : 'text'"
+                                    :step="field.type === 'float' ? '0.01' : '1'"
+                                    x-model="settingsForm[field.name]"
+                                    class="form-input"
+                                    :placeholder="field.default || ''">
+                                <div class="form-hint" x-text="field.description"></div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="flex justify-end mt-6">
+                        <button @click="saveSettings()"
+                            class="btn btn-success"
+                            :class="settingsSaving ? 'btn-loading' : ''"
+                            :disabled="settingsSaving">
+                            Save Settings
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div class="danger-zone">
+                    <h3>Danger Zone</h3>
+                    <p>
+                        Reset all stored data including patterns, sessions, indexed projects, skill suggestions,
+                        drift history, and idempotency keys. This action is irreversible.
+                    </p>
+                    <button @click="resetAllData()" class="btn btn-danger">
+                        Reset All Data
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Pattern Side Drawer -->
+    <div x-show="expandedPattern" x-cloak>
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[55]"
+            @click="expandedPattern = null; editingPattern = null"></div>
+        <!-- Drawer Panel -->
+        <div class="fixed top-0 right-0 h-full w-[450px] bg-surface-container-high z-[60] shadow-2xl shadow-black border-l border-outline-variant/20 flex flex-col"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full">
+            <!-- Drawer Header -->
+            <div class="p-6 border-b border-outline-variant/10 flex justify-between items-center bg-surface-container-highest/30">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-primary">hub</span>
+                    <h3 class="font-bold text-on-surface" x-text="editingPattern ? editPatternData.name : (patterns.find(p => p.id === expandedPattern)?.name || 'Pattern')"></h3>
+                </div>
+                <button class="text-on-surface-variant hover:text-on-surface" @click="expandedPattern = null; editingPattern = null">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <!-- Detail View (not editing) -->
+            <div x-show="!editingPattern" class="flex-1 overflow-y-auto p-6 space-y-6">
+                <template x-if="patterns.find(p => p.id === expandedPattern)">
+                    <div class="space-y-6">
+                        <!-- Status cards row -->
+                        <div class="flex gap-4">
+                            <div class="flex-1 bg-surface-container p-4 rounded-lg border border-outline-variant/10">
+                                <p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold mb-1">Matches</p>
+                                <span class="text-sm font-medium text-secondary font-mono" x-text="patterns.find(p => p.id === expandedPattern)?.match_count || 0"></span>
+                            </div>
+                            <div class="flex-1 bg-surface-container p-4 rounded-lg border border-outline-variant/10">
+                                <p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold mb-1">Project</p>
+                                <span class="text-sm font-medium text-on-surface" x-text="patterns.find(p => p.id === expandedPattern)?.project || 'global'"></span>
+                            </div>
+                        </div>
+                        <!-- Context -->
+                        <div>
+                            <p class="text-xs font-bold text-white mb-3">Context</p>
+                            <div class="p-4 bg-surface-container-lowest rounded-lg border border-outline-variant/5 text-sm text-on-surface leading-relaxed" x-text="patterns.find(p => p.id === expandedPattern)?.context || '—'"></div>
+                        </div>
+                        <!-- Approach -->
+                        <div>
+                            <p class="text-xs font-bold text-white mb-3">Approach</p>
+                            <div class="p-4 bg-surface-container-lowest rounded-lg border border-outline-variant/5 text-sm text-on-surface leading-relaxed" x-text="patterns.find(p => p.id === expandedPattern)?.approach || '—'"></div>
+                        </div>
+                        <!-- Outcome -->
+                        <div>
+                            <p class="text-xs font-bold text-white mb-3">Outcome</p>
+                            <div class="p-4 bg-surface-container-lowest rounded-lg border border-outline-variant/5 text-sm text-on-surface leading-relaxed" x-text="patterns.find(p => p.id === expandedPattern)?.outcome || '—'"></div>
+                        </div>
+                        <!-- Meta -->
+                        <div class="space-y-3">
+                            <div class="flex justify-between py-2 border-b border-outline-variant/5">
+                                <span class="text-xs text-on-surface-variant">Last Matched</span>
+                                <span class="text-xs font-mono text-on-surface" x-text="patterns.find(p => p.id === expandedPattern)?.last_matched_at ? formatDate(patterns.find(p => p.id === expandedPattern).last_matched_at) : 'never'"></span>
+                            </div>
+                            <div class="flex justify-between py-2 border-b border-outline-variant/5">
+                                <span class="text-xs text-on-surface-variant">Created</span>
+                                <span class="text-xs font-mono text-on-surface" x-text="formatDate(patterns.find(p => p.id === expandedPattern)?.created_at)"></span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Edit View -->
+            <div x-show="editingPattern" class="flex-1 overflow-y-auto p-6 space-y-4">
+                <div>
+                    <label class="form-label">Name</label>
+                    <input type="text" x-model="editPatternData.name" class="form-input">
+                </div>
+                <div>
+                    <label class="form-label">Context</label>
+                    <textarea x-model="editPatternData.context" class="edit-textarea" rows="3"></textarea>
+                </div>
+                <div>
+                    <label class="form-label">Approach</label>
+                    <textarea x-model="editPatternData.approach" class="edit-textarea" rows="3"></textarea>
+                </div>
+                <div>
+                    <label class="form-label">Outcome</label>
+                    <textarea x-model="editPatternData.outcome" class="edit-textarea" rows="3"></textarea>
+                </div>
+            </div>
+
+            <!-- Drawer Footer -->
+            <div class="p-6 bg-surface-container-highest/20 border-t border-outline-variant/10 flex gap-3">
+                <template x-if="!editingPattern">
+                    <div class="flex gap-3 w-full">
+                        <button @click="let _p = patterns.find(p => p.id === expandedPattern); if(_p) startEditPattern(_p)" class="flex-1 py-2 text-xs font-bold text-on-surface border border-outline-variant/30 rounded hover:bg-white/5 transition-all">Edit Pattern</button>
+                        <button @click="deletePattern(expandedPattern)" class="flex-1 py-2 text-xs font-bold text-error border border-error/30 rounded hover:bg-error/10 transition-all">Delete</button>
+                    </div>
+                </template>
+                <template x-if="editingPattern">
+                    <div class="flex gap-3 w-full">
+                        <button @click="cancelEditPattern()" class="flex-1 py-2 text-xs font-bold text-on-surface border border-outline-variant/30 rounded hover:bg-white/5 transition-all">Cancel</button>
+                        <button @click="saveEditPattern(editingPattern)" class="flex-1 py-2 text-xs font-bold text-on-primary-container bg-primary rounded hover:opacity-90 transition-all">Save Changes</button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAB -->
+    <button class="fab-pulse fixed bottom-8 right-8 h-12 w-12 rounded-full bg-primary text-on-primary shadow-xl shadow-primary/20 flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-40">
+        <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">bolt</span>
+    </button>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
