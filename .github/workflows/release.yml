@@ -129,7 +129,7 @@ jobs:
         run: ls -lh dist/
 
       - name: Upload distribution artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
@@ -148,7 +148,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download distribution artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
@@ -219,7 +219,7 @@ jobs:
         if: |
           steps.check_tag.outputs.tag_exists == 'false' &&
           github.event.inputs.create_github_release == 'true'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ github.event.inputs.version }}
           name: Release v${{ github.event.inputs.version }}

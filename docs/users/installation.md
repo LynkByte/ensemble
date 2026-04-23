@@ -188,6 +188,7 @@ uv tool uninstall ensemble-mcp
 
 If you were only running it ephemerally via `uvx ensemble-mcp`, there is nothing to uninstall — the environment lives in uv's cache and is cleared by `uv cache clean`.
 
+
 ## Platform Notes
 
 - **Linux/macOS**: Fully supported. File-based advisory locks use `fcntl`.
